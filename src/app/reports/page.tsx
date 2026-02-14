@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,16 +38,22 @@ import { id } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 
 export default function ReportsPage() {
+  const [isClient, setIsClient] = useState(false);
   const [employees] = useLocalStorage<Employee[]>("employees", []);
   const [attendance] = useLocalStorage<AttendanceRecord[]>("attendance", []);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
   const [date, setDate] = useState<DateRange | undefined>();
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const getEmployeeName = (employeeId: string) => {
     return employees.find((e) => e.id === employeeId)?.name || "Tidak diketahui";
   };
 
   const filteredAttendance = useMemo(() => {
+    if (!isClient) return [];
     let filtered = attendance;
 
     if (selectedEmployeeId !== "all") {
@@ -68,7 +74,7 @@ export default function ReportsPage() {
 
 
     return filtered.sort((a,b) => parseISO(b.clockIn).getTime() - parseISO(a.clockIn).getTime());
-  }, [attendance, selectedEmployeeId, date]);
+  }, [attendance, selectedEmployeeId, date, isClient]);
 
   const calculateDuration = (clockIn: string, clockOut?: string): string => {
     if (!clockOut) return "-";
@@ -88,7 +94,7 @@ export default function ReportsPage() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-col gap-4 sm:flex-row">
-          <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+          <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId} disabled={!isClient}>
             <SelectTrigger className="w-full sm:w-[280px]">
               <SelectValue placeholder="Pilih seorang karyawan" />
             </SelectTrigger>
@@ -107,6 +113,7 @@ export default function ReportsPage() {
                 id="date"
                 variant={"outline"}
                 className="w-full justify-start text-left font-normal sm:w-[300px]"
+                disabled={!isClient}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {date?.from ? (
@@ -135,7 +142,7 @@ export default function ReportsPage() {
               />
             </PopoverContent>
           </Popover>
-          <Button onClick={() => { setDate(undefined); setSelectedEmployeeId("all")}}>Hapus Filter</Button>
+          <Button onClick={() => { setDate(undefined); setSelectedEmployeeId("all")}} disabled={!isClient}>Hapus Filter</Button>
         </div>
         <div className="overflow-x-auto">
           <Table>
@@ -149,7 +156,13 @@ export default function ReportsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAttendance.length > 0 ? (
+              {!isClient ? (
+                 <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                      Memuat...
+                    </TableCell>
+                  </TableRow>
+              ) : filteredAttendance.length > 0 ? (
                 filteredAttendance.map((record) => (
                   <TableRow key={record.id}>
                     <TableCell className="font-medium">
