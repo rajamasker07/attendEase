@@ -1,0 +1,156 @@
+/**
+ * Core Philosophy: This ruleset enforces a security model with two primary tiers:
+ * 1. User Ownership: Standard employees have full control over their own data tree.
+ *    An employee can manage their profile and their own attendance records.
+ * 2. Role-Based Access Control (RBAC): A special 'admin' role grants broader
+ *    privileges. Admins can read all employee data and attendance records for
+ *    reporting and management, and can also modify or delete employee profiles.
+ *
+ * Data Structure: The data is hierarchically organized to align with ownership.
+ * - /employees/{employeeFirebaseUid}: Each employee's profile is stored at a
+ *   top-level path, keyed by their Firebase Authentication UID.
+ * - /employees/{employeeFirebaseUid}/attendanceRecords/{attendanceRecordId}: An
+ *   employee's attendance records are nested in a subcollection under their profile.
+ * - /roles_admin/{adminFirebaseUid}: A separate top-level collection identifies
+ *   administrators. The existence of a document signifies admin status.
+ *
+ * Key Security Decisions:
+ * - Admin Role Management: The /roles_admin collection is read-only and write-only
+ *   from the client-side. This is a critical security measure to ensure that roles
+ *   can only be assigned or revoked through a trusted backend process (e.g., Firebase
+ *   Console or a Cloud Function), preventing privilege escalation attacks.
+ * - No User Listing for Employees: Non-admin users are explicitly forbidden from
+ *   listing the entire /employees collection to protect employee privacy.
+ * - Admin Access to Attendance: Admins are granted read-only access to employee
+ *   attendance records to prevent accidental or unauthorized modification of
+ *   sensitive timecard data.
+ * - Default Deny: Any operation not explicitly granted is denied.
+ *
+ * Denormalization for Authorization:
+ * - The primary authorization mechanism is path-based. A user's UID in the path
+ *   (e.g., /employees/{userId}) is used for ownership checks, avoiding costly `get()` calls.
+ * - The `roles_admin` collection uses an `exists()` check, which is an efficient,
+ *   non-billable read, to determine a user's role without needing custom claims.
+ * - Documents contain denormalized IDs (e.g., `employeeId` in an AttendanceRecord)
+ *   that are validated against the path to ensure relational integrity on creation
+ *   and enforced as immutable on update.
+ *
+ * Structural Segregation:
+ * - The structure naturally segregates data. Each employee's private data is
+ *   contained within their own document subtree (/employees/{uid}/**), making it
+ *   impossible for one employee to access another's data, as security rules
+ *   are scoped by the `employeeFirebaseUid` in the path.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Helper Functions
+    // -------------------------------------------------------------------------
+
+    /**
+     * Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the authenticated user's UID matches the provided userId.
+     * This is the foundation of the user-ownership model.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Checks if the requesting user has an admin role.
+     * This is determined by the existence of a document in the /roles_admin collection.
+     * This is an efficient, non-billable check.
+     */
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /**
+     * Checks if the user is either the direct owner or an administrator.
+     * Used for granting access to resources that can be managed by either role.
+     */
+    function isOwnerOrAdmin(userId) {
+      return isOwner(userId) || isAdmin();
+    }
+    
+    /**
+     * Checks if a document currently exists.
+     * CRITICAL for all update and delete operations to prevent acting on non-existent data.
+     */
+    function isExistingDoc() {
+      return resource != null;
+    }
+
+    /**
+     * Ensures an update or delete is performed by an owner/admin on an existing document.
+     */
+    function isExistingOwnerOrAdmin(userId) {
+      return isOwnerOrAdmin(userId) && isExistingDoc();
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection Rules
+    // -------------------------------------------------------------------------
+
+    /**
+     * @description Controls access to employee profile documents.
+     * @path /employees/{employeeFirebaseUid}
+     * @allow (get) An employee reading their own profile.
+     * @allow (list) An admin listing all employee profiles for a directory view.
+     * @deny (list) A non-admin employee attempting to list all other employees.
+     * @principle Restricts access to a user's own data tree, with an override for admins.
+     */
+    match /employees/{employeeFirebaseUid} {
+      allow get: if isOwnerOrAdmin(employeeFirebaseUid);
+      allow list: if isAdmin();
+      allow create: if isOwner(employeeFirebaseUid) && request.resource.data.id == employeeFirebaseUid;
+      allow update: if isExistingOwnerOrAdmin(employeeFirebaseUid) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwnerOrAdmin(employeeFirebaseUid);
+    }
+
+    /**
+     * @description Manages an employee's time tracking records.
+     * @path /employees/{employeeFirebaseUid}/attendanceRecords/{attendanceRecordId}
+     * @allow (create) An employee creating a new clock-in record for themselves.
+     * @allow (get, list) An admin reading an employee's attendance records for reporting.
+     * @deny (update) An admin attempting to modify an employee's clock-in time.
+     * @deny (create) An employee trying to create an attendance record for a coworker.
+     * @principle Enforces document ownership and validates relational integrity.
+     */
+    match /employees/{employeeFirebaseUid}/attendanceRecords/{attendanceRecordId} {
+      allow get: if isOwnerOrAdmin(employeeFirebaseUid);
+      allow list: if isOwnerOrAdmin(employeeFirebaseUid);
+      allow create: if isOwner(employeeFirebaseUid) && request.resource.data.employeeId == employeeFirebaseUid;
+      allow update: if isOwner(employeeFirebaseUid) && isExistingDoc() && request.resource.data.employeeId == resource.data.employeeId;
+      allow delete: if isOwner(employeeFirebaseUid) && isExistingDoc();
+    }
+
+    /**
+     * @description Manages administrator role assignments. This collection is locked down.
+     * @path /roles_admin/{adminFirebaseUid}
+     * @allow (none) No client-side operations are permitted.
+     * @deny (create) A user attempting to grant themselves admin privileges.
+     * @deny (get, list) Any user attempting to discover who the administrators are.
+     * @principle Secures role management by requiring a trusted backend for modifications.
+     */
+    match /roles_admin/{adminFirebaseUid} {
+      // Deny all client-side reads to prevent users from enumerating admins.
+      allow get: if false;
+      allow list: if false;
+
+      // Deny all client-side writes. Admin roles must be managed from a trusted
+      // backend environment (e.g., Cloud Function or Firebase Console).
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}

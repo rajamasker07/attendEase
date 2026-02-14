@@ -1,0 +1,149 @@
+{
+  "entities": {
+    "Employee": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Employee",
+      "type": "object",
+      "description": "Represents an employee in the system, holding their personal and work-related details.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Employee entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the employee."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the employee."
+        },
+        "employeeIdNumber": {
+          "type": "string",
+          "description": "A unique identifier assigned to the employee by the company."
+        },
+        "email": {
+          "type": "string",
+          "description": "The professional email address of the employee.",
+          "format": "email"
+        },
+        "department": {
+          "type": "string",
+          "description": "The department to which the employee belongs."
+        },
+        "dateHired": {
+          "type": "string",
+          "description": "The date when the employee was hired.",
+          "format": "date"
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "employeeIdNumber",
+        "email",
+        "department",
+        "dateHired"
+      ]
+    },
+    "AttendanceRecord": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AttendanceRecord",
+      "type": "object",
+      "description": "Records an employee's clock-in and clock-out times for a specific period.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AttendanceRecord entity."
+        },
+        "employeeId": {
+          "type": "string",
+          "description": "Reference to the Employee who made this attendance record. (Relationship: Employee 1:N AttendanceRecord)"
+        },
+        "clockInDateTime": {
+          "type": "string",
+          "description": "The date and time when the employee clocked in.",
+          "format": "date-time"
+        },
+        "clockOutDateTime": {
+          "type": "string",
+          "description": "The date and time when the employee clocked out. This can be null if the employee has not yet clocked out.",
+          "format": "date-time"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes or remarks for this attendance record."
+        }
+      },
+      "required": [
+        "id",
+        "employeeId",
+        "clockInDateTime"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/employees/{employeeFirebaseUid}",
+        "definition": {
+          "entityName": "Employee",
+          "schema": {
+            "$ref": "#/backend/entities/Employee"
+          },
+          "description": "Stores individual employee profiles. The document ID (`employeeFirebaseUid`) is the Firebase User ID of the employee, linking the profile directly to their authentication identity. Includes denormalized 'id' field matching 'employeeFirebaseUid' for consistency.",
+          "params": [
+            {
+              "name": "employeeFirebaseUid",
+              "description": "The Firebase User ID (UID) of the employee, which serves as the document ID for their employee profile."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/employees/{employeeFirebaseUid}/attendanceRecords/{attendanceRecordId}",
+        "definition": {
+          "entityName": "AttendanceRecord",
+          "schema": {
+            "$ref": "#/backend/entities/AttendanceRecord"
+          },
+          "description": "Stores attendance records (clock-in/clock-out) for a specific employee. Nested under the owning employee's profile for clear ownership and simplified authorization. The 'employeeId' field within the document must match the 'employeeFirebaseUid' from the path for authorization independence.",
+          "params": [
+            {
+              "name": "employeeFirebaseUid",
+              "description": "The Firebase User ID (UID) of the employee to whom these attendance records belong."
+            },
+            {
+              "name": "attendanceRecordId",
+              "description": "The unique identifier for an individual attendance record."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{adminFirebaseUid}",
+        "definition": {
+          "entityName": "AdminRole",
+          "schema": {
+            "$ref": "#/backend/entities/AdminRole"
+          },
+          "description": "A top-level collection used for Database-Backed Access Control (DBAC). The existence of a document at this path signifies that the `adminFirebaseUid` is an administrator. This enables authorization independence without using custom claims.",
+          "params": [
+            {
+              "name": "adminFirebaseUid",
+              "description": "The Firebase User ID (UID) of a user who has been granted administrative privileges."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to be secure, scalable, and debuggable by strictly adhering to the core design principles and strategy mandates. \n\n**Authorization Independence via Denormalization:**\n1.  **Employee Records (`/employees/{employeeFirebaseUid}`):** Each employee's main profile document is stored with their Firebase User ID (`request.auth.uid`) as the document ID. This direct mapping makes ownership explicit and avoids any `get()` calls to verify ownership. An employee can modify their own record if `request.auth.uid` matches the document ID in the path. Administrative access is managed through a separate, top-level `roles_admin` collection.\n2.  **Attendance Records (`/employees/{employeeFirebaseUid}/attendanceRecords/{attendanceRecordId}`):** Attendance records are nested directly under the corresponding employee's document. The `employeeId` field within the `AttendanceRecord` document will explicitly store the `employeeFirebaseUid` from its parent path. This ensures that the ownership context is always available directly within the path and the document itself, eliminating any need for `get()` calls to a parent `Employee` document to check who owns the attendance record. Rules can directly compare `request.auth.uid` with `employeeFirebaseUid` from the path.\n3.  **Admin Roles (`/roles_admin/{adminFirebaseUid}`):** A dedicated, top-level collection holds documents where the ID is the Firebase User ID of an administrator. The mere *existence* of a document at `roles_admin/$(request.auth.uid)` grants administrative privileges. This method is fully authorization independent as it requires no complex lookups or hierarchical dependencies.\n\n**QAPs (Rules are not Filters) and Structural Segregation:**\n1.  **Employee Management:** The `/employees` collection is designed with a homogeneous security posture. Only the owning `employeeFirebaseUid` or a verified administrator can `get`, `update`, or `delete` an employee record. An employee can `get` their own record (`allow get: if request.auth.uid == employeeFirebaseUid;`). Administrators can `list` and `get` all employee records (`allow list, get: if exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));`). This prevents unauthorized `list` operations while allowing legitimate ones based on explicit permissions.\n2.  **Attendance Input and Reporting:** The nested `/employees/{employeeFirebaseUid}/attendanceRecords` subcollection ensures that `list` operations are naturally scoped to the owning employee. An employee can `list` all their own attendance records by querying `employees/$(request.auth.uid)/attendanceRecords`. This is QAP-compliant because the path itself filters the data based on the authenticated user's ID. Administrators, by virtue of their role, can `list` attendance records for any specific employee's subcollection or use collection group queries (with appropriate indexes and rules) to view all attendance records across the application, without relying on client-side filtering or inefficient security rules.\n\nThis structure prioritizes clear ownership, explicit roles, and direct path-based authorization, making security rules straightforward to write, test, and debug, while supporting efficient query patterns."
+  }
+}
