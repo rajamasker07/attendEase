@@ -27,8 +27,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import useLocalStorage from "@/hooks/use-local-storage";
 import type { Employee, AttendanceRecord } from "@/lib/types";
-import { format, isToday, parseISO } from "date-fns";
-import { Calendar as CalendarIcon, Clock as ClockIcon, LogIn, LogOut } from "lucide-react";
+import { format, isToday, parseISO, subDays, isAfter } from "date-fns";
+import { Calendar as CalendarIcon, LogIn, LogOut } from "lucide-react";
 import { Clock } from "@/components/clock";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -47,27 +47,45 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const [manualDate, setManualDate] = useState<Date | undefined>(new Date());
   const [manualTime, setManualTime] = useState<string>(format(new Date(), "HH:mm"));
+  const [historyFilter, setHistoryFilter] = useState<string>("7");
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
   const todayAttendance = useMemo(() => {
+    if (!isClient) return [];
     return attendance
       .filter((record) => isToday(parseISO(record.clockIn)))
       .sort((a, b) => parseISO(b.clockIn).getTime() - parseISO(a.clockIn).getTime());
-  }, [attendance]);
+  }, [attendance, isClient]);
+
+  const historyAttendance = useMemo(() => {
+    if (!isClient) return [];
+    
+    if (historyFilter === 'all') {
+        return attendance.sort((a, b) => parseISO(b.clockIn).getTime() - parseISO(a.clockIn).getTime());
+    }
+
+    const days = parseInt(historyFilter, 10);
+    const filterDate = subDays(new Date(), days);
+    
+    return attendance
+        .filter(record => isAfter(parseISO(record.clockIn), filterDate))
+        .sort((a, b) => parseISO(b.clockIn).getTime() - parseISO(a.clockIn).getTime());
+  }, [attendance, historyFilter, isClient]);
 
   const currentEmployeeRecord = useMemo(() => {
-    if (!selectedEmployeeId) return null;
+    if (!selectedEmployeeId || !isClient) return null;
     return todayAttendance.find(
       (record) => record.employeeId === selectedEmployeeId && !record.clockOut
     );
-  }, [selectedEmployeeId, todayAttendance]);
+  }, [selectedEmployeeId, todayAttendance, isClient]);
   
   const selectedEmployee = useMemo(() => {
+    if (!isClient) return undefined;
     return employees.find(e => e.id === selectedEmployeeId);
-  }, [employees, selectedEmployeeId]);
+  }, [employees, selectedEmployeeId, isClient]);
 
   const getManualDateTime = () => {
     if (!manualDate || !manualTime) return new Date();
@@ -149,6 +167,7 @@ export default function DashboardPage() {
   };
 
   const getEmployeeName = (employeeId: string) => {
+    if (!isClient) return "Unknown";
     return employees.find((e) => e.id === employeeId)?.name || "Unknown";
   };
   
@@ -329,6 +348,73 @@ export default function DashboardPage() {
               )}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+                <CardTitle>History Activity</CardTitle>
+                <CardDescription>View historical attendance records.</CardDescription>
+            </div>
+            <Select value={historyFilter} onValueChange={setHistoryFilter} disabled={!isClient}>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by period" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="3">Last 3 days</SelectItem>
+                    <SelectItem value="7">Last 7 days</SelectItem>
+                    <SelectItem value="30">Last 30 days</SelectItem>
+                    <SelectItem value="all">All Time</SelectItem>
+                </SelectContent>
+            </Select>
+        </CardHeader>
+        <CardContent>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Clock In</TableHead>
+                    <TableHead>Clock Out</TableHead>
+                    <TableHead>Status</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {!isClient ? (
+                        <TableRow>
+                            <TableCell colSpan={5} className="h-24 text-center">
+                            Loading...
+                            </TableCell>
+                        </TableRow>
+                    ) : historyAttendance.length > 0 ? (
+                    historyAttendance.map((record) => {
+                        const employee = employees.find(e => e.id === record.employeeId);
+                        return (
+                        <TableRow key={record.id}>
+                            <TableCell className="font-medium">{employee?.name || 'Unknown'}</TableCell>
+                            <TableCell>{format(parseISO(record.clockIn), "MMM d, yyyy")}</TableCell>
+                            <TableCell>{format(parseISO(record.clockIn), "p")}</TableCell>
+                            <TableCell>{record.clockOut ? format(parseISO(record.clockOut), "p") : " - "}</TableCell>
+                            <TableCell>
+                            {record.clockOut ? (
+                                <Badge variant="secondary">Clocked Out</Badge>
+                            ) : (
+                                <Badge>Clocked In</Badge>
+                            )}
+                            </TableCell>
+                        </TableRow>
+                        );
+                    })
+                    ) : (
+                    <TableRow>
+                        <TableCell colSpan={5} className="h-24 text-center">
+                        No records found for the selected period.
+                        </TableCell>
+                    </TableRow>
+                    )}
+                </TableBody>
+            </Table>
         </CardContent>
       </Card>
     </div>
