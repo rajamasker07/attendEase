@@ -15,6 +15,12 @@ function Calendar({
   showOutsideDays = true,
   ...props
 }: CalendarProps) {
+  const formatWeekdayName = (day: Date) => {
+    // Custom two-letter Indonesian day names
+    const weekdays = ["Mi", "Sn", "Sl", "Rb", "Km", "Jm", "Sb"];
+    return weekdays[day.getDay()];
+  };
+  
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
@@ -53,6 +59,7 @@ function Calendar({
         day_hidden: "invisible",
         ...classNames,
       }}
+      formatters={{ formatWeekdayName }}
       components={{
         IconLeft: ({ className, ...props }) => (
           <ChevronLeft className={cn("h-4 w-4", className)} {...props} />
