@@ -43,14 +43,17 @@ export default function DashboardPage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const { toast } = useToast();
-  const [manualDate, setManualDate] = useState<Date | undefined>(new Date());
-  const [manualTime, setManualTime] = useState<string>(format(new Date(), "HH:mm"));
+  const [manualDate, setManualDate] = useState<Date | undefined>();
+  const [manualTime, setManualTime] = useState<string>("");
   const [historyFilter, setHistoryFilter] = useState<string>("7");
   const [historyEmployeeFilter, setHistoryEmployeeFilter] = useState<string>("all");
 
   useEffect(() => {
+    const now = new Date();
     setEmployees(getData<Employee[]>('employees', []));
     setAttendance(getData<AttendanceRecord[]>('attendance', []));
+    setManualDate(now);
+    setManualTime(format(now, "HH:mm"));
     setIsClient(true);
   }, []);
 
