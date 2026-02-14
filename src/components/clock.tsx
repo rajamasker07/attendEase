@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 export function Clock() {
   const [time, setTime] = useState<Date | null>(null);
@@ -21,7 +22,7 @@ export function Clock() {
       ) : (
         <>
           <p className="text-4xl font-bold text-primary sm:text-5xl">{format(time, 'HH:mm:ss')}</p>
-          <p className="text-sm text-muted-foreground sm:text-base">{format(time, 'EEEE, d MMMM yyyy')}</p>
+          <p className="text-sm text-muted-foreground sm:text-base">{format(time, 'EEEE, d MMMM yyyy', { locale: id })}</p>
         </>
       )}
     </div>

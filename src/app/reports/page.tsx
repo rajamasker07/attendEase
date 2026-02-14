@@ -33,7 +33,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
 import useLocalStorage from "@/hooks/use-local-storage";
 import type { Employee, AttendanceRecord } from "@/lib/types";
-import { format, differenceInHours, parseISO, isWithinInterval } from "date-fns";
+import { format, differenceInMinutes, parseISO, isWithinInterval } from "date-fns";
+import { id } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 
 export default function ReportsPage() {
@@ -43,7 +44,7 @@ export default function ReportsPage() {
   const [date, setDate] = useState<DateRange | undefined>();
 
   const getEmployeeName = (employeeId: string) => {
-    return employees.find((e) => e.id === employeeId)?.name || "Unknown";
+    return employees.find((e) => e.id === employeeId)?.name || "Tidak diketahui";
   };
 
   const filteredAttendance = useMemo(() => {
@@ -71,26 +72,28 @@ export default function ReportsPage() {
 
   const calculateDuration = (clockIn: string, clockOut?: string): string => {
     if (!clockOut) return "-";
-    const hours = differenceInHours(parseISO(clockOut), parseISO(clockIn));
-    return `${hours} hour(s)`;
+    const minutes = differenceInMinutes(parseISO(clockOut), parseISO(clockIn));
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours} jam ${remainingMinutes} menit`;
   };
   
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Attendance Report</CardTitle>
+        <CardTitle>Laporan Kehadiran</CardTitle>
         <CardDescription>
-          View and filter attendance records.
+          Lihat dan saring catatan kehadiran.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-col gap-4 sm:flex-row">
           <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
             <SelectTrigger className="w-full sm:w-[280px]">
-              <SelectValue placeholder="Select an employee" />
+              <SelectValue placeholder="Pilih seorang karyawan" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Employees</SelectItem>
+              <SelectItem value="all">Semua Karyawan</SelectItem>
               {employees.map((employee) => (
                 <SelectItem key={employee.id} value={employee.id}>
                   {employee.name}
@@ -109,14 +112,14 @@ export default function ReportsPage() {
                 {date?.from ? (
                   date.to ? (
                     <>
-                      {format(date.from, "LLL dd, y")} -{" "}
-                      {format(date.to, "LLL dd, y")}
+                      {format(date.from, "LLL dd, y", { locale: id })} -{" "}
+                      {format(date.to, "LLL dd, y", { locale: id })}
                     </>
                   ) : (
-                    format(date.from, "LLL dd, y")
+                    format(date.from, "LLL dd, y", { locale: id })
                   )
                 ) : (
-                  <span>Pick a date range</span>
+                  <span>Pilih rentang tanggal</span>
                 )}
               </Button>
             </PopoverTrigger>
@@ -128,20 +131,21 @@ export default function ReportsPage() {
                 selected={date}
                 onSelect={setDate}
                 numberOfMonths={2}
+                locale={id}
               />
             </PopoverContent>
           </Popover>
-          <Button onClick={() => { setDate(undefined); setSelectedEmployeeId("all")}}>Clear Filters</Button>
+          <Button onClick={() => { setDate(undefined); setSelectedEmployeeId("all")}}>Hapus Filter</Button>
         </div>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Clock In</TableHead>
-                <TableHead>Clock Out</TableHead>
-                <TableHead>Duration</TableHead>
+                <TableHead>Karyawan</TableHead>
+                <TableHead>Tanggal</TableHead>
+                <TableHead>Masuk</TableHead>
+                <TableHead>Pulang</TableHead>
+                <TableHead>Durasi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -152,7 +156,7 @@ export default function ReportsPage() {
                       {getEmployeeName(record.employeeId)}
                     </TableCell>
                     <TableCell>
-                      {format(parseISO(record.clockIn), "MMMM d, yyyy")}
+                      {format(parseISO(record.clockIn), "MMMM d, yyyy", { locale: id })}
                     </TableCell>
                     <TableCell>
                       {format(parseISO(record.clockIn), "p")}
@@ -168,7 +172,7 @@ export default function ReportsPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
-                    No results found for the selected filters.
+                    Tidak ada hasil ditemukan untuk filter yang dipilih.
                   </TableCell>
                 </TableRow>
               )}

@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import useLocalStorage from "@/hooks/use-local-storage";
 import type { Employee, AttendanceRecord } from "@/lib/types";
 import { format, isToday, parseISO, subDays, isAfter } from "date-fns";
+import { id } from "date-fns/locale";
 import { Calendar as CalendarIcon, LogIn, LogOut } from "lucide-react";
 import { Clock } from "@/components/clock";
 import { Badge } from "@/components/ui/badge";
@@ -108,7 +109,7 @@ export default function DashboardPage() {
     if (!selectedEmployeeId) {
       toast({
         title: "Error",
-        description: "Please select an employee first.",
+        description: "Silakan pilih karyawan terlebih dahulu.",
         variant: "destructive",
       });
       return;
@@ -116,7 +117,7 @@ export default function DashboardPage() {
     if (currentEmployeeRecord) {
       toast({
         title: "Error",
-        description: "This employee is already clocked in.",
+        description: "Karyawan ini sudah absen masuk.",
         variant: "destructive",
       });
       return;
@@ -132,8 +133,8 @@ export default function DashboardPage() {
 
     setAttendance([...attendance, newRecord]);
     toast({
-      title: "Success",
-      description: `${selectedEmployee?.name} clocked in at ${format(clockInTime, "p")}.`,
+      title: "Berhasil",
+      description: `${selectedEmployee?.name} absen masuk pada ${format(clockInTime, "p")}.`,
     });
   };
 
@@ -141,7 +142,7 @@ export default function DashboardPage() {
     if (!selectedEmployeeId || !currentEmployeeRecord) {
       toast({
         title: "Error",
-        description: "This employee is not clocked in.",
+        description: "Karyawan ini belum absen masuk.",
         variant: "destructive",
       });
       return;
@@ -153,7 +154,7 @@ export default function DashboardPage() {
     if (clockOutTime < clockInDate) {
         toast({
             title: "Error",
-            description: "Clock out time cannot be earlier than clock in time.",
+            description: "Waktu absen pulang tidak boleh lebih awal dari waktu absen masuk.",
             variant: "destructive",
         });
         return;
@@ -167,14 +168,14 @@ export default function DashboardPage() {
 
     setAttendance(updatedAttendance);
     toast({
-      title: "Success",
-      description: `${selectedEmployee?.name} clocked out at ${format(clockOutTime, "p")}.`,
+      title: "Berhasil",
+      description: `${selectedEmployee?.name} absen pulang pada ${format(clockOutTime, "p")}.`,
     });
   };
 
   const getEmployeeName = (employeeId: string) => {
-    if (!isClient) return "Unknown";
-    return employees.find((e) => e.id === employeeId)?.name || "Unknown";
+    if (!isClient) return "Tidak diketahui";
+    return employees.find((e) => e.id === employeeId)?.name || "Tidak diketahui";
   };
   
   return (
@@ -182,21 +183,21 @@ export default function DashboardPage() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Attendance</CardTitle>
-            <CardDescription>Clock in or out for an employee.</CardDescription>
+            <CardTitle>Absensi</CardTitle>
+            <CardDescription>Catat waktu masuk atau pulang karyawan.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Clock />
             <div className="space-y-6 pt-4">
               <div className="space-y-2">
-                <Label htmlFor="employee-select">Employee</Label>
+                <Label htmlFor="employee-select">Karyawan</Label>
                 <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId} disabled={!isClient}>
                   <SelectTrigger id="employee-select" className="w-full">
-                    <SelectValue placeholder="Select an employee" />
+                    <SelectValue placeholder="Pilih seorang karyawan" />
                   </SelectTrigger>
                   <SelectContent>
                     {!isClient ? (
-                      <div className="p-4 text-sm text-muted-foreground">Loading...</div>
+                      <div className="p-4 text-sm text-muted-foreground">Memuat...</div>
                     ) : employees.length > 0 ? (
                       employees.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
@@ -204,7 +205,7 @@ export default function DashboardPage() {
                         </SelectItem>
                       ))
                     ) : (
-                      <div className="p-4 text-sm text-muted-foreground">No employees found. Add one on the Employees page.</div>
+                      <div className="p-4 text-sm text-muted-foreground">Tidak ada karyawan ditemukan. Tambahkan di halaman Karyawan.</div>
                     )}
                   </SelectContent>
                 </Select>
@@ -212,7 +213,7 @@ export default function DashboardPage() {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="attendance-date">Date</Label>
+                  <Label htmlFor="attendance-date">Tanggal</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -222,7 +223,7 @@ export default function DashboardPage() {
                         disabled={!isClient}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {manualDate ? format(manualDate, "PPP") : <span>Pick a date</span>}
+                        {manualDate ? format(manualDate, "PPP", { locale: id }) : <span>Pilih tanggal</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
@@ -231,12 +232,13 @@ export default function DashboardPage() {
                         selected={manualDate}
                         onSelect={setManualDate}
                         initialFocus
+                        locale={id}
                       />
                     </PopoverContent>
                   </Popover>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="attendance-time">Time</Label>
+                  <Label htmlFor="attendance-time">Waktu</Label>
                   <Input
                     id="attendance-time"
                     type="time"
@@ -250,10 +252,10 @@ export default function DashboardPage() {
 
               <div className="flex w-full gap-2">
                 <Button onClick={handleClockIn} disabled={!isClient || !selectedEmployeeId || !!currentEmployeeRecord} className="w-full">
-                  <LogIn className="mr-2 h-4 w-4" /> Clock In
+                  <LogIn className="mr-2 h-4 w-4" /> Absen Masuk
                 </Button>
                 <Button onClick={handleClockOut} disabled={!isClient || !selectedEmployeeId || !currentEmployeeRecord} variant="outline" className="w-full">
-                  <LogOut className="mr-2 h-4 w-4" /> Clock Out
+                  <LogOut className="mr-2 h-4 w-4" /> Absen Pulang
                 </Button>
               </div>
 
@@ -261,11 +263,11 @@ export default function DashboardPage() {
                 <div className="pt-4 text-center text-sm text-muted-foreground">
                     {currentEmployeeRecord ? (
                         <span>
-                            <strong>{selectedEmployee?.name}</strong> is currently clocked in since <strong>{format(parseISO(currentEmployeeRecord.clockIn), 'p')}</strong>.
+                            <strong>{selectedEmployee?.name}</strong> saat ini sudah absen masuk sejak <strong>{format(parseISO(currentEmployeeRecord.clockIn), 'p')}</strong>.
                         </span>
                     ) : (
                         <span>
-                            <strong>{selectedEmployee?.name}</strong> is currently clocked out.
+                            <strong>{selectedEmployee?.name}</strong> saat ini sedang tidak di tempat.
                         </span>
                     )}
                 </div>
@@ -276,28 +278,28 @@ export default function DashboardPage() {
         
         <Card>
           <CardHeader>
-            <CardTitle>Today's Activity</CardTitle>
+            <CardTitle>Aktivitas Hari Ini</CardTitle>
             <CardDescription>
-              A log of all attendance records for today.
+              Catatan semua absensi untuk hari ini.
             </CardDescription>
           </CardHeader>
           <CardContent>
              <div className="max-h-[300px] overflow-y-auto">
                 {!isClient ? (
-                  <div className="text-center text-sm text-muted-foreground py-8">Loading...</div>
+                  <div className="text-center text-sm text-muted-foreground py-8">Memuat...</div>
                 ) : todayAttendance.length > 0 ? (
                     <ul className="space-y-3">
                         {todayAttendance.map((record) => (
                             <li key={record.id} className="flex items-center justify-between text-sm">
                                 <div className="font-medium">{getEmployeeName(record.employeeId)}</div>
                                 <div className="text-muted-foreground">
-                                    {record.clockOut ? `In: ${format(parseISO(record.clockIn), 'p')} - Out: ${format(parseISO(record.clockOut), 'p')}` : `In: ${format(parseISO(record.clockIn), 'p')}`}
+                                    {record.clockOut ? `Masuk: ${format(parseISO(record.clockIn), 'p')} - Pulang: ${format(parseISO(record.clockOut), 'p')}` : `Masuk: ${format(parseISO(record.clockIn), 'p')}`}
                                 </div>
                             </li>
                         ))}
                     </ul>
                 ) : (
-                    <div className="text-center text-sm text-muted-foreground py-8">No attendance records for today.</div>
+                    <div className="text-center text-sm text-muted-foreground py-8">Tidak ada catatan absensi untuk hari ini.</div>
                 )}
              </div>
           </CardContent>
@@ -306,16 +308,16 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Today's Full Log</CardTitle>
+          <CardTitle>Log Lengkap Hari Ini</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Position</TableHead>
-                <TableHead>Clock In</TableHead>
-                <TableHead>Clock Out</TableHead>
+                <TableHead>Karyawan</TableHead>
+                <TableHead>Posisi</TableHead>
+                <TableHead>Masuk</TableHead>
+                <TableHead>Pulang</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -323,7 +325,7 @@ export default function DashboardPage() {
               {!isClient ? (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
-                    Loading...
+                    Memuat...
                   </TableCell>
                 </TableRow>
               ) : todayAttendance.length > 0 ? (
@@ -331,15 +333,15 @@ export default function DashboardPage() {
                   const employee = employees.find(e => e.id === record.employeeId);
                   return (
                     <TableRow key={record.id}>
-                      <TableCell className="font-medium">{employee?.name || 'Unknown'}</TableCell>
+                      <TableCell className="font-medium">{employee?.name || 'Tidak diketahui'}</TableCell>
                       <TableCell>{employee?.position || 'N/A'}</TableCell>
                       <TableCell>{format(parseISO(record.clockIn), "p")}</TableCell>
                       <TableCell>{record.clockOut ? format(parseISO(record.clockOut), "p") : " - "}</TableCell>
                       <TableCell>
                         {record.clockOut ? (
-                           <Badge variant="secondary">Clocked Out</Badge>
+                           <Badge variant="secondary">Sudah Pulang</Badge>
                         ) : (
-                          <Badge>Clocked In</Badge>
+                          <Badge>Sudah Masuk</Badge>
                         )}
                       </TableCell>
                     </TableRow>
@@ -348,7 +350,7 @@ export default function DashboardPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
-                    No attendance records for today.
+                    Tidak ada catatan absensi untuk hari ini.
                   </TableCell>
                 </TableRow>
               )}
@@ -360,16 +362,16 @@ export default function DashboardPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
             <div>
-                <CardTitle>History Activity</CardTitle>
-                <CardDescription>View historical attendance records.</CardDescription>
+                <CardTitle>Riwayat Aktivitas</CardTitle>
+                <CardDescription>Lihat riwayat catatan absensi.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Select value={historyEmployeeFilter} onValueChange={setHistoryEmployeeFilter} disabled={!isClient}>
                   <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Filter by employee" />
+                      <SelectValue placeholder="Filter berdasarkan karyawan" />
                   </SelectTrigger>
                   <SelectContent>
-                      <SelectItem value="all">All Employees</SelectItem>
+                      <SelectItem value="all">Semua Karyawan</SelectItem>
                       {employees.map((employee) => (
                           <SelectItem key={employee.id} value={employee.id}>
                           {employee.name}
@@ -379,13 +381,13 @@ export default function DashboardPage() {
               </Select>
               <Select value={historyFilter} onValueChange={setHistoryFilter} disabled={!isClient}>
                   <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Filter by period" />
+                      <SelectValue placeholder="Filter berdasarkan periode" />
                   </SelectTrigger>
                   <SelectContent>
-                      <SelectItem value="3">Last 3 days</SelectItem>
-                      <SelectItem value="7">Last 7 days</SelectItem>
-                      <SelectItem value="30">Last 30 days</SelectItem>
-                      <SelectItem value="all">All Time</SelectItem>
+                      <SelectItem value="3">3 hari terakhir</SelectItem>
+                      <SelectItem value="7">7 hari terakhir</SelectItem>
+                      <SelectItem value="30">30 hari terakhir</SelectItem>
+                      <SelectItem value="all">Semua Waktu</SelectItem>
                   </SelectContent>
               </Select>
             </div>
@@ -394,10 +396,10 @@ export default function DashboardPage() {
             <Table>
                 <TableHeader>
                     <TableRow>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Clock In</TableHead>
-                    <TableHead>Clock Out</TableHead>
+                    <TableHead>Karyawan</TableHead>
+                    <TableHead>Tanggal</TableHead>
+                    <TableHead>Masuk</TableHead>
+                    <TableHead>Pulang</TableHead>
                     <TableHead>Status</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -405,7 +407,7 @@ export default function DashboardPage() {
                     {!isClient ? (
                         <TableRow>
                             <TableCell colSpan={5} className="h-24 text-center">
-                            Loading...
+                            Memuat...
                             </TableCell>
                         </TableRow>
                     ) : historyAttendance.length > 0 ? (
@@ -413,15 +415,15 @@ export default function DashboardPage() {
                         const employee = employees.find(e => e.id === record.employeeId);
                         return (
                         <TableRow key={record.id}>
-                            <TableCell className="font-medium">{employee?.name || 'Unknown'}</TableCell>
-                            <TableCell>{format(parseISO(record.clockIn), "MMM d, yyyy")}</TableCell>
+                            <TableCell className="font-medium">{employee?.name || 'Tidak diketahui'}</TableCell>
+                            <TableCell>{format(parseISO(record.clockIn), "MMM d, yyyy", { locale: id })}</TableCell>
                             <TableCell>{format(parseISO(record.clockIn), "p")}</TableCell>
                             <TableCell>{record.clockOut ? format(parseISO(record.clockOut), "p") : " - "}</TableCell>
                             <TableCell>
                             {record.clockOut ? (
-                                <Badge variant="secondary">Clocked Out</Badge>
+                                <Badge variant="secondary">Sudah Pulang</Badge>
                             ) : (
-                                <Badge>Clocked In</Badge>
+                                <Badge>Sudah Masuk</Badge>
                             )}
                             </TableCell>
                         </TableRow>
@@ -430,7 +432,7 @@ export default function DashboardPage() {
                     ) : (
                     <TableRow>
                         <TableCell colSpan={5} className="h-24 text-center">
-                        No records found for the selected period.
+                        Tidak ada catatan ditemukan untuk periode yang dipilih.
                         </TableCell>
                     </TableRow>
                     )}

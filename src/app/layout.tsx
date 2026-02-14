@@ -5,7 +5,7 @@ import { MainLayout } from '@/components/main-layout';
 
 export const metadata: Metadata = {
   title: 'AttendEase',
-  description: 'Simple web-based attendance system',
+  description: 'Sistem absensi sederhana berbasis web',
 };
 
 export default function RootLayout({

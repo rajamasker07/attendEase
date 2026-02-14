@@ -17,11 +17,11 @@ import { usePathname } from "next/navigation"
 
 function PageHeader() {
   const pathname = usePathname();
-  let title = "Dashboard";
+  let title = "Dasbor";
   if (pathname.startsWith("/employees")) {
-    title = "Employee Management";
+    title = "Manajemen Karyawan";
   } else if (pathname.startsWith("/reports")) {
-    title = "Attendance Reports";
+    title = "Laporan Kehadiran";
   }
 
   return (
@@ -49,25 +49,25 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           <SidebarMenu>
             <SidebarMenuItem>
               <Link href="/">
-                <SidebarMenuButton isActive={pathname === "/"} tooltip="Dashboard">
+                <SidebarMenuButton isActive={pathname === "/"} tooltip="Dasbor">
                   <Home />
-                  <span className="group-data-[state=collapsed]:hidden">Dashboard</span>
+                  <span className="group-data-[state=collapsed]:hidden">Dasbor</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <Link href="/employees">
-                <SidebarMenuButton isActive={pathname.startsWith("/employees")} tooltip="Employees">
+                <SidebarMenuButton isActive={pathname.startsWith("/employees")} tooltip="Karyawan">
                   <Users />
-                  <span className="group-data-[state=collapsed]:hidden">Employees</span>
+                  <span className="group-data-[state=collapsed]:hidden">Karyawan</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <Link href="/reports">
-                <SidebarMenuButton isActive={pathname.startsWith("/reports")} tooltip="Reports">
+                <SidebarMenuButton isActive={pathname.startsWith("/reports")} tooltip="Laporan">
                   <BookText />
-                  <span className="group-data-[state=collapsed]:hidden">Reports</span>
+                  <span className="group-data-[state=collapsed]:hidden">Laporan</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>

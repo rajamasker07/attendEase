@@ -71,22 +71,22 @@ export default function EmployeesPage() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Employees</CardTitle>
+          <CardTitle>Karyawan</CardTitle>
           <CardDescription>
-            Manage your list of employees.
+            Kelola daftar karyawan Anda.
           </CardDescription>
         </div>
         <Button onClick={handleAdd}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Add Employee
+          <PlusCircle className="mr-2 h-4 w-4" /> Tambah Karyawan
         </Button>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Position</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>Nama</TableHead>
+              <TableHead>Posisi</TableHead>
+              <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -98,11 +98,11 @@ export default function EmployeesPage() {
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(employee)}>
                       <Edit className="h-4 w-4" />
-                      <span className="sr-only">Edit</span>
+                      <span className="sr-only">Ubah</span>
                     </Button>
                     <Button variant="ghost" size="icon" onClick={() => handleDelete(employee)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
-                      <span className="sr-only">Delete</span>
+                      <span className="sr-only">Hapus</span>
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -110,7 +110,7 @@ export default function EmployeesPage() {
             ) : (
               <TableRow>
                 <TableCell colSpan={3} className="h-24 text-center">
-                  No employees found.
+                  Tidak ada karyawan ditemukan.
                 </TableCell>
               </TableRow>
             )}

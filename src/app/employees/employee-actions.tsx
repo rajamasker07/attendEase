@@ -29,8 +29,8 @@ import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 const employeeSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters."),
-  position: z.string().min(2, "Position must be at least 2 characters."),
+  name: z.string().min(2, "Nama minimal harus 2 karakter."),
+  position: z.string().min(2, "Posisi minimal harus 2 karakter."),
 });
 
 type EmployeeFormData = z.infer<typeof employeeSchema>;
@@ -71,8 +71,8 @@ export function EmployeeFormDialog({
     onSave(data);
     setIsOpen(false);
     toast({
-      title: "Success",
-      description: `Employee ${employee ? 'updated' : 'added'} successfully.`,
+      title: "Berhasil",
+      description: `Karyawan berhasil ${employee ? 'diperbarui' : 'ditambahkan'}.`,
     })
   };
 
@@ -82,18 +82,18 @@ export function EmployeeFormDialog({
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogHeader>
             <DialogTitle>
-              {employee ? "Edit Employee" : "Add Employee"}
+              {employee ? "Ubah Karyawan" : "Tambah Karyawan"}
             </DialogTitle>
             <DialogDescription>
               {employee
-                ? "Update the details of the employee."
-                : "Add a new employee to your list."}
+                ? "Perbarui detail karyawan."
+                : "Tambahkan karyawan baru ke daftar Anda."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="name" className="text-right">
-                Name
+                Nama
               </Label>
               <div className="col-span-3">
                 <Input id="name" {...register("name")} className="w-full" />
@@ -102,7 +102,7 @@ export function EmployeeFormDialog({
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="position" className="text-right">
-                Position
+                Posisi
               </Label>
               <div className="col-span-3">
                 <Input id="position" {...register("position")} className="w-full" />
@@ -111,7 +111,7 @@ export function EmployeeFormDialog({
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit">Save changes</Button>
+            <Button type="submit">Simpan perubahan</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -134,8 +134,8 @@ export function DeleteEmployeeAlert({ isOpen, setIsOpen, onConfirm, employeeName
         onConfirm();
         setIsOpen(false);
         toast({
-            title: "Employee Deleted",
-            description: `${employeeName} has been removed.`,
+            title: "Karyawan Dihapus",
+            description: `${employeeName} telah dihapus.`,
             variant: "destructive"
         })
     }
@@ -144,16 +144,16 @@ export function DeleteEmployeeAlert({ isOpen, setIsOpen, onConfirm, employeeName
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the employee
-                        <strong> {employeeName}</strong> and their associated data.
+                        Tindakan ini tidak dapat dibatalkan. Ini akan menghapus karyawan
+                        <strong> {employeeName}</strong> dan data terkait secara permanen.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
                     <AlertDialogAction onClick={handleConfirm} className="bg-destructive hover:bg-destructive/90">
-                      Delete
+                      Hapus
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
