@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,6 +37,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 
 export default function DashboardPage() {
+  const [isClient, setIsClient] = useState(false);
   const [employees] = useLocalStorage<Employee[]>("employees", []);
   const [attendance, setAttendance] = useLocalStorage<AttendanceRecord[]>(
     "attendance",
@@ -46,6 +47,10 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const [manualDate, setManualDate] = useState<Date | undefined>(new Date());
   const [manualTime, setManualTime] = useState<string>(format(new Date(), "HH:mm"));
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const todayAttendance = useMemo(() => {
     return attendance
@@ -160,12 +165,14 @@ export default function DashboardPage() {
             <div className="space-y-6 pt-4">
               <div className="space-y-2">
                 <Label htmlFor="employee-select">Employee</Label>
-                <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId} disabled={!isClient}>
                   <SelectTrigger id="employee-select" className="w-full">
                     <SelectValue placeholder="Select an employee" />
                   </SelectTrigger>
                   <SelectContent>
-                    {employees.length > 0 ? (
+                    {!isClient ? (
+                      <div className="p-4 text-sm text-muted-foreground">Loading...</div>
+                    ) : employees.length > 0 ? (
                       employees.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
                           {employee.name}
@@ -187,6 +194,7 @@ export default function DashboardPage() {
                         id="attendance-date"
                         variant={"outline"}
                         className="w-full justify-start text-left font-normal"
+                        disabled={!isClient}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {manualDate ? format(manualDate, "PPP") : <span>Pick a date</span>}
@@ -210,20 +218,21 @@ export default function DashboardPage() {
                     value={manualTime}
                     onChange={(e) => setManualTime(e.target.value)}
                     className="w-full"
+                    disabled={!isClient}
                   />
                 </div>
               </div>
 
               <div className="flex w-full gap-2">
-                <Button onClick={handleClockIn} disabled={!selectedEmployeeId || !!currentEmployeeRecord} className="w-full">
+                <Button onClick={handleClockIn} disabled={!isClient || !selectedEmployeeId || !!currentEmployeeRecord} className="w-full">
                   <LogIn className="mr-2 h-4 w-4" /> Clock In
                 </Button>
-                <Button onClick={handleClockOut} disabled={!selectedEmployeeId || !currentEmployeeRecord} variant="outline" className="w-full">
+                <Button onClick={handleClockOut} disabled={!isClient || !selectedEmployeeId || !currentEmployeeRecord} variant="outline" className="w-full">
                   <LogOut className="mr-2 h-4 w-4" /> Clock Out
                 </Button>
               </div>
 
-              {selectedEmployeeId && (
+              {isClient && selectedEmployeeId && (
                 <div className="pt-4 text-center text-sm text-muted-foreground">
                     {currentEmployeeRecord ? (
                         <span>
@@ -249,7 +258,9 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
              <div className="max-h-[300px] overflow-y-auto">
-                {todayAttendance.length > 0 ? (
+                {!isClient ? (
+                  <div className="text-center text-sm text-muted-foreground py-8">Loading...</div>
+                ) : todayAttendance.length > 0 ? (
                     <ul className="space-y-3">
                         {todayAttendance.map((record) => (
                             <li key={record.id} className="flex items-center justify-between text-sm">
@@ -284,7 +295,13 @@ export default function DashboardPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {todayAttendance.length > 0 ? (
+              {!isClient ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    Loading...
+                  </TableCell>
+                </TableRow>
+              ) : todayAttendance.length > 0 ? (
                 todayAttendance.map((record) => {
                   const employee = employees.find(e => e.id === record.employeeId);
                   return (
