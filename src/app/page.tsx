@@ -28,9 +28,13 @@ import { useToast } from "@/hooks/use-toast";
 import useLocalStorage from "@/hooks/use-local-storage";
 import type { Employee, AttendanceRecord } from "@/lib/types";
 import { format, isToday, parseISO } from "date-fns";
-import { Clock as ClockIcon, LogIn, LogOut } from "lucide-react";
+import { Calendar as CalendarIcon, Clock as ClockIcon, LogIn, LogOut } from "lucide-react";
 import { Clock } from "@/components/clock";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 
 export default function DashboardPage() {
   const [employees] = useLocalStorage<Employee[]>("employees", []);
@@ -40,6 +44,8 @@ export default function DashboardPage() {
   );
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const { toast } = useToast();
+  const [manualDate, setManualDate] = useState<Date | undefined>(new Date());
+  const [manualTime, setManualTime] = useState<string>(format(new Date(), "HH:mm"));
 
   const todayAttendance = useMemo(() => {
     return attendance
@@ -58,6 +64,16 @@ export default function DashboardPage() {
     return employees.find(e => e.id === selectedEmployeeId);
   }, [employees, selectedEmployeeId]);
 
+  const getManualDateTime = () => {
+    if (!manualDate || !manualTime) return new Date();
+    const [hours, minutes] = manualTime.split(':').map(Number);
+    const newDate = new Date(manualDate);
+    newDate.setHours(hours);
+    newDate.setMinutes(minutes);
+    newDate.setSeconds(0);
+    newDate.setMilliseconds(0);
+    return newDate;
+  }
 
   const handleClockIn = () => {
     if (!selectedEmployeeId) {
@@ -77,16 +93,18 @@ export default function DashboardPage() {
       return;
     }
 
+    const clockInTime = getManualDateTime();
+
     const newRecord: AttendanceRecord = {
       id: crypto.randomUUID(),
       employeeId: selectedEmployeeId,
-      clockIn: new Date().toISOString(),
+      clockIn: clockInTime.toISOString(),
     };
 
     setAttendance([...attendance, newRecord]);
     toast({
       title: "Success",
-      description: `${selectedEmployee?.name} clocked in at ${format(new Date(), "p")}.`,
+      description: `${selectedEmployee?.name} clocked in at ${format(clockInTime, "p")}.`,
     });
   };
 
@@ -100,16 +118,28 @@ export default function DashboardPage() {
       return;
     }
 
+    const clockOutTime = getManualDateTime();
+    const clockInDate = parseISO(currentEmployeeRecord.clockIn);
+
+    if (clockOutTime < clockInDate) {
+        toast({
+            title: "Error",
+            description: "Clock out time cannot be earlier than clock in time.",
+            variant: "destructive",
+        });
+        return;
+    }
+
     const updatedAttendance = attendance.map((record) =>
       record.id === currentEmployeeRecord.id
-        ? { ...record, clockOut: new Date().toISOString() }
+        ? { ...record, clockOut: clockOutTime.toISOString() }
         : record
     );
 
     setAttendance(updatedAttendance);
     toast({
       title: "Success",
-      description: `${selectedEmployee?.name} clocked out at ${format(new Date(), "p")}.`,
+      description: `${selectedEmployee?.name} clocked out at ${format(clockOutTime, "p")}.`,
     });
   };
 
@@ -127,24 +157,64 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Clock />
-            <div className="flex flex-col items-center gap-4 pt-4 sm:flex-row">
-              <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
-                <SelectTrigger className="w-full sm:w-[280px]">
-                  <SelectValue placeholder="Select an employee" />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.length > 0 ? (
-                    employees.map((employee) => (
-                      <SelectItem key={employee.id} value={employee.id}>
-                        {employee.name}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <div className="p-4 text-sm text-muted-foreground">No employees found. Add one on the Employees page.</div>
-                  )}
-                </SelectContent>
-              </Select>
-              <div className="flex w-full gap-2 sm:w-auto">
+            <div className="space-y-6 pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="employee-select">Employee</Label>
+                <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                  <SelectTrigger id="employee-select" className="w-full">
+                    <SelectValue placeholder="Select an employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.length > 0 ? (
+                      employees.map((employee) => (
+                        <SelectItem key={employee.id} value={employee.id}>
+                          {employee.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="p-4 text-sm text-muted-foreground">No employees found. Add one on the Employees page.</div>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="attendance-date">Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="attendance-date"
+                        variant={"outline"}
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {manualDate ? format(manualDate, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={manualDate}
+                        onSelect={setManualDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="attendance-time">Time</Label>
+                  <Input
+                    id="attendance-time"
+                    type="time"
+                    value={manualTime}
+                    onChange={(e) => setManualTime(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              <div className="flex w-full gap-2">
                 <Button onClick={handleClockIn} disabled={!selectedEmployeeId || !!currentEmployeeRecord} className="w-full">
                   <LogIn className="mr-2 h-4 w-4" /> Clock In
                 </Button>
@@ -152,8 +222,8 @@ export default function DashboardPage() {
                   <LogOut className="mr-2 h-4 w-4" /> Clock Out
                 </Button>
               </div>
-            </div>
-             {selectedEmployeeId && (
+
+              {selectedEmployeeId && (
                 <div className="pt-4 text-center text-sm text-muted-foreground">
                     {currentEmployeeRecord ? (
                         <span>
@@ -165,7 +235,8 @@ export default function DashboardPage() {
                         </span>
                     )}
                 </div>
-            )}
+              )}
+            </div>
           </CardContent>
         </Card>
         
