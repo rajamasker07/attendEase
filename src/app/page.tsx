@@ -48,6 +48,7 @@ export default function DashboardPage() {
   const [manualDate, setManualDate] = useState<Date | undefined>(new Date());
   const [manualTime, setManualTime] = useState<string>(format(new Date(), "HH:mm"));
   const [historyFilter, setHistoryFilter] = useState<string>("7");
+  const [historyEmployeeFilter, setHistoryEmployeeFilter] = useState<string>("all");
 
   useEffect(() => {
     setIsClient(true);
@@ -62,18 +63,23 @@ export default function DashboardPage() {
 
   const historyAttendance = useMemo(() => {
     if (!isClient) return [];
-    
-    if (historyFilter === 'all') {
-        return attendance.sort((a, b) => parseISO(b.clockIn).getTime() - parseISO(a.clockIn).getTime());
+
+    let filteredRecords = attendance;
+
+    if (historyEmployeeFilter !== "all") {
+      filteredRecords = filteredRecords.filter(
+        (record) => record.employeeId === historyEmployeeFilter
+      );
     }
 
-    const days = parseInt(historyFilter, 10);
-    const filterDate = subDays(new Date(), days);
+    if (historyFilter !== 'all') {
+        const days = parseInt(historyFilter, 10);
+        const filterDate = subDays(new Date(), days);
+        filteredRecords = filteredRecords.filter(record => isAfter(parseISO(record.clockIn), filterDate));
+    }
     
-    return attendance
-        .filter(record => isAfter(parseISO(record.clockIn), filterDate))
-        .sort((a, b) => parseISO(b.clockIn).getTime() - parseISO(a.clockIn).getTime());
-  }, [attendance, historyFilter, isClient]);
+    return filteredRecords.sort((a, b) => parseISO(b.clockIn).getTime() - parseISO(a.clockIn).getTime());
+  }, [attendance, historyFilter, isClient, historyEmployeeFilter]);
 
   const currentEmployeeRecord = useMemo(() => {
     if (!selectedEmployeeId || !isClient) return null;
@@ -357,17 +363,32 @@ export default function DashboardPage() {
                 <CardTitle>History Activity</CardTitle>
                 <CardDescription>View historical attendance records.</CardDescription>
             </div>
-            <Select value={historyFilter} onValueChange={setHistoryFilter} disabled={!isClient}>
-                <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by period" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="3">Last 3 days</SelectItem>
-                    <SelectItem value="7">Last 7 days</SelectItem>
-                    <SelectItem value="30">Last 30 days</SelectItem>
-                    <SelectItem value="all">All Time</SelectItem>
-                </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Select value={historyEmployeeFilter} onValueChange={setHistoryEmployeeFilter} disabled={!isClient}>
+                  <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Filter by employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="all">All Employees</SelectItem>
+                      {employees.map((employee) => (
+                          <SelectItem key={employee.id} value={employee.id}>
+                          {employee.name}
+                          </SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+              <Select value={historyFilter} onValueChange={setHistoryFilter} disabled={!isClient}>
+                  <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Filter by period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="3">Last 3 days</SelectItem>
+                      <SelectItem value="7">Last 7 days</SelectItem>
+                      <SelectItem value="30">Last 30 days</SelectItem>
+                      <SelectItem value="all">All Time</SelectItem>
+                  </SelectContent>
+              </Select>
+            </div>
         </CardHeader>
         <CardContent>
             <Table>
