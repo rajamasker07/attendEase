@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,8 +17,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import useLocalStorage from "@/hooks/use-local-storage";
-import type { Employee } from "@/lib/types";
+import { getData, saveData } from "@/utils/storage";
+import type { Employee } from "@/types";
 import { PlusCircle, Edit, Trash2 } from "lucide-react";
 import { EmployeeFormDialog, DeleteEmployeeAlert } from "./employee-actions";
 
@@ -29,10 +29,14 @@ const initialEmployees: Employee[] = [
 ];
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useLocalStorage<Employee[]>("employees", initialEmployees);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+
+  useEffect(() => {
+    setEmployees(getData('employees', initialEmployees));
+  }, []);
 
   const handleAdd = () => {
     setSelectedEmployee(null);
@@ -50,20 +54,23 @@ export default function EmployeesPage() {
   };
 
   const handleSave = (employeeData: Omit<Employee, "id">) => {
+    let newEmployees: Employee[];
     if (selectedEmployee) {
-      setEmployees(
-        employees.map((e) =>
+      newEmployees = employees.map((e) =>
           e.id === selectedEmployee.id ? { ...e, ...employeeData } : e
-        )
-      );
+        );
     } else {
-      setEmployees([...employees, { id: crypto.randomUUID(), ...employeeData }]);
+      newEmployees = [...employees, { id: crypto.randomUUID(), ...employeeData }];
     }
+    setEmployees(newEmployees);
+    saveData('employees', newEmployees);
   };
   
   const confirmDelete = () => {
     if (selectedEmployee) {
-      setEmployees(employees.filter(e => e.id !== selectedEmployee.id));
+      const newEmployees = employees.filter(e => e.id !== selectedEmployee.id);
+      setEmployees(newEmployees);
+      saveData('employees', newEmployees);
     }
   }
 

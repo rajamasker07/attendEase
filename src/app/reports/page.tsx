@@ -32,8 +32,8 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Calendar as CalendarIcon, Clock } from "lucide-react";
-import useLocalStorage from "@/hooks/use-local-storage";
-import type { Employee, AttendanceRecord } from "@/lib/types";
+import { getData } from "@/utils/storage";
+import type { Employee, AttendanceRecord } from "@/types";
 import { format, differenceInMinutes, parseISO, isWithinInterval } from "date-fns";
 import { id } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
@@ -42,12 +42,14 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 
 export default function ReportsPage() {
   const [isClient, setIsClient] = useState(false);
-  const [employees] = useLocalStorage<Employee[]>("employees", []);
-  const [attendance] = useLocalStorage<AttendanceRecord[]>("attendance", []);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
   const [date, setDate] = useState<DateRange | undefined>();
 
   useEffect(() => {
+    setEmployees(getData<Employee[]>('employees', []));
+    setAttendance(getData<AttendanceRecord[]>('attendance', []));
     setIsClient(true);
   }, []);
 

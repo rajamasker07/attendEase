@@ -25,8 +25,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import useLocalStorage from "@/hooks/use-local-storage";
-import type { Employee, AttendanceRecord } from "@/lib/types";
+import { getData, saveData } from "@/utils/storage";
+import type { Employee, AttendanceRecord } from "@/types";
 import { format, isToday, parseISO, subDays, isAfter } from "date-fns";
 import { id } from "date-fns/locale";
 import { Calendar as CalendarIcon, LogIn, LogOut } from "lucide-react";
@@ -39,11 +39,8 @@ import { Calendar } from "@/components/ui/calendar";
 
 export default function DashboardPage() {
   const [isClient, setIsClient] = useState(false);
-  const [employees] = useLocalStorage<Employee[]>("employees", []);
-  const [attendance, setAttendance] = useLocalStorage<AttendanceRecord[]>(
-    "attendance",
-    []
-  );
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const { toast } = useToast();
   const [manualDate, setManualDate] = useState<Date | undefined>(new Date());
@@ -52,6 +49,8 @@ export default function DashboardPage() {
   const [historyEmployeeFilter, setHistoryEmployeeFilter] = useState<string>("all");
 
   useEffect(() => {
+    setEmployees(getData<Employee[]>('employees', []));
+    setAttendance(getData<AttendanceRecord[]>('attendance', []));
     setIsClient(true);
   }, []);
 
@@ -131,7 +130,9 @@ export default function DashboardPage() {
       clockIn: clockInTime.toISOString(),
     };
 
-    setAttendance([...attendance, newRecord]);
+    const newAttendance = [...attendance, newRecord];
+    setAttendance(newAttendance);
+    saveData('attendance', newAttendance);
     toast({
       title: "Berhasil",
       description: `${selectedEmployee?.name} absen masuk pada ${format(clockInTime, "p")}.`,
@@ -167,6 +168,7 @@ export default function DashboardPage() {
     );
 
     setAttendance(updatedAttendance);
+    saveData('attendance', updatedAttendance);
     toast({
       title: "Berhasil",
       description: `${selectedEmployee?.name} absen pulang pada ${format(clockOutTime, "p")}.`,
