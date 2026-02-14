@@ -32,29 +32,34 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Calendar as CalendarIcon, Clock } from "lucide-react";
-import { getData } from "@/utils/storage";
 import type { Employee, AttendanceRecord } from "@/types";
 import { format, differenceInMinutes, parseISO, isWithinInterval } from "date-fns";
 import { id } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
 
 export default function ReportsPage() {
   const [isClient, setIsClient] = useState(false);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const { firestore } = useFirebase();
+
+  const employeesCollection = useMemoFirebase(() => firestore ? collection(firestore, "employees") : null, [firestore]);
+  const { data: employees, isLoading: isLoadingEmployees } = useCollection<Employee>(employeesCollection);
+  
+  const attendanceCollection = useMemoFirebase(() => firestore ? collection(firestore, "attendance") : null, [firestore]);
+  const { data: attendance, isLoading: isLoadingAttendance } = useCollection<AttendanceRecord>(attendanceCollection);
+
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
   const [date, setDate] = useState<DateRange | undefined>();
 
   useEffect(() => {
-    setEmployees(getData<Employee[]>('employees', []));
-    setAttendance(getData<AttendanceRecord[]>('attendance', []));
     setIsClient(true);
   }, []);
 
   const filteredAttendance = useMemo(() => {
-    if (!isClient) return [];
+    if (!attendance) return [];
     let filtered = attendance.filter(record => record.clockOut); // Only include completed records
 
     if (selectedEmployeeId !== "all") {
@@ -76,7 +81,7 @@ export default function ReportsPage() {
     }
 
     return filtered.sort((a,b) => parseISO(b.clockIn).getTime() - parseISO(a.clockIn).getTime());
-  }, [attendance, selectedEmployeeId, date, isClient]);
+  }, [attendance, selectedEmployeeId, date]);
 
   const formatDuration = (totalMinutes: number): string => {
     if (totalMinutes < 0) totalMinutes = 0;
@@ -86,9 +91,9 @@ export default function ReportsPage() {
   };
 
   const reportData = useMemo(() => {
-    if (!isClient || !filteredAttendance.length) return [];
+    if (!filteredAttendance.length || !employees) return [];
 
-    const employeeDataMap = new Map<string, { employee: Employee; records: AttendanceRecord[]; totalMinutes: number }>();
+    const employeeDataMap = new Map<string, { employee: Employee & {id: string}; records: (AttendanceRecord & {id: string})[]; totalMinutes: number }>();
 
     filteredAttendance.forEach(record => {
         const employee = employees.find(e => e.id === record.employeeId);
@@ -110,7 +115,7 @@ export default function ReportsPage() {
     });
 
     return Array.from(employeeDataMap.values()).sort((a,b) => b.totalMinutes - a.totalMinutes);
-  }, [filteredAttendance, employees, isClient]);
+  }, [filteredAttendance, employees]);
 
   const chartData = useMemo(() => {
     return reportData.map(data => ({
@@ -133,6 +138,8 @@ export default function ReportsPage() {
     return formatDuration(minutes);
   };
   
+  const isLoading = isLoadingEmployees || isLoadingAttendance;
+
   return (
     <div className="space-y-6">
       <Card>
@@ -144,13 +151,13 @@ export default function ReportsPage() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4 sm:flex-row">
-            <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId} disabled={!isClient}>
+            <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId} disabled={isLoading}>
               <SelectTrigger className="w-full sm:w-[280px]">
                 <SelectValue placeholder="Pilih seorang karyawan" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Karyawan</SelectItem>
-                {employees.map((employee) => (
+                {employees?.map((employee) => (
                   <SelectItem key={employee.id} value={employee.id}>
                     {employee.name}
                   </SelectItem>
@@ -163,7 +170,7 @@ export default function ReportsPage() {
                   id="date"
                   variant={"outline"}
                   className="w-full justify-start text-left font-normal sm:w-[300px]"
-                  disabled={!isClient}
+                  disabled={isLoading}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {date?.from ? (
@@ -192,12 +199,12 @@ export default function ReportsPage() {
                 />
               </PopoverContent>
             </Popover>
-            <Button onClick={() => { setDate(undefined); setSelectedEmployeeId("all")}} disabled={!isClient}>Hapus Filter</Button>
+            <Button onClick={() => { setDate(undefined); setSelectedEmployeeId("all")}} disabled={isLoading}>Hapus Filter</Button>
           </div>
         </CardContent>
       </Card>
       
-      {!isClient ? (
+      {!isClient || isLoading ? (
         <Card>
           <CardHeader><CardTitle>Memuat Laporan...</CardTitle></CardHeader>
           <CardContent className="h-96 flex items-center justify-center">

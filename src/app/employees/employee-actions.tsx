@@ -27,19 +27,20 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import type { WithId } from "@/firebase";
 
 const employeeSchema = z.object({
   name: z.string().min(2, "Nama minimal harus 2 karakter."),
   position: z.string().min(2, "Posisi minimal harus 2 karakter."),
 });
 
-type EmployeeFormData = z.infer<typeof employeeSchema>;
+export type EmployeeFormData = z.infer<typeof employeeSchema>;
 
 interface EmployeeFormDialogProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   onSave: (data: EmployeeFormData) => void;
-  employee: Employee | null;
+  employee: WithId<Employee> | null;
 }
 
 export function EmployeeFormDialog({
@@ -60,9 +61,9 @@ export function EmployeeFormDialog({
   });
 
   useEffect(() => {
-    if (employee) {
+    if (isOpen && employee) {
       reset({ name: employee.name, position: employee.position });
-    } else {
+    } else if(isOpen && !employee) {
       reset({ name: "", position: "" });
     }
   }, [employee, reset, isOpen]);

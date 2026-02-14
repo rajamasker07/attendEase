@@ -1,8 +1,30 @@
 'use client';
 
-import React, { useMemo, type ReactNode } from 'react';
-import { FirebaseProvider } from '@/firebase/provider';
+import React, { useMemo, useEffect, type ReactNode } from 'react';
+import { FirebaseProvider, useUser, useAuth } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
+import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
+
+function AuthGate({ children }: { children: ReactNode }) {
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      initiateAnonymousSignIn(auth);
+    }
+  }, [user, isUserLoading, auth]);
+
+  if (isUserLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
+        <p>Memuat aplikasi...</p>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
@@ -20,7 +42,7 @@ export function FirebaseClientProvider({ children }: FirebaseClientProviderProps
       auth={firebaseServices.auth}
       firestore={firebaseServices.firestore}
     >
-      {children}
+      <AuthGate>{children}</AuthGate>
     </FirebaseProvider>
   );
 }

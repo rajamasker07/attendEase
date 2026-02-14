@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { MainLayout } from '@/components/main-layout';
+import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
   title: 'AttendEase',
@@ -21,8 +22,10 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased h-full">
-        <MainLayout>{children}</MainLayout>
-        <Toaster />
+        <FirebaseClientProvider>
+          <MainLayout>{children}</MainLayout>
+          <Toaster />
+        </FirebaseClientProvider>
       </body>
     </html>
   );

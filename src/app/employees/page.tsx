@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,60 +17,54 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getData, saveData } from "@/utils/storage";
 import type { Employee } from "@/types";
 import { PlusCircle, Edit, Trash2 } from "lucide-react";
 import { EmployeeFormDialog, DeleteEmployeeAlert } from "./employee-actions";
-
-const initialEmployees: Employee[] = [
-    { id: '1', name: 'John Doe', position: 'Frontend Developer' },
-    { id: '2', name: 'Jane Smith', position: 'Backend Developer' },
-    { id: '3', name: 'Peter Jones', position: 'UI/UX Designer' },
-];
+import { useCollection, useFirebase, WithId, setDocumentNonBlocking, deleteDocumentNonBlocking, useMemoFirebase } from "@/firebase";
+import { collection, doc } from "firebase/firestore";
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<WithId<Employee> | null>(null);
 
-  useEffect(() => {
-    setEmployees(getData('employees', initialEmployees));
-  }, []);
+  const { firestore } = useFirebase();
+
+  const employeesCollection = useMemoFirebase(() => firestore ? collection(firestore, "employees") : null, [firestore]);
+  const { data: employees, isLoading } = useCollection<Employee>(employeesCollection);
 
   const handleAdd = () => {
     setSelectedEmployee(null);
     setIsFormOpen(true);
   };
 
-  const handleEdit = (employee: Employee) => {
+  const handleEdit = (employee: WithId<Employee>) => {
     setSelectedEmployee(employee);
     setIsFormOpen(true);
   };
   
-  const handleDelete = (employee: Employee) => {
+  const handleDelete = (employee: WithId<Employee>) => {
     setSelectedEmployee(employee);
     setIsAlertOpen(true);
   };
 
   const handleSave = (employeeData: Omit<Employee, "id">) => {
-    let newEmployees: Employee[];
+    if (!firestore) return;
+    
     if (selectedEmployee) {
-      newEmployees = employees.map((e) =>
-          e.id === selectedEmployee.id ? { ...e, ...employeeData } : e
-        );
+      const docRef = doc(firestore, "employees", selectedEmployee.id);
+      setDocumentNonBlocking(docRef, employeeData, { merge: true });
     } else {
-      newEmployees = [...employees, { id: crypto.randomUUID(), ...employeeData }];
+      const newId = doc(collection(firestore, "employees")).id;
+      const docRef = doc(firestore, "employees", newId);
+      setDocumentNonBlocking(docRef, employeeData, {});
     }
-    setEmployees(newEmployees);
-    saveData('employees', newEmployees);
   };
   
   const confirmDelete = () => {
-    if (selectedEmployee) {
-      const newEmployees = employees.filter(e => e.id !== selectedEmployee.id);
-      setEmployees(newEmployees);
-      saveData('employees', newEmployees);
+    if (selectedEmployee && firestore) {
+      const docRef = doc(firestore, "employees", selectedEmployee.id);
+      deleteDocumentNonBlocking(docRef);
     }
   }
 
@@ -97,7 +91,13 @@ export default function EmployeesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {employees.length > 0 ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={3} className="h-24 text-center">
+                  Memuat data karyawan...
+                </TableCell>
+              </TableRow>
+            ) : employees && employees.length > 0 ? (
               employees.map((employee) => (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>

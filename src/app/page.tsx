@@ -25,7 +25,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { getData, saveData } from "@/utils/storage";
 import type { Employee, AttendanceRecord } from "@/types";
 import { format, isToday, parseISO, subDays, isAfter } from "date-fns";
 import { id } from "date-fns/locale";
@@ -36,11 +35,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { useCollection, useFirebase, WithId, addDocumentNonBlocking, setDocumentNonBlocking, useMemoFirebase } from "@/firebase";
+import { collection, doc, query, where } from "firebase/firestore";
 
 export default function DashboardPage() {
   const [isClient, setIsClient] = useState(false);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const { firestore } = useFirebase();
+  
+  const employeesCollection = useMemoFirebase(() => firestore ? collection(firestore, "employees") : null, [firestore]);
+  const { data: employees, isLoading: isLoadingEmployees } = useCollection<Employee>(employeesCollection);
+  
+  const attendanceCollection = useMemoFirebase(() => firestore ? collection(firestore, "attendance") : null, [firestore]);
+  const { data: attendance, isLoading: isLoadingAttendance } = useCollection<AttendanceRecord>(attendanceCollection);
+
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const { toast } = useToast();
   const [manualDate, setManualDate] = useState<Date | undefined>();
@@ -49,23 +56,21 @@ export default function DashboardPage() {
   const [historyEmployeeFilter, setHistoryEmployeeFilter] = useState<string>("all");
 
   useEffect(() => {
+    setIsClient(true);
     const now = new Date();
-    setEmployees(getData<Employee[]>('employees', []));
-    setAttendance(getData<AttendanceRecord[]>('attendance', []));
     setManualDate(now);
     setManualTime(format(now, "HH:mm"));
-    setIsClient(true);
   }, []);
 
   const todayAttendance = useMemo(() => {
-    if (!isClient) return [];
+    if (!attendance) return [];
     return attendance
       .filter((record) => isToday(parseISO(record.clockIn)))
       .sort((a, b) => parseISO(b.clockIn).getTime() - parseISO(a.clockIn).getTime());
-  }, [attendance, isClient]);
+  }, [attendance]);
 
   const historyAttendance = useMemo(() => {
-    if (!isClient) return [];
+    if (!attendance) return [];
 
     let filteredRecords = attendance;
 
@@ -82,19 +87,18 @@ export default function DashboardPage() {
     }
     
     return filteredRecords.sort((a, b) => parseISO(b.clockIn).getTime() - parseISO(a.clockIn).getTime());
-  }, [attendance, historyFilter, isClient, historyEmployeeFilter]);
+  }, [attendance, historyFilter, historyEmployeeFilter]);
 
   const currentEmployeeRecord = useMemo(() => {
-    if (!selectedEmployeeId || !isClient) return null;
+    if (!selectedEmployeeId || !todayAttendance) return null;
     return todayAttendance.find(
       (record) => record.employeeId === selectedEmployeeId && !record.clockOut
     );
-  }, [selectedEmployeeId, todayAttendance, isClient]);
+  }, [selectedEmployeeId, todayAttendance]);
   
   const selectedEmployee = useMemo(() => {
-    if (!isClient) return undefined;
-    return employees.find(e => e.id === selectedEmployeeId);
-  }, [employees, selectedEmployeeId, isClient]);
+    return employees?.find(e => e.id === selectedEmployeeId);
+  }, [employees, selectedEmployeeId]);
 
   const getManualDateTime = () => {
     if (!manualDate || !manualTime) return new Date();
@@ -108,7 +112,7 @@ export default function DashboardPage() {
   }
 
   const handleClockIn = () => {
-    if (!selectedEmployeeId) {
+    if (!firestore || !selectedEmployeeId) {
       toast({
         title: "Error",
         description: "Silakan pilih karyawan terlebih dahulu.",
@@ -128,14 +132,12 @@ export default function DashboardPage() {
     const clockInTime = getManualDateTime();
 
     const newRecord: AttendanceRecord = {
-      id: crypto.randomUUID(),
       employeeId: selectedEmployeeId,
       clockIn: clockInTime.toISOString(),
     };
+    
+    addDocumentNonBlocking(collection(firestore, "attendance"), newRecord);
 
-    const newAttendance = [...attendance, newRecord];
-    setAttendance(newAttendance);
-    saveData('attendance', newAttendance);
     toast({
       title: "Berhasil",
       description: `${selectedEmployee?.name} absen masuk pada ${format(clockInTime, "p")}.`,
@@ -143,7 +145,7 @@ export default function DashboardPage() {
   };
 
   const handleClockOut = () => {
-    if (!selectedEmployeeId || !currentEmployeeRecord) {
+    if (!firestore || !selectedEmployeeId || !currentEmployeeRecord) {
       toast({
         title: "Error",
         description: "Karyawan ini belum absen masuk.",
@@ -163,15 +165,10 @@ export default function DashboardPage() {
         });
         return;
     }
+    
+    const docRef = doc(firestore, "attendance", currentEmployeeRecord.id);
+    setDocumentNonBlocking(docRef, { clockOut: clockOutTime.toISOString() }, { merge: true });
 
-    const updatedAttendance = attendance.map((record) =>
-      record.id === currentEmployeeRecord.id
-        ? { ...record, clockOut: clockOutTime.toISOString() }
-        : record
-    );
-
-    setAttendance(updatedAttendance);
-    saveData('attendance', updatedAttendance);
     toast({
       title: "Berhasil",
       description: `${selectedEmployee?.name} absen pulang pada ${format(clockOutTime, "p")}.`,
@@ -179,10 +176,15 @@ export default function DashboardPage() {
   };
 
   const getEmployeeName = (employeeId: string) => {
-    if (!isClient) return "Tidak diketahui";
-    return employees.find((e) => e.id === employeeId)?.name || "Tidak diketahui";
+    return employees?.find((e) => e.id === employeeId)?.name || "Tidak diketahui";
   };
   
+  const isLoading = isLoadingEmployees || isLoadingAttendance;
+  
+  if (!isClient || isLoading) {
+    return <div className="flex h-full items-center justify-center"><p>Memuat data...</p></div>
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -196,14 +198,12 @@ export default function DashboardPage() {
             <div className="space-y-6 pt-4">
               <div className="space-y-2">
                 <Label htmlFor="employee-select">Karyawan</Label>
-                <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId} disabled={!isClient}>
+                <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
                   <SelectTrigger id="employee-select" className="w-full">
                     <SelectValue placeholder="Pilih seorang karyawan" />
                   </SelectTrigger>
                   <SelectContent>
-                    {!isClient ? (
-                      <div className="p-4 text-sm text-muted-foreground">Memuat...</div>
-                    ) : employees.length > 0 ? (
+                    {employees && employees.length > 0 ? (
                       employees.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
                           {employee.name}
@@ -225,7 +225,6 @@ export default function DashboardPage() {
                         id="attendance-date"
                         variant={"outline"}
                         className="w-full justify-start text-left font-normal"
-                        disabled={!isClient}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {manualDate ? format(manualDate, "PPP", { locale: id }) : <span>Pilih tanggal</span>}
@@ -250,21 +249,20 @@ export default function DashboardPage() {
                     value={manualTime}
                     onChange={(e) => setManualTime(e.target.value)}
                     className="w-full"
-                    disabled={!isClient}
                   />
                 </div>
               </div>
 
               <div className="flex w-full gap-2">
-                <Button onClick={handleClockIn} disabled={!isClient || !selectedEmployeeId || !!currentEmployeeRecord} className="w-full">
+                <Button onClick={handleClockIn} disabled={!selectedEmployeeId || !!currentEmployeeRecord} className="w-full">
                   <LogIn className="mr-2 h-4 w-4" /> Absen Masuk
                 </Button>
-                <Button onClick={handleClockOut} disabled={!isClient || !selectedEmployeeId || !currentEmployeeRecord} variant="outline" className="w-full">
+                <Button onClick={handleClockOut} disabled={!selectedEmployeeId || !currentEmployeeRecord} variant="outline" className="w-full">
                   <LogOut className="mr-2 h-4 w-4" /> Absen Pulang
                 </Button>
               </div>
 
-              {isClient && selectedEmployeeId && (
+              {selectedEmployeeId && (
                 <div className="pt-4 text-center text-sm text-muted-foreground">
                     {currentEmployeeRecord ? (
                         <span>
@@ -290,9 +288,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
              <div className="max-h-[300px] overflow-y-auto">
-                {!isClient ? (
-                  <div className="text-center text-sm text-muted-foreground py-8">Memuat...</div>
-                ) : todayAttendance.length > 0 ? (
+                {todayAttendance.length > 0 ? (
                     <ul className="space-y-3">
                         {todayAttendance.map((record) => (
                             <li key={record.id} className="flex items-center justify-between text-sm">
@@ -327,15 +323,9 @@ export default function DashboardPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {!isClient ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
-                    Memuat...
-                  </TableCell>
-                </TableRow>
-              ) : todayAttendance.length > 0 ? (
+              {todayAttendance.length > 0 ? (
                 todayAttendance.map((record) => {
-                  const employee = employees.find(e => e.id === record.employeeId);
+                  const employee = employees?.find(e => e.id === record.employeeId);
                   return (
                     <TableRow key={record.id}>
                       <TableCell className="font-medium">{employee?.name || 'Tidak diketahui'}</TableCell>
@@ -371,20 +361,20 @@ export default function DashboardPage() {
                 <CardDescription>Lihat riwayat catatan absensi.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Select value={historyEmployeeFilter} onValueChange={setHistoryEmployeeFilter} disabled={!isClient}>
+              <Select value={historyEmployeeFilter} onValueChange={setHistoryEmployeeFilter}>
                   <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Filter berdasarkan karyawan" />
                   </SelectTrigger>
                   <SelectContent>
                       <SelectItem value="all">Semua Karyawan</SelectItem>
-                      {employees.map((employee) => (
+                      {employees?.map((employee) => (
                           <SelectItem key={employee.id} value={employee.id}>
                           {employee.name}
                           </SelectItem>
                       ))}
                   </SelectContent>
               </Select>
-              <Select value={historyFilter} onValueChange={setHistoryFilter} disabled={!isClient}>
+              <Select value={historyFilter} onValueChange={setHistoryFilter}>
                   <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Filter berdasarkan periode" />
                   </SelectTrigger>
@@ -409,15 +399,9 @@ export default function DashboardPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {!isClient ? (
-                        <TableRow>
-                            <TableCell colSpan={5} className="h-24 text-center">
-                            Memuat...
-                            </TableCell>
-                        </TableRow>
-                    ) : historyAttendance.length > 0 ? (
+                    {historyAttendance.length > 0 ? (
                     historyAttendance.map((record) => {
-                        const employee = employees.find(e => e.id === record.employeeId);
+                        const employee = employees?.find(e => e.id === record.employeeId);
                         return (
                         <TableRow key={record.id}>
                             <TableCell className="font-medium">{employee?.name || 'Tidak diketahui'}</TableCell>
