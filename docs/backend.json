@@ -13,11 +13,27 @@
         "position": {
           "type": "string",
           "description": "The job title or position of the employee."
+        },
+        "joinDate": {
+          "type": "string",
+          "format": "date",
+          "description": "The date the employee started working."
+        },
+        "phone": {
+          "type": "string",
+          "description": "The employee's phone number."
+        },
+        "salary": {
+          "type": "number",
+          "description": "The employee's monthly salary."
         }
       },
       "required": [
         "name",
-        "position"
+        "position",
+        "joinDate",
+        "phone",
+        "salary"
       ]
     },
     "AttendanceRecord": {

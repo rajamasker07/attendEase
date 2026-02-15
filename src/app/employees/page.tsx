@@ -19,9 +19,11 @@ import {
 } from "@/components/ui/table";
 import type { Employee } from "@/types";
 import { PlusCircle, Edit, Trash2 } from "lucide-react";
-import { EmployeeFormDialog, DeleteEmployeeAlert } from "./employee-actions";
+import { EmployeeFormDialog, DeleteEmployeeAlert, type EmployeeFormData } from "./employee-actions";
 import { useCollection, useFirebase, WithId, setDocumentNonBlocking, deleteDocumentNonBlocking, useMemoFirebase } from "@/firebase";
 import { collection, doc } from "firebase/firestore";
+import { format, parseISO } from "date-fns";
+import { id } from "date-fns/locale";
 
 export default function EmployeesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -48,7 +50,7 @@ export default function EmployeesPage() {
     setIsAlertOpen(true);
   };
 
-  const handleSave = (employeeData: Omit<Employee, "id">) => {
+  const handleSave = (employeeData: EmployeeFormData) => {
     if (!firestore) return;
     
     if (selectedEmployee) {
@@ -87,13 +89,16 @@ export default function EmployeesPage() {
             <TableRow>
               <TableHead>Nama</TableHead>
               <TableHead>Posisi</TableHead>
+              <TableHead>Tgl. Masuk</TableHead>
+              <TableHead>No. HP</TableHead>
+              <TableHead>Gaji</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   Memuat data karyawan...
                 </TableCell>
               </TableRow>
@@ -102,6 +107,9 @@ export default function EmployeesPage() {
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>{employee.position}</TableCell>
+                  <TableCell>{format(parseISO(employee.joinDate), "d MMM yyyy", { locale: id })}</TableCell>
+                  <TableCell>{employee.phone}</TableCell>
+                  <TableCell>{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(employee.salary)}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(employee)}>
                       <Edit className="h-4 w-4" />
@@ -116,7 +124,7 @@ export default function EmployeesPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={3} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   Tidak ada karyawan ditemukan.
                 </TableCell>
               </TableRow>

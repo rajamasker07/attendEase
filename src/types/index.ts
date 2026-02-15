@@ -1,6 +1,9 @@
 export interface Employee {
   name: string;
   position: string;
+  joinDate: string; // YYYY-MM-DD
+  phone: string;
+  salary: number;
 }
 
 export interface AttendanceRecord {

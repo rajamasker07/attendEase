@@ -28,10 +28,14 @@ import * as z from "zod";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { WithId } from "@/firebase";
+import { format } from "date-fns";
 
 const employeeSchema = z.object({
   name: z.string().min(2, "Nama minimal harus 2 karakter."),
   position: z.string().min(2, "Posisi minimal harus 2 karakter."),
+  joinDate: z.string().min(1, "Tanggal masuk harus diisi."),
+  phone: z.string().min(10, "Nomor HP minimal 10 digit.").regex(/^\+?[0-9\s-]{10,}$/, "Format nomor HP tidak valid."),
+  salary: z.coerce.number().min(0, "Gaji tidak boleh negatif."),
 });
 
 export type EmployeeFormData = z.infer<typeof employeeSchema>;
@@ -57,14 +61,20 @@ export function EmployeeFormDialog({
     formState: { errors },
   } = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeSchema),
-    defaultValues: { name: "", position: "" },
+    defaultValues: { name: "", position: "", phone: "", salary: 0, joinDate: "" },
   });
 
   useEffect(() => {
     if (isOpen && employee) {
-      reset({ name: employee.name, position: employee.position });
+      reset({ 
+        name: employee.name, 
+        position: employee.position,
+        joinDate: employee.joinDate,
+        phone: employee.phone,
+        salary: employee.salary,
+      });
     } else if(isOpen && !employee) {
-      reset({ name: "", position: "" });
+      reset({ name: "", position: "", phone: "", salary: 0, joinDate: format(new Date(), "yyyy-MM-dd") });
     }
   }, [employee, reset, isOpen]);
 
@@ -108,6 +118,33 @@ export function EmployeeFormDialog({
               <div className="col-span-3">
                 <Input id="position" {...register("position")} className="w-full" />
                 {errors.position && <p className="text-destructive text-sm mt-1">{errors.position.message}</p>}
+              </div>
+            </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="joinDate" className="text-right">
+                Tgl. Masuk
+              </Label>
+              <div className="col-span-3">
+                <Input id="joinDate" {...register("joinDate")} className="w-full" type="date" />
+                {errors.joinDate && <p className="text-destructive text-sm mt-1">{errors.joinDate.message}</p>}
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="phone" className="text-right">
+                No. HP
+              </Label>
+              <div className="col-span-3">
+                <Input id="phone" {...register("phone")} className="w-full" type="tel" />
+                {errors.phone && <p className="text-destructive text-sm mt-1">{errors.phone.message}</p>}
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="salary" className="text-right">
+                Gaji
+              </Label>
+              <div className="col-span-3">
+                <Input id="salary" {...register("salary")} className="w-full" type="number" />
+                {errors.salary && <p className="text-destructive text-sm mt-1">{errors.salary.message}</p>}
               </div>
             </div>
           </div>
