@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -42,7 +42,6 @@ import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 
 export default function ReportsPage() {
-  const [isClient, setIsClient] = useState(false);
   const { firestore } = useFirebase();
 
   const employeesCollection = useMemoFirebase(() => firestore ? collection(firestore, "employees") : null, [firestore]);
@@ -53,10 +52,6 @@ export default function ReportsPage() {
 
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
   const [date, setDate] = useState<DateRange | undefined>();
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   const filteredAttendance = useMemo(() => {
     if (!attendance) return [];
@@ -139,6 +134,50 @@ export default function ReportsPage() {
   };
   
   const isLoading = isLoadingEmployees || isLoadingAttendance;
+  
+  if (isLoading) {
+    return (
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Filter Laporan</CardTitle>
+                    <CardDescription>
+                        Saring catatan kehadiran berdasarkan karyawan dan rentang tanggal.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-col gap-4 sm:flex-row">
+                        <Select disabled={true}>
+                            <SelectTrigger className="w-full sm:w-[280px]">
+                                <SelectValue placeholder="Pilih seorang karyawan" />
+                            </SelectTrigger>
+                        </Select>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    id="date"
+                                    variant={"outline"}
+                                    className="w-full justify-start text-left font-normal sm:w-[300px]"
+                                    disabled={true}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    <span>Pilih rentang tanggal</span>
+                                </Button>
+                            </PopoverTrigger>
+                        </Popover>
+                        <Button disabled={true}>Hapus Filter</Button>
+                    </div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader><CardTitle>Memuat Laporan...</CardTitle></CardHeader>
+                <CardContent className="h-96 flex items-center justify-center">
+                    <div className="text-center text-muted-foreground">Memuat data...</div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -204,14 +243,7 @@ export default function ReportsPage() {
         </CardContent>
       </Card>
       
-      {!isClient || isLoading ? (
-        <Card>
-          <CardHeader><CardTitle>Memuat Laporan...</CardTitle></CardHeader>
-          <CardContent className="h-96 flex items-center justify-center">
-            <div className="text-center text-muted-foreground">Memuat data...</div>
-          </CardContent>
-        </Card>
-      ) : reportData.length > 0 ? (
+      {reportData.length > 0 ? (
         <>
           <Card>
             <CardHeader>

@@ -39,7 +39,6 @@ import { useCollection, useFirebase, WithId, addDocumentNonBlocking, setDocument
 import { collection, doc, query, where } from "firebase/firestore";
 
 export default function DashboardPage() {
-  const [isClient, setIsClient] = useState(false);
   const { firestore } = useFirebase();
   
   const employeesCollection = useMemoFirebase(() => firestore ? collection(firestore, "employees") : null, [firestore]);
@@ -56,7 +55,6 @@ export default function DashboardPage() {
   const [historyEmployeeFilter, setHistoryEmployeeFilter] = useState<string>("all");
 
   useEffect(() => {
-    setIsClient(true);
     const now = new Date();
     setManualDate(now);
     setManualTime(format(now, "HH:mm"));
@@ -188,7 +186,7 @@ export default function DashboardPage() {
   
   const isLoading = isLoadingEmployees || isLoadingAttendance;
   
-  if (!isClient || isLoading) {
+  if (isLoading) {
     return <div className="flex h-full items-center justify-center"><p>Memuat data...</p></div>
   }
 
