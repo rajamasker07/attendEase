@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import type { Employee, AttendanceRecord } from "@/types";
-import { format, isSameDay, parseISO, subDays, isAfter } from "date-fns";
+import { format, isSameDay, parseISO, subDays, isAfter, startOfDay, endOfDay } from "date-fns";
 import { id } from "date-fns/locale";
 import { Calendar as CalendarIcon, LogIn, LogOut } from "lucide-react";
 import { Clock } from "@/components/clock";
@@ -36,7 +36,8 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useCollection, useFirebase, WithId, addDocumentNonBlocking, setDocumentNonBlocking, useMemoFirebase } from "@/firebase";
-import { collection, doc, query, where } from "firebase/firestore";
+import { collection, doc, query, where, orderBy } from "firebase/firestore";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
   const { firestore } = useFirebase();
@@ -44,9 +45,6 @@ export default function DashboardPage() {
   const employeesCollection = useMemoFirebase(() => firestore ? collection(firestore, "employees") : null, [firestore]);
   const { data: employees, isLoading: isLoadingEmployees } = useCollection<Employee>(employeesCollection);
   
-  const attendanceCollection = useMemoFirebase(() => firestore ? collection(firestore, "attendance") : null, [firestore]);
-  const { data: attendance, isLoading: isLoadingAttendance } = useCollection<AttendanceRecord>(attendanceCollection);
-
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const { toast } = useToast();
   const [manualDate, setManualDate] = useState<Date | undefined>();
@@ -60,33 +58,46 @@ export default function DashboardPage() {
     setManualTime(format(now, "HH:mm"));
   }, []);
 
-  const selectedDateAttendance = useMemo(() => {
-    if (!attendance || !manualDate) return [];
-    return attendance
-      .filter((record) => isSameDay(parseISO(record.clockIn), manualDate))
-      .sort((a, b) => parseISO(b.clockIn).getTime() - parseISO(a.clockIn).getTime());
-  }, [attendance, manualDate]);
+  // --- Firestore Queries ---
+  const selectedDateQuery = useMemoFirebase(() => {
+    if (!firestore || !manualDate) return null;
+    const start = startOfDay(manualDate);
+    const end = endOfDay(manualDate);
+    return query(
+      collection(firestore, "attendance"),
+      where("clockIn", ">=", start.toISOString()),
+      where("clockIn", "<=", end.toISOString()),
+      orderBy("clockIn", "desc")
+    );
+  }, [firestore, manualDate]);
+  const { data: selectedDateAttendance, isLoading: isLoadingSelectedDate } = useCollection<AttendanceRecord>(selectedDateQuery);
 
-  const historyAttendance = useMemo(() => {
-    if (!attendance) return [];
-
-    let filteredRecords = attendance;
+  const historyQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    const attendanceRef = collection(firestore, "attendance");
+    
+    let q;
 
     if (historyEmployeeFilter !== "all") {
-      filteredRecords = filteredRecords.filter(
-        (record) => record.employeeId === historyEmployeeFilter
-      );
+      // Composite query
+      q = query(attendanceRef, where("employeeId", "==", historyEmployeeFilter));
+    } else {
+      q = query(attendanceRef);
     }
-
+    
     if (historyFilter !== 'all') {
         const days = parseInt(historyFilter, 10);
         const filterDate = subDays(new Date(), days);
-        filteredRecords = filteredRecords.filter(record => isAfter(parseISO(record.clockIn), filterDate));
+        q = query(q, where("clockIn", ">=", filterDate.toISOString()));
     }
-    
-    return filteredRecords.sort((a, b) => parseISO(b.clockIn).getTime() - parseISO(a.clockIn).getTime());
-  }, [attendance, historyFilter, historyEmployeeFilter]);
 
+    q = query(q, orderBy("clockIn", "desc"));
+    
+    return q;
+  }, [firestore, historyFilter, historyEmployeeFilter]);
+  const { data: historyAttendance, isLoading: isLoadingHistory } = useCollection<AttendanceRecord>(historyQuery);
+  
+  // --- Derived State ---
   const currentEmployeeRecord = useMemo(() => {
     if (!selectedEmployeeId || !selectedDateAttendance) return null;
     return selectedDateAttendance.find(
@@ -184,10 +195,52 @@ export default function DashboardPage() {
     return employees?.find((e) => e.id === employeeId)?.name || "Tidak diketahui";
   };
   
-  const isLoading = isLoadingEmployees || isLoadingAttendance;
-  
-  if (isLoading) {
-    return <div className="flex h-full items-center justify-center"><p>Memuat data...</p></div>
+  if (isLoadingEmployees) {
+    return (
+       <div className="space-y-6">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+                <CardHeader>
+                    <CardTitle>Absensi</CardTitle>
+                    <CardDescription>Catat waktu masuk atau pulang karyawan.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Skeleton className="h-[108px] w-full" />
+                    <div className="space-y-6 pt-4">
+                        <Skeleton className="h-10 w-full" />
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                           <Skeleton className="h-10 w-full" />
+                           <Skeleton className="h-10 w-full" />
+                        </div>
+                        <div className="flex w-full gap-2">
+                           <Skeleton className="h-10 w-full" />
+                           <Skeleton className="h-10 w-full" />
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Aktivitas pada Tanggal Dipilih</CardTitle>
+                    <CardDescription>Catatan absensi untuk tanggal yang dipilih.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="h-[300px] flex items-center justify-center">
+                        <p className="text-sm text-muted-foreground">Memuat data...</p>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+        <Card>
+            <CardHeader><CardTitle>Log Lengkap pada Tanggal Dipilih</CardTitle></CardHeader>
+            <CardContent><Skeleton className="h-40 w-full" /></CardContent>
+        </Card>
+        <Card>
+            <CardHeader><CardTitle>Riwayat Aktivitas</CardTitle></CardHeader>
+            <CardContent><Skeleton className="h-40 w-full" /></CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -306,7 +359,9 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
              <div className="max-h-[300px] overflow-y-auto">
-                {selectedDateAttendance.length > 0 ? (
+                {isLoadingSelectedDate ? (
+                  <div className="text-center text-sm text-muted-foreground py-8">Memuat aktivitas...</div>
+                ) : selectedDateAttendance && selectedDateAttendance.length > 0 ? (
                     <ul className="space-y-3">
                         {selectedDateAttendance.map((record) => (
                             <li key={record.id} className="flex items-center justify-between text-sm">
@@ -341,7 +396,11 @@ export default function DashboardPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {selectedDateAttendance.length > 0 ? (
+              {isLoadingSelectedDate ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">Memuat log...</TableCell>
+                </TableRow>
+              ) : selectedDateAttendance && selectedDateAttendance.length > 0 ? (
                 selectedDateAttendance.map((record) => {
                   const employee = employees?.find(e => e.id === record.employeeId);
                   return (
@@ -417,7 +476,13 @@ export default function DashboardPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {historyAttendance.length > 0 ? (
+                    {isLoadingHistory ? (
+                      <TableRow>
+                          <TableCell colSpan={5} className="h-24 text-center">
+                          Memuat riwayat...
+                          </TableCell>
+                      </TableRow>
+                    ) : historyAttendance && historyAttendance.length > 0 ? (
                     historyAttendance.map((record) => {
                         const employee = employees?.find(e => e.id === record.employeeId);
                         return (
@@ -439,7 +504,7 @@ export default function DashboardPage() {
                     ) : (
                     <TableRow>
                         <TableCell colSpan={5} className="h-24 text-center">
-                        Tidak ada catatan ditemukan untuk periode yang dipilih.
+                        Tidak ada catatan ditemukan untuk filter yang dipilih.
                         </TableCell>
                     </TableRow>
                     )}
