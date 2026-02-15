@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import type { Employee, AttendanceRecord } from "@/types";
-import { format, isToday, parseISO, subDays, isAfter } from "date-fns";
+import { format, isSameDay, parseISO, subDays, isAfter } from "date-fns";
 import { id } from "date-fns/locale";
 import { Calendar as CalendarIcon, LogIn, LogOut } from "lucide-react";
 import { Clock } from "@/components/clock";
@@ -62,12 +62,12 @@ export default function DashboardPage() {
     setManualTime(format(now, "HH:mm"));
   }, []);
 
-  const todayAttendance = useMemo(() => {
-    if (!attendance) return [];
+  const selectedDateAttendance = useMemo(() => {
+    if (!attendance || !manualDate) return [];
     return attendance
-      .filter((record) => isToday(parseISO(record.clockIn)))
+      .filter((record) => isSameDay(parseISO(record.clockIn), manualDate))
       .sort((a, b) => parseISO(b.clockIn).getTime() - parseISO(a.clockIn).getTime());
-  }, [attendance]);
+  }, [attendance, manualDate]);
 
   const historyAttendance = useMemo(() => {
     if (!attendance) return [];
@@ -90,15 +90,22 @@ export default function DashboardPage() {
   }, [attendance, historyFilter, historyEmployeeFilter]);
 
   const currentEmployeeRecord = useMemo(() => {
-    if (!selectedEmployeeId || !todayAttendance) return null;
-    return todayAttendance.find(
+    if (!selectedEmployeeId || !selectedDateAttendance) return null;
+    return selectedDateAttendance.find(
       (record) => record.employeeId === selectedEmployeeId && !record.clockOut
     );
-  }, [selectedEmployeeId, todayAttendance]);
+  }, [selectedEmployeeId, selectedDateAttendance]);
   
   const selectedEmployee = useMemo(() => {
     return employees?.find(e => e.id === selectedEmployeeId);
   }, [employees, selectedEmployeeId]);
+
+  const hasCompletedAttendanceOnSelectedDate = useMemo(() => {
+    if (!selectedEmployeeId || !selectedDateAttendance) return false;
+    return selectedDateAttendance.some(
+      (record) => record.employeeId === selectedEmployeeId && record.clockOut
+    );
+  }, [selectedEmployeeId, selectedDateAttendance]);
 
   const getManualDateTime = () => {
     if (!manualDate || !manualTime) return new Date();
@@ -254,10 +261,19 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex w-full gap-2">
-                <Button onClick={handleClockIn} disabled={!selectedEmployeeId || !!currentEmployeeRecord} className="w-full">
+                <Button 
+                  onClick={handleClockIn} 
+                  disabled={!selectedEmployeeId || !!currentEmployeeRecord || hasCompletedAttendanceOnSelectedDate} 
+                  className="w-full"
+                >
                   <LogIn className="mr-2 h-4 w-4" /> Absen Masuk
                 </Button>
-                <Button onClick={handleClockOut} disabled={!selectedEmployeeId || !currentEmployeeRecord} variant="outline" className="w-full">
+                <Button 
+                  onClick={handleClockOut} 
+                  disabled={!selectedEmployeeId || !currentEmployeeRecord} 
+                  variant="outline" 
+                  className="w-full"
+                >
                   <LogOut className="mr-2 h-4 w-4" /> Absen Pulang
                 </Button>
               </div>
@@ -266,11 +282,15 @@ export default function DashboardPage() {
                 <div className="pt-4 text-center text-sm text-muted-foreground">
                     {currentEmployeeRecord ? (
                         <span>
-                            <strong>{selectedEmployee?.name}</strong> saat ini sudah absen masuk sejak <strong>{format(parseISO(currentEmployeeRecord.clockIn), 'p')}</strong>.
+                            <strong>{selectedEmployee?.name}</strong> tercatat masuk pada <strong>{format(parseISO(currentEmployeeRecord.clockIn), 'p')}</strong> dan belum absen pulang.
+                        </span>
+                    ) : hasCompletedAttendanceOnSelectedDate ? (
+                        <span>
+                            <strong>{selectedEmployee?.name}</strong> telah menyelesaikan absensi pada tanggal ini.
                         </span>
                     ) : (
                         <span>
-                            <strong>{selectedEmployee?.name}</strong> saat ini sedang tidak di tempat.
+                            <strong>{selectedEmployee?.name}</strong> belum memiliki catatan absensi pada tanggal ini.
                         </span>
                     )}
                 </div>
@@ -281,16 +301,16 @@ export default function DashboardPage() {
         
         <Card>
           <CardHeader>
-            <CardTitle>Aktivitas Hari Ini</CardTitle>
+            <CardTitle>Aktivitas pada Tanggal Dipilih</CardTitle>
             <CardDescription>
-              Catatan semua absensi untuk hari ini.
+              Catatan absensi untuk tanggal yang dipilih.
             </CardDescription>
           </CardHeader>
           <CardContent>
              <div className="max-h-[300px] overflow-y-auto">
-                {todayAttendance.length > 0 ? (
+                {selectedDateAttendance.length > 0 ? (
                     <ul className="space-y-3">
-                        {todayAttendance.map((record) => (
+                        {selectedDateAttendance.map((record) => (
                             <li key={record.id} className="flex items-center justify-between text-sm">
                                 <div className="font-medium">{getEmployeeName(record.employeeId)}</div>
                                 <div className="text-muted-foreground">
@@ -300,7 +320,7 @@ export default function DashboardPage() {
                         ))}
                     </ul>
                 ) : (
-                    <div className="text-center text-sm text-muted-foreground py-8">Tidak ada catatan absensi untuk hari ini.</div>
+                    <div className="text-center text-sm text-muted-foreground py-8">Tidak ada catatan absensi untuk tanggal yang dipilih.</div>
                 )}
              </div>
           </CardContent>
@@ -309,7 +329,7 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Log Lengkap Hari Ini</CardTitle>
+          <CardTitle>Log Lengkap pada Tanggal Dipilih</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -323,8 +343,8 @@ export default function DashboardPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {todayAttendance.length > 0 ? (
-                todayAttendance.map((record) => {
+              {selectedDateAttendance.length > 0 ? (
+                selectedDateAttendance.map((record) => {
                   const employee = employees?.find(e => e.id === record.employeeId);
                   return (
                     <TableRow key={record.id}>
@@ -345,7 +365,7 @@ export default function DashboardPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
-                    Tidak ada catatan absensi untuk hari ini.
+                    Tidak ada catatan absensi untuk tanggal yang dipilih.
                   </TableCell>
                 </TableRow>
               )}
