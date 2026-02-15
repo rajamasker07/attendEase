@@ -298,6 +298,7 @@ export default function ReportsPage() {
                                     <TableHead>Tanggal</TableHead>
                                     <TableHead>Masuk</TableHead>
                                     <TableHead>Pulang</TableHead>
+                                    <TableHead>Catatan</TableHead>
                                     <TableHead className="text-right">Durasi</TableHead>
                                 </TableRow>
                                 </TableHeader>
@@ -313,6 +314,7 @@ export default function ReportsPage() {
                                     <TableCell>
                                         {record.clockOut ? format(parseISO(record.clockOut), "p") : "-"}
                                     </TableCell>
+                                    <TableCell>{record.notes || "-"}</TableCell>
                                     <TableCell className="text-right">
                                         {calculateDuration(record.clockIn, record.clockOut)}
                                     </TableCell>

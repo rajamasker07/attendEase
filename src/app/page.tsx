@@ -33,6 +33,7 @@ import { Clock } from "@/components/clock";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useCollection, useFirebase, WithId, addDocumentNonBlocking, setDocumentNonBlocking, useMemoFirebase } from "@/firebase";
@@ -49,6 +50,7 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const [manualDate, setManualDate] = useState<Date | undefined>();
   const [manualTime, setManualTime] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
   const [historyFilter, setHistoryFilter] = useState<string>("7");
   const [historyEmployeeFilter, setHistoryEmployeeFilter] = useState<string>("all");
 
@@ -115,6 +117,14 @@ export default function DashboardPage() {
       (record) => record.employeeId === selectedEmployeeId && record.clockOut
     );
   }, [selectedEmployeeId, selectedDateAttendance]);
+  
+  useEffect(() => {
+    if (currentEmployeeRecord) {
+      setNotes(currentEmployeeRecord.notes || '');
+    } else {
+      setNotes('');
+    }
+  }, [currentEmployeeRecord]);
 
   const getManualDateTime = () => {
     if (!manualDate || !manualTime) return new Date();
@@ -150,6 +160,7 @@ export default function DashboardPage() {
     const newRecord: AttendanceRecord = {
       employeeId: selectedEmployeeId,
       clockIn: clockInTime.toISOString(),
+      notes: notes,
     };
     
     addDocumentNonBlocking(collection(firestore, "attendance"), newRecord);
@@ -183,7 +194,7 @@ export default function DashboardPage() {
     }
     
     const docRef = doc(firestore, "attendance", currentEmployeeRecord.id);
-    setDocumentNonBlocking(docRef, { clockOut: clockOutTime.toISOString() }, { merge: true });
+    setDocumentNonBlocking(docRef, { clockOut: clockOutTime.toISOString(), notes: notes }, { merge: true });
 
     toast({
       title: "Berhasil",
@@ -212,6 +223,7 @@ export default function DashboardPage() {
                            <Skeleton className="h-10 w-full" />
                            <Skeleton className="h-10 w-full" />
                         </div>
+                        <Skeleton className="h-20 w-full" />
                         <div className="flex w-full gap-2">
                            <Skeleton className="h-10 w-full" />
                            <Skeleton className="h-10 w-full" />
@@ -310,6 +322,17 @@ export default function DashboardPage() {
                   />
                 </div>
               </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="attendance-notes">Catatan</Label>
+                <Textarea
+                  id="attendance-notes"
+                  placeholder="Tambahkan catatan (opsional)..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  disabled={!selectedEmployeeId}
+                />
+              </div>
 
               <div className="flex w-full gap-2">
                 <Button 
@@ -392,13 +415,14 @@ export default function DashboardPage() {
                 <TableHead>Posisi</TableHead>
                 <TableHead>Masuk</TableHead>
                 <TableHead>Pulang</TableHead>
+                <TableHead>Catatan</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoadingSelectedDate ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">Memuat log...</TableCell>
+                  <TableCell colSpan={6} className="h-24 text-center">Memuat log...</TableCell>
                 </TableRow>
               ) : selectedDateAttendance && selectedDateAttendance.length > 0 ? (
                 selectedDateAttendance.map((record) => {
@@ -409,6 +433,7 @@ export default function DashboardPage() {
                       <TableCell>{employee?.position || 'N/A'}</TableCell>
                       <TableCell>{format(parseISO(record.clockIn), "p")}</TableCell>
                       <TableCell>{record.clockOut ? format(parseISO(record.clockOut), "p") : " - "}</TableCell>
+                      <TableCell>{record.notes || "-"}</TableCell>
                       <TableCell>
                         {record.clockOut ? (
                            <Badge variant="secondary">Sudah Pulang</Badge>
@@ -421,7 +446,7 @@ export default function DashboardPage() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     Tidak ada catatan absensi untuk tanggal yang dipilih.
                   </TableCell>
                 </TableRow>
@@ -472,13 +497,14 @@ export default function DashboardPage() {
                     <TableHead>Tanggal</TableHead>
                     <TableHead>Masuk</TableHead>
                     <TableHead>Pulang</TableHead>
+                    <TableHead>Catatan</TableHead>
                     <TableHead>Status</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {isLoadingHistory ? (
                       <TableRow>
-                          <TableCell colSpan={5} className="h-24 text-center">
+                          <TableCell colSpan={6} className="h-24 text-center">
                           Memuat riwayat...
                           </TableCell>
                       </TableRow>
@@ -491,6 +517,7 @@ export default function DashboardPage() {
                             <TableCell>{format(parseISO(record.clockIn), "MMM d, yyyy", { locale: id })}</TableCell>
                             <TableCell>{format(parseISO(record.clockIn), "p")}</TableCell>
                             <TableCell>{record.clockOut ? format(parseISO(record.clockOut), "p") : " - "}</TableCell>
+                            <TableCell>{record.notes || "-"}</TableCell>
                             <TableCell>
                             {record.clockOut ? (
                                 <Badge variant="secondary">Sudah Pulang</Badge>
@@ -503,7 +530,7 @@ export default function DashboardPage() {
                     })
                     ) : (
                     <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center">
+                        <TableCell colSpan={6} className="h-24 text-center">
                         Tidak ada catatan ditemukan untuk filter yang dipilih.
                         </TableCell>
                     </TableRow>
