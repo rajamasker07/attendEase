@@ -31,66 +31,66 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Calendar as CalendarIcon, Clock } from "lucide-react";
+import { Calendar as CalendarIcon } from "lucide-react";
 import type { Employee, AttendanceRecord } from "@/types";
-import { format, differenceInMinutes, parseISO, isWithinInterval } from "date-fns";
+import { format, differenceInMinutes, parseISO, isWithinInterval, isAfter } from "date-fns";
 import { id } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { useCollection, useFirebase, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { useCollection, useFirebase, useMemoFirebase, WithId } from "@/firebase";
+import { collection, query, where } from "firebase/firestore";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ReportsPage() {
   const { firestore } = useFirebase();
 
-  const employeesCollection = useMemoFirebase(() => firestore ? collection(firestore, "employees") : null, [firestore]);
-  const { data: employees, isLoading: isLoadingEmployees } = useCollection<Employee>(employeesCollection);
-  
-  const attendanceCollection = useMemoFirebase(() => firestore ? collection(firestore, "attendance") : null, [firestore]);
-  const { data: attendance, isLoading: isLoadingAttendance } = useCollection<AttendanceRecord>(attendanceCollection);
-
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
   const [date, setDate] = useState<DateRange | undefined>();
 
-  const filteredAttendance = useMemo(() => {
-    if (!attendance) return [];
-    let filtered = attendance.filter(record => record.clockOut); // Only include completed records
+  const employeesCollection = useMemoFirebase(() => firestore ? collection(firestore, "employees") : null, [firestore]);
+  const { data: employees, isLoading: isLoadingEmployees } = useCollection<Employee>(employeesCollection);
 
+  const attendanceQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    let q = query(collection(firestore, "attendance"), where("clockOut", "!=", null));
+    
     if (selectedEmployeeId !== "all") {
-      filtered = filtered.filter(
-        (record) => record.employeeId === selectedEmployeeId
-      );
+        q = query(q, where("employeeId", "==", selectedEmployeeId));
     }
     
-    if (date?.from && date?.to) {
-        const toDate = new Date(date.to);
-        toDate.setHours(23, 59, 59, 999); // Include the whole end day
-        filtered = filtered.filter(record => 
-            isWithinInterval(parseISO(record.clockIn), { start: date.from!, end: toDate })
-        );
-    } else if (date?.from) {
-        filtered = filtered.filter(record => 
-            format(parseISO(record.clockIn), 'yyyy-MM-dd') === format(date.from!, 'yyyy-MM-dd')
-        );
+    if (date?.from) {
+        const startDate = date.from;
+        const endDate = date.to ? new Date(date.to) : new Date(startDate);
+        endDate.setHours(23, 59, 59, 999); // Include the whole end day
+
+        q = query(q, where("clockIn", ">=", startDate.toISOString()), where("clockIn", "<=", endDate.toISOString()));
     }
+    
+    return q;
+  }, [firestore, selectedEmployeeId, date]);
 
-    return filtered.sort((a,b) => parseISO(b.clockIn).getTime() - parseISO(a.clockIn).getTime());
-  }, [attendance, selectedEmployeeId, date]);
-
+  const { data: attendance, isLoading: isLoadingAttendance } = useCollection<AttendanceRecord>(attendanceQuery);
+  
   const formatDuration = (totalMinutes: number): string => {
     if (totalMinutes < 0) totalMinutes = 0;
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
-    return `${hours} jam ${minutes} menit`;
+    return `${hours}j ${minutes}m`;
   };
 
   const reportData = useMemo(() => {
-    if (!filteredAttendance.length || !employees) return [];
+    if (!attendance || !employees) return [];
 
-    const employeeDataMap = new Map<string, { employee: Employee & {id: string}; records: (AttendanceRecord & {id: string})[]; totalMinutes: number }>();
+    const employeeDataMap = new Map<string, { 
+        employee: WithId<Employee>; 
+        records: (WithId<AttendanceRecord> & {isLate: boolean})[]; 
+        totalMinutes: number;
+        totalLateMinutes: number;
+        lateCount: number;
+    }>();
 
-    filteredAttendance.forEach(record => {
+    attendance.forEach(record => {
         const employee = employees.find(e => e.id === record.employeeId);
         if (!employee) return;
 
@@ -98,26 +98,44 @@ export default function ReportsPage() {
             employeeDataMap.set(employee.id, {
                 employee,
                 records: [],
-                totalMinutes: 0
+                totalMinutes: 0,
+                totalLateMinutes: 0,
+                lateCount: 0,
             });
         }
 
         const data = employeeDataMap.get(employee.id)!;
-        data.records.push(record);
+
+        const clockInTime = parseISO(record.clockIn);
+        const lateTime = new Date(clockInTime);
+        lateTime.setHours(7, 35, 0, 0); // 07:35 threshold
+        
+        const isRecordLate = isAfter(clockInTime, lateTime);
+        
+        if (isRecordLate) {
+            data.lateCount += 1;
+            const lateMinutes = differenceInMinutes(clockInTime, lateTime);
+            if (lateMinutes > 0) {
+              data.totalLateMinutes += lateMinutes;
+            }
+        }
+
+        data.records.push({...record, isLate: isRecordLate});
+
         if (record.clockOut) {
-            data.totalMinutes += differenceInMinutes(parseISO(record.clockOut), parseISO(record.clockIn));
+            data.totalMinutes += differenceInMinutes(parseISO(record.clockOut), clockInTime);
         }
     });
 
     return Array.from(employeeDataMap.values()).sort((a,b) => b.totalMinutes - a.totalMinutes);
-  }, [filteredAttendance, employees]);
+  }, [attendance, employees]);
 
   const chartData = useMemo(() => {
     return reportData.map(data => ({
         name: data.employee.name.split(" ")[0], // Use first name for brevity
         fullName: data.employee.name,
         totalHours: parseFloat((data.totalMinutes / 60).toFixed(1)),
-    }));
+    })).filter(item => item.totalHours > 0);
   }, [reportData]);
 
   const chartConfig = {
@@ -135,7 +153,7 @@ export default function ReportsPage() {
   
   const isLoading = isLoadingEmployees || isLoadingAttendance;
   
-  if (isLoading) {
+  if (isLoading && !attendance) {
     return (
         <div className="space-y-6">
             <Card>
@@ -171,8 +189,12 @@ export default function ReportsPage() {
             </Card>
             <Card>
                 <CardHeader><CardTitle>Memuat Laporan...</CardTitle></CardHeader>
-                <CardContent className="h-96 flex items-center justify-center">
-                    <div className="text-center text-muted-foreground">Memuat data...</div>
+                <CardContent>
+                  <div className="space-y-4">
+                    <Skeleton className="h-48 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                  </div>
                 </CardContent>
             </Card>
         </div>
@@ -243,39 +265,52 @@ export default function ReportsPage() {
         </CardContent>
       </Card>
       
-      {reportData.length > 0 ? (
-        <>
-          <Card>
-            <CardHeader>
-                <CardTitle>Total Jam Kerja Karyawan</CardTitle>
-                <CardDescription>Visualisasi total jam kerja untuk periode yang dipilih.</CardDescription>
-            </CardHeader>
+      {isLoading ? (
+         <Card>
+            <CardHeader><CardTitle>Memuat Laporan...</CardTitle></CardHeader>
             <CardContent>
-                <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
-                    <BarChart accessibilityLayer data={chartData}>
-                        <CartesianGrid vertical={false} />
-                        <XAxis
-                            dataKey="name"
-                            tickLine={false}
-                            tickMargin={10}
-                            axisLine={false}
-                        />
-                        <YAxis />
-                        <ChartTooltip
-                            cursor={false}
-                            content={<ChartTooltipContent 
-                                labelFormatter={(_, payload) => payload?.[0]?.payload.fullName}
-                                formatter={(value) => `${value} jam`} 
-                            />}
-                        />
-                        <Bar dataKey="totalHours" fill="var(--color-totalHours)" radius={4} />
-                    </BarChart>
-                </ChartContainer>
+              <div className="space-y-4">
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+              </div>
             </CardContent>
-          </Card>
+        </Card>
+      ) : reportData.length > 0 ? (
+        <>
+          {chartData.length > 0 && (
+            <Card>
+              <CardHeader>
+                  <CardTitle>Total Jam Kerja Karyawan</CardTitle>
+                  <CardDescription>Visualisasi total jam kerja untuk periode yang dipilih.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
+                      <BarChart accessibilityLayer data={chartData}>
+                          <CartesianGrid vertical={false} />
+                          <XAxis
+                              dataKey="name"
+                              tickLine={false}
+                              tickMargin={10}
+                              axisLine={false}
+                          />
+                          <YAxis />
+                          <ChartTooltip
+                              cursor={false}
+                              content={<ChartTooltipContent 
+                                  labelFormatter={(_, payload) => payload?.[0]?.payload.fullName}
+                                  formatter={(value) => `${value} jam`} 
+                              />}
+                          />
+                          <Bar dataKey="totalHours" fill="var(--color-totalHours)" radius={4} />
+                      </BarChart>
+                  </ChartContainer>
+              </CardContent>
+            </Card>
+          )}
           
           <Accordion type="multiple" className="w-full space-y-4">
-            {reportData.map(({ employee, records, totalMinutes }) => (
+            {reportData.map(({ employee, records, totalMinutes, totalLateMinutes, lateCount }) => (
                 <Card key={employee.id} className="overflow-hidden">
                     <AccordionItem value={employee.id} className="border-none">
                         <AccordionTrigger className="p-6 hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/50">
@@ -284,9 +319,17 @@ export default function ReportsPage() {
                                     <h3 className="text-lg font-semibold">{employee.name}</h3>
                                     <p className="text-sm text-muted-foreground">{employee.position}</p>
                                 </div>
-                                <div className="text-right flex items-center gap-2 text-primary">
-                                    <Clock className="h-5 w-5" />
-                                    <span className="text-lg font-bold">{formatDuration(totalMinutes)}</span>
+                                <div className="flex items-center gap-6 text-right">
+                                    {totalLateMinutes > 0 && (
+                                        <div className="text-center">
+                                            <div className="text-lg font-bold text-destructive">{formatDuration(totalLateMinutes)}</div>
+                                            <div className="text-xs text-destructive/80">({lateCount}x) Terlambat</div>
+                                        </div>
+                                    )}
+                                    <div className="text-center">
+                                        <div className="text-lg font-bold text-primary">{formatDuration(totalMinutes)}</div>
+                                        <div className="text-xs text-muted-foreground">Total Jam Kerja</div>
+                                    </div>
                                 </div>
                             </div>
                         </AccordionTrigger>
@@ -304,7 +347,7 @@ export default function ReportsPage() {
                                 </TableHeader>
                                 <TableBody>
                                 {records.map((record) => (
-                                    <TableRow key={record.id}>
+                                    <TableRow key={record.id} className={record.isLate ? "bg-destructive/10" : ""}>
                                     <TableCell>
                                         {format(parseISO(record.clockIn), "MMMM d, yyyy", { locale: id })}
                                     </TableCell>
