@@ -121,6 +121,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (currentEmployeeRecord) {
       setNotes(currentEmployeeRecord.notes || '');
+      setManualTime("18:00");
     } else {
       setNotes('');
     }
