@@ -206,6 +206,22 @@ export default function DashboardPage() {
     return employees?.find((e) => e.id === employeeId)?.name || "Tidak diketahui";
   };
   
+  const getStatus = (record: WithId<AttendanceRecord>) => {
+    const clockInTime = parseISO(record.clockIn);
+    
+    // Create a date object for 07:35 on the same day as clock-in
+    const lateTime = new Date(clockInTime);
+    lateTime.setHours(7, 35, 0, 0); // 07:30 + 5 minutes grace period
+
+    if (record.clockOut) {
+        return <Badge variant="secondary">Sudah Pulang</Badge>;
+    }
+    if (isAfter(clockInTime, lateTime)) {
+        return <Badge variant="destructive">Terlambat</Badge>;
+    }
+    return <Badge>Sudah Masuk</Badge>;
+  };
+  
   if (isLoadingEmployees) {
     return (
        <div className="space-y-6">
@@ -435,11 +451,7 @@ export default function DashboardPage() {
                       <TableCell>{record.clockOut ? format(parseISO(record.clockOut), "p") : " - "}</TableCell>
                       <TableCell>{record.notes || "-"}</TableCell>
                       <TableCell>
-                        {record.clockOut ? (
-                           <Badge variant="secondary">Sudah Pulang</Badge>
-                        ) : (
-                          <Badge>Sudah Masuk</Badge>
-                        )}
+                        {getStatus(record)}
                       </TableCell>
                     </TableRow>
                   );
@@ -519,11 +531,7 @@ export default function DashboardPage() {
                             <TableCell>{record.clockOut ? format(parseISO(record.clockOut), "p") : " - "}</TableCell>
                             <TableCell>{record.notes || "-"}</TableCell>
                             <TableCell>
-                            {record.clockOut ? (
-                                <Badge variant="secondary">Sudah Pulang</Badge>
-                            ) : (
-                                <Badge>Sudah Masuk</Badge>
-                            )}
+                              {getStatus(record)}
                             </TableCell>
                         </TableRow>
                         );
