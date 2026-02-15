@@ -444,8 +444,13 @@ export default function DashboardPage() {
               ) : selectedDateAttendance && selectedDateAttendance.length > 0 ? (
                 selectedDateAttendance.map((record) => {
                   const employee = employees?.find(e => e.id === record.employeeId);
+                  const clockInTime = parseISO(record.clockIn);
+                  const lateTime = new Date(clockInTime);
+                  lateTime.setHours(7, 35, 0, 0);
+                  const isRecordLate = isAfter(clockInTime, lateTime);
+
                   return (
-                    <TableRow key={record.id}>
+                    <TableRow key={record.id} className={isRecordLate ? "bg-destructive/10" : ""}>
                       <TableCell className="font-medium">{employee?.name || 'Tidak diketahui'}</TableCell>
                       <TableCell>{employee?.position || 'N/A'}</TableCell>
                       <TableCell>{format(parseISO(record.clockIn), "p")}</TableCell>
@@ -524,8 +529,13 @@ export default function DashboardPage() {
                     ) : historyAttendance && historyAttendance.length > 0 ? (
                     historyAttendance.map((record) => {
                         const employee = employees?.find(e => e.id === record.employeeId);
+                        const clockInTime = parseISO(record.clockIn);
+                        const lateTime = new Date(clockInTime);
+                        lateTime.setHours(7, 35, 0, 0);
+                        const isRecordLate = isAfter(clockInTime, lateTime);
+
                         return (
-                        <TableRow key={record.id}>
+                        <TableRow key={record.id} className={isRecordLate ? "bg-destructive/10" : ""}>
                             <TableCell className="font-medium">{employee?.name || 'Tidak diketahui'}</TableCell>
                             <TableCell>{format(parseISO(record.clockIn), "MMM d, yyyy", { locale: id })}</TableCell>
                             <TableCell>{format(parseISO(record.clockIn), "p")}</TableCell>
