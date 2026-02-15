@@ -107,9 +107,9 @@ export default function EmployeesPage() {
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">{employee.name}</TableCell>
                   <TableCell>{employee.position}</TableCell>
-                  <TableCell>{format(parseISO(employee.joinDate), "d MMM yyyy", { locale: id })}</TableCell>
-                  <TableCell>{employee.phone}</TableCell>
-                  <TableCell>{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(employee.salary)}</TableCell>
+                  <TableCell>{employee.joinDate ? format(parseISO(employee.joinDate), "d MMM yyyy", { locale: id }) : '-'}</TableCell>
+                  <TableCell>{employee.phone || '-'}</TableCell>
+                  <TableCell>{typeof employee.salary === 'number' ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(employee.salary) : '-'}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(employee)}>
                       <Edit className="h-4 w-4" />

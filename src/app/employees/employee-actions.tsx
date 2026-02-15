@@ -69,9 +69,9 @@ export function EmployeeFormDialog({
       reset({ 
         name: employee.name, 
         position: employee.position,
-        joinDate: employee.joinDate,
-        phone: employee.phone,
-        salary: employee.salary,
+        joinDate: employee.joinDate || format(new Date(), "yyyy-MM-dd"),
+        phone: employee.phone || "",
+        salary: employee.salary || 0,
       });
     } else if(isOpen && !employee) {
       reset({ name: "", position: "", phone: "", salary: 0, joinDate: format(new Date(), "yyyy-MM-dd") });
