@@ -56,9 +56,17 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const now = new Date();
-    setManualDate(now);
-    setManualTime(format(now, "HH:mm"));
-  }, []);
+    if (!manualDate) {
+      setManualDate(now);
+    }
+    if (!manualTime) {
+      setManualTime(format(now, "HH:mm"));
+    }
+  }, [manualDate, manualTime]);
+
+  const activeEmployees = useMemo(() => {
+    return employees?.filter(e => e.status !== 'tidak aktif');
+  }, [employees]);
 
   // --- Firestore Queries ---
   const selectedDateQuery = useMemoFirebase(() => {
@@ -122,10 +130,11 @@ export default function DashboardPage() {
     if (currentEmployeeRecord) {
       setNotes(currentEmployeeRecord.notes || '');
       setManualTime("18:00");
-    } else {
+    } else if (!selectedEmployeeId) {
       setNotes('');
+      setManualTime(format(new Date(), "HH:mm"));
     }
-  }, [currentEmployeeRecord]);
+  }, [currentEmployeeRecord, selectedEmployeeId]);
 
   const getManualDateTime = () => {
     if (!manualDate || !manualTime) return new Date();
@@ -158,7 +167,7 @@ export default function DashboardPage() {
 
     const clockInTime = getManualDateTime();
 
-    const newRecord: AttendanceRecord = {
+    const newRecord: Omit<AttendanceRecord, 'clockOut'> = {
       employeeId: selectedEmployeeId,
       clockIn: clockInTime.toISOString(),
       notes: notes,
@@ -290,14 +299,14 @@ export default function DashboardPage() {
                     <SelectValue placeholder="Pilih seorang karyawan" />
                   </SelectTrigger>
                   <SelectContent>
-                    {employees && employees.length > 0 ? (
-                      employees.map((employee) => (
+                    {activeEmployees && activeEmployees.length > 0 ? (
+                      activeEmployees.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
                           {employee.name}
                         </SelectItem>
                       ))
                     ) : (
-                      <div className="p-4 text-sm text-muted-foreground">Tidak ada karyawan ditemukan. Tambahkan di halaman Karyawan.</div>
+                      <div className="p-4 text-sm text-muted-foreground">Tidak ada karyawan aktif. Tambahkan di halaman Karyawan.</div>
                     )}
                   </SelectContent>
                 </Select>

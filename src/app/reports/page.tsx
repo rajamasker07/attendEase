@@ -51,6 +51,10 @@ export default function ReportsPage() {
   const employeesCollection = useMemoFirebase(() => firestore ? collection(firestore, "employees") : null, [firestore]);
   const { data: employees, isLoading: isLoadingEmployees } = useCollection<Employee>(employeesCollection);
 
+  const activeEmployees = useMemo(() => {
+    return employees?.filter(e => e.status !== 'tidak aktif');
+  }, [employees]);
+
   const attendanceQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     let q = query(collection(firestore, "attendance"), where("clockOut", "!=", null));
@@ -218,7 +222,7 @@ export default function ReportsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Karyawan</SelectItem>
-                {employees?.map((employee) => (
+                {activeEmployees?.map((employee) => (
                   <SelectItem key={employee.id} value={employee.id}>
                     {employee.name}
                   </SelectItem>

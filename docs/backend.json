@@ -32,6 +32,14 @@
         "salary": {
           "type": "number",
           "description": "The employee's monthly salary."
+        },
+        "status": {
+          "type": "string",
+          "description": "The employment status of the employee.",
+          "enum": [
+            "aktif",
+            "tidak aktif"
+          ]
         }
       },
       "required": [
@@ -39,7 +47,8 @@
         "position",
         "joinDate",
         "phone",
-        "salary"
+        "salary",
+        "status"
       ]
     },
     "AttendanceRecord": {

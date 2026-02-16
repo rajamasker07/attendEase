@@ -24,6 +24,7 @@ import { useCollection, useFirebase, WithId, setDocumentNonBlocking, deleteDocum
 import { collection, doc } from "firebase/firestore";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
+import { Badge } from "@/components/ui/badge";
 
 export default function EmployeesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -92,13 +93,14 @@ export default function EmployeesPage() {
               <TableHead>Tgl. Masuk</TableHead>
               <TableHead>No. HP</TableHead>
               <TableHead>Gaji</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   Memuat data karyawan...
                 </TableCell>
               </TableRow>
@@ -110,6 +112,11 @@ export default function EmployeesPage() {
                   <TableCell>{employee.joinDate ? format(parseISO(employee.joinDate), "d MMM yyyy", { locale: id }) : '-'}</TableCell>
                   <TableCell>{employee.phone || '-'}</TableCell>
                   <TableCell>{typeof employee.salary === 'number' ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(employee.salary) : '-'}</TableCell>
+                  <TableCell>
+                    <Badge variant={employee.status === 'tidak aktif' ? 'secondary' : 'default'}>
+                      {employee.status === 'tidak aktif' ? 'Tidak Aktif' : 'Aktif'}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(employee)}>
                       <Edit className="h-4 w-4" />
@@ -124,7 +131,7 @@ export default function EmployeesPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   Tidak ada karyawan ditemukan.
                 </TableCell>
               </TableRow>

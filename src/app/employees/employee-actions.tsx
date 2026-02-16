@@ -43,6 +43,7 @@ const employeeSchema = z.object({
   joinDate: z.string().min(1, "Tanggal masuk harus diisi."),
   phone: z.string().min(10, "Nomor HP minimal 10 digit.").regex(/^\+?[0-9\s-]{10,}$/, "Format nomor HP tidak valid."),
   salary: z.coerce.number().min(0, "Gaji tidak boleh negatif."),
+  status: z.enum(['aktif', 'tidak aktif']).default('aktif'),
 });
 
 export type EmployeeFormData = z.infer<typeof employeeSchema>;
@@ -69,7 +70,7 @@ export function EmployeeFormDialog({
     formState: { errors },
   } = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeSchema),
-    defaultValues: { name: "", position: "", phone: "", salary: 0, joinDate: "" },
+    defaultValues: { name: "", position: "", phone: "", salary: 0, joinDate: "", status: "aktif" },
   });
 
   useEffect(() => {
@@ -80,9 +81,10 @@ export function EmployeeFormDialog({
         joinDate: employee.joinDate || format(new Date(), "yyyy-MM-dd"),
         phone: employee.phone || "",
         salary: employee.salary || 0,
+        status: employee.status || "aktif",
       });
     } else if(isOpen && !employee) {
-      reset({ name: "", position: "", phone: "", salary: 0, joinDate: format(new Date(), "yyyy-MM-dd") });
+      reset({ name: "", position: "", phone: "", salary: 0, joinDate: format(new Date(), "yyyy-MM-dd"), status: "aktif" });
     }
   }, [employee, reset, isOpen]);
 
@@ -169,6 +171,29 @@ export function EmployeeFormDialog({
               <div className="col-span-3">
                 <Input id="salary" {...register("salary")} className="w-full" type="number" />
                 {errors.salary && <p className="text-destructive text-sm mt-1">{errors.salary.message}</p>}
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="status" className="text-right">
+                Status
+              </Label>
+              <div className="col-span-3">
+                 <Controller
+                  name="status"
+                  control={control}
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger id="status">
+                        <SelectValue placeholder="Pilih status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="aktif">Aktif</SelectItem>
+                        <SelectItem value="tidak aktif">Tidak Aktif</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.status && <p className="text-destructive text-sm mt-1">{errors.status.message}</p>}
               </div>
             </div>
           </div>

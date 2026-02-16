@@ -4,6 +4,7 @@ export interface Employee {
   joinDate: string; // YYYY-MM-DD
   phone: string;
   salary: number;
+  status: 'aktif' | 'tidak aktif';
 }
 
 export interface AttendanceRecord {
