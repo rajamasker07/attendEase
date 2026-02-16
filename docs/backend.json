@@ -12,7 +12,13 @@
         },
         "position": {
           "type": "string",
-          "description": "The job title or position of the employee."
+          "description": "The job title or position of the employee.",
+          "enum": [
+            "pelayanan",
+            "admin",
+            "pengantaran",
+            "staff gudang"
+          ]
         },
         "joinDate": {
           "type": "string",

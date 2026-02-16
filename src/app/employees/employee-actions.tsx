@@ -18,11 +18,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { Employee } from "@/types";
-import { useForm, SubmitHandler } from "react-hook-form";
+import { useForm, SubmitHandler, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useEffect } from "react";
@@ -32,7 +39,7 @@ import { format } from "date-fns";
 
 const employeeSchema = z.object({
   name: z.string().min(2, "Nama minimal harus 2 karakter."),
-  position: z.string().min(2, "Posisi minimal harus 2 karakter."),
+  position: z.string().min(1, "Posisi harus dipilih."),
   joinDate: z.string().min(1, "Tanggal masuk harus diisi."),
   phone: z.string().min(10, "Nomor HP minimal 10 digit.").regex(/^\+?[0-9\s-]{10,}$/, "Format nomor HP tidak valid."),
   salary: z.coerce.number().min(0, "Gaji tidak boleh negatif."),
@@ -58,6 +65,7 @@ export function EmployeeFormDialog({
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeSchema),
@@ -116,7 +124,23 @@ export function EmployeeFormDialog({
                 Posisi
               </Label>
               <div className="col-span-3">
-                <Input id="position" {...register("position")} className="w-full" />
+                <Controller
+                  name="position"
+                  control={control}
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger id="position">
+                        <SelectValue placeholder="Pilih posisi" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pelayanan">Pelayanan</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="pengantaran">Pengantaran</SelectItem>
+                        <SelectItem value="staff gudang">Staff Gudang</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
                 {errors.position && <p className="text-destructive text-sm mt-1">{errors.position.message}</p>}
               </div>
             </div>
