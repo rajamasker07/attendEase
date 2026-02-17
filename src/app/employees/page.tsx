@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -8,6 +8,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   Table,
@@ -43,6 +44,8 @@ export default function EmployeesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "aktif" | "tidak aktif">("all");
   const [sortConfig, setSortConfig] = useState<{ key: keyof Employee; direction: 'ascending' | 'descending' } | null>({ key: 'name', direction: 'ascending' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
 
 
   const { firestore } = useFirebase();
@@ -89,6 +92,17 @@ export default function EmployeesPage() {
 
     return filteredItems;
   }, [employees, searchTerm, statusFilter, sortConfig]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, sortConfig]);
+
+  const totalPages = Math.ceil(filteredAndSortedEmployees.length / rowsPerPage);
+  const paginatedEmployees = useMemo(() => {
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    return filteredAndSortedEmployees.slice(startIndex, startIndex + rowsPerPage);
+  }, [filteredAndSortedEmployees, currentPage]);
 
   const requestSort = (key: keyof Employee) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -225,8 +239,8 @@ export default function EmployeesPage() {
                     Memuat data karyawan...
                   </TableCell>
                 </TableRow>
-              ) : filteredAndSortedEmployees.length > 0 ? (
-                filteredAndSortedEmployees.map((employee) => (
+              ) : paginatedEmployees.length > 0 ? (
+                paginatedEmployees.map((employee) => (
                   <TableRow key={employee.id}>
                     <TableCell className="font-medium">
                       <Button variant="link" className="p-0 h-auto font-medium" onClick={() => handleViewDetails(employee)}>
@@ -265,6 +279,32 @@ export default function EmployeesPage() {
           </Table>
         </div>
       </CardContent>
+      <CardFooter className="flex items-center justify-between pt-6">
+        <div className="text-sm text-muted-foreground">
+          Menampilkan {paginatedEmployees.length} dari {filteredAndSortedEmployees.length} karyawan.
+        </div>
+        <div className="flex items-center space-x-2">
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+            >
+                Sebelumnya
+            </Button>
+            <span className="text-sm text-muted-foreground">
+                Halaman {currentPage} dari {totalPages > 0 ? totalPages : 1}
+            </span>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages || totalPages === 0}
+            >
+                Berikutnya
+            </Button>
+        </div>
+      </CardFooter>
 
       <EmployeeFormDialog
         isOpen={isFormOpen}
