@@ -13,3 +13,18 @@ export interface AttendanceRecord {
   clockOut?: string; // ISO String
   notes?: string;
 }
+
+export interface Payroll {
+  period: string; // YYYY-MM
+  createdAt: string; // ISO String
+  status: 'draft' | 'finalized';
+}
+
+export interface Payslip {
+  employeeId: string;
+  employeeName: string;
+  baseSalary: number;
+  lateCount: number;
+  lateDeduction: number;
+  netSalary: number;
+}

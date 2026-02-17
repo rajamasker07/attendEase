@@ -80,6 +80,74 @@
         "employeeId",
         "clockIn"
       ]
+    },
+    "Payroll": {
+      "title": "Payroll",
+      "description": "Represents a payroll run for a specific period.",
+      "type": "object",
+      "properties": {
+        "period": {
+          "type": "string",
+          "description": "The payroll period, formatted as YYYY-MM."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the payroll was created."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "finalized"
+          ],
+          "description": "The status of the payroll run."
+        }
+      },
+      "required": [
+        "period",
+        "createdAt",
+        "status"
+      ]
+    },
+    "Payslip": {
+      "title": "Payslip",
+      "description": "Represents an individual employee's payslip for a specific payroll period.",
+      "type": "object",
+      "properties": {
+        "employeeId": {
+          "type": "string",
+          "description": "Reference to the Employee."
+        },
+        "employeeName": {
+          "type": "string",
+          "description": "The name of the employee at the time of payroll."
+        },
+        "baseSalary": {
+          "type": "number",
+          "description": "The employee's base salary for the period."
+        },
+        "lateCount": {
+          "type": "number",
+          "description": "Number of times the employee was late during the period."
+        },
+        "lateDeduction": {
+          "type": "number",
+          "description": "Total deduction amount for being late."
+        },
+        "netSalary": {
+          "type": "number",
+          "description": "The final net salary after all deductions."
+        }
+      },
+      "required": [
+        "employeeId",
+        "employeeName",
+        "baseSalary",
+        "lateCount",
+        "lateDeduction",
+        "netSalary"
+      ]
     }
   },
   "auth": {
@@ -107,6 +175,26 @@
             "$ref": "#/backend/entities/AttendanceRecord"
           },
           "description": "Stores all attendance records (clock-in/clock-out) for all employees in a single collection for easier querying."
+        }
+      },
+      {
+        "path": "/payrolls/{payrollId}",
+        "definition": {
+          "entityName": "Payroll",
+          "schema": {
+            "$ref": "#/backend/entities/Payroll"
+          },
+          "description": "Stores payroll runs for each period."
+        }
+      },
+      {
+        "path": "/payrolls/{payrollId}/payslips/{payslipId}",
+        "definition": {
+          "entityName": "Payslip",
+          "schema": {
+            "$ref": "#/backend/entities/Payslip"
+          },
+          "description": "Stores individual employee payslips for a given payroll run."
         }
       }
     ]

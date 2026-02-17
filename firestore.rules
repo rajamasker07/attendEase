@@ -14,5 +14,13 @@ service cloud.firestore {
     match /attendance/{attendanceRecordId} {
       allow read, write: if isSignedIn();
     }
+
+    match /payrolls/{payrollId} {
+      allow read, write: if isSignedIn();
+
+      match /payslips/{payslipId} {
+        allow read, write: if isSignedIn();
+      }
+    }
   }
 }
