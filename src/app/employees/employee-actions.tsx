@@ -35,7 +35,7 @@ import * as z from "zod";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { WithId } from "@/firebase";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, intervalToDuration } from "date-fns";
 import { id } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 
@@ -261,6 +261,22 @@ export function EmployeeDetailDialog({
 }) {
   if (!employee) return null;
 
+  const calculateTenure = (joinDate: string): string => {
+    try {
+        const startDate = parseISO(joinDate);
+        const endDate = new Date();
+        if (isNaN(startDate.getTime())) return "-";
+
+        const duration = intervalToDuration({ start: startDate, end: endDate });
+        const years = duration.years || 0;
+        const months = duration.months || 0;
+        
+        return `${years} tahun ${months} bulan`;
+    } catch (error) {
+        return "-";
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-[425px]">
@@ -282,6 +298,10 @@ export function EmployeeDetailDialog({
           <div className="grid grid-cols-3 items-center gap-4">
             <Label className="text-right text-muted-foreground">Tgl. Masuk</Label>
             <div className="col-span-2">{employee.joinDate ? format(parseISO(employee.joinDate), "d MMMM yyyy", { locale: id }) : '-'}</div>
+          </div>
+          <div className="grid grid-cols-3 items-center gap-4">
+            <Label className="text-right text-muted-foreground">Lama Bekerja</Label>
+            <div className="col-span-2">{employee.joinDate ? calculateTenure(employee.joinDate) : '-'}</div>
           </div>
           <div className="grid grid-cols-3 items-center gap-4">
             <Label className="text-right text-muted-foreground">No. HP</Label>
