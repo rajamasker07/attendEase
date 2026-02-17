@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import type { Employee } from "@/types";
 import { PlusCircle, Edit, Trash2 } from "lucide-react";
-import { EmployeeFormDialog, DeleteEmployeeAlert, type EmployeeFormData } from "./employee-actions";
+import { EmployeeFormDialog, DeleteEmployeeAlert, EmployeeDetailDialog, type EmployeeFormData } from "./employee-actions";
 import { useCollection, useFirebase, WithId, setDocumentNonBlocking, deleteDocumentNonBlocking, useMemoFirebase } from "@/firebase";
 import { collection, doc } from "firebase/firestore";
 import { format, parseISO } from "date-fns";
@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 export default function EmployeesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<WithId<Employee> | null>(null);
 
   const { firestore } = useFirebase();
@@ -49,6 +50,11 @@ export default function EmployeesPage() {
   const handleDelete = (employee: WithId<Employee>) => {
     setSelectedEmployee(employee);
     setIsAlertOpen(true);
+  };
+
+  const handleViewDetails = (employee: WithId<Employee>) => {
+    setSelectedEmployee(employee);
+    setIsDetailOpen(true);
   };
 
   const handleSave = (employeeData: EmployeeFormData) => {
@@ -107,7 +113,11 @@ export default function EmployeesPage() {
             ) : employees && employees.length > 0 ? (
               employees.map((employee) => (
                 <TableRow key={employee.id}>
-                  <TableCell className="font-medium">{employee.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <Button variant="link" className="p-0 h-auto font-medium" onClick={() => handleViewDetails(employee)}>
+                      {employee.name}
+                    </Button>
+                  </TableCell>
                   <TableCell>{employee.position}</TableCell>
                   <TableCell>{employee.joinDate ? format(parseISO(employee.joinDate), "d MMM yyyy", { locale: id }) : '-'}</TableCell>
                   <TableCell>{employee.phone || '-'}</TableCell>
@@ -152,6 +162,12 @@ export default function EmployeesPage() {
         setIsOpen={setIsAlertOpen}
         onConfirm={confirmDelete}
         employeeName={selectedEmployee?.name}
+      />
+
+      <EmployeeDetailDialog
+        isOpen={isDetailOpen}
+        setIsOpen={setIsDetailOpen}
+        employee={selectedEmployee}
       />
     </Card>
   );

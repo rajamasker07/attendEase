@@ -35,7 +35,9 @@ import * as z from "zod";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { WithId } from "@/firebase";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
+import { id } from "date-fns/locale";
+import { Badge } from "@/components/ui/badge";
 
 const employeeSchema = z.object({
   name: z.string().min(2, "Nama minimal harus 2 karakter."),
@@ -246,4 +248,62 @@ export function DeleteEmployeeAlert({ isOpen, setIsOpen, onConfirm, employeeName
             </AlertDialogContent>
         </AlertDialog>
     );
+}
+
+export function EmployeeDetailDialog({
+  isOpen,
+  setIsOpen,
+  employee,
+}: {
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
+  employee: WithId<Employee> | null;
+}) {
+  if (!employee) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Detail Karyawan</DialogTitle>
+          <DialogDescription>
+            Informasi lengkap untuk {employee.name}.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-3 items-center gap-4">
+            <Label className="text-right text-muted-foreground">Nama</Label>
+            <div className="col-span-2 font-medium">{employee.name}</div>
+          </div>
+          <div className="grid grid-cols-3 items-center gap-4">
+            <Label className="text-right text-muted-foreground">Posisi</Label>
+            <div className="col-span-2 capitalize">{employee.position}</div>
+          </div>
+          <div className="grid grid-cols-3 items-center gap-4">
+            <Label className="text-right text-muted-foreground">Tgl. Masuk</Label>
+            <div className="col-span-2">{employee.joinDate ? format(parseISO(employee.joinDate), "d MMMM yyyy", { locale: id }) : '-'}</div>
+          </div>
+          <div className="grid grid-cols-3 items-center gap-4">
+            <Label className="text-right text-muted-foreground">No. HP</Label>
+            <div className="col-span-2">{employee.phone || '-'}</div>
+          </div>
+          <div className="grid grid-cols-3 items-center gap-4">
+            <Label className="text-right text-muted-foreground">Gaji</Label>
+            <div className="col-span-2">{typeof employee.salary === 'number' ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(employee.salary) : '-'}</div>
+          </div>
+          <div className="grid grid-cols-3 items-center gap-4">
+            <Label className="text-right text-muted-foreground">Status</Label>
+            <div className="col-span-2">
+                <Badge variant={employee.status === 'tidak aktif' ? 'secondary' : 'default'}>
+                    {employee.status === 'tidak aktif' ? 'Tidak Aktif' : 'Aktif'}
+                </Badge>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setIsOpen(false)}>Tutup</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
