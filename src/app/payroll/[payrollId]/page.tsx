@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,8 +30,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PayslipDetailDialog } from "../actions";
 import { useToast } from "@/hooks/use-toast";
 
-export default function PayrollDetailPage({ params }: { params: { payrollId: string } }) {
-  const { payrollId } = params;
+export default function PayrollDetailPage() {
+  const params = useParams<{ payrollId: string }>();
+  const payrollId = params.payrollId;
   const { firestore } = useFirebase();
   const { toast } = useToast();
   const [selectedPayslip, setSelectedPayslip] = useState<WithId<Payslip> | null>(null);
