@@ -135,6 +135,14 @@
           "type": "number",
           "description": "Total deduction amount for being late."
         },
+        "sanctionCount": {
+          "type": "number",
+          "description": "Number of sanctions applied during the period."
+        },
+        "sanctionDeduction": {
+          "type": "number",
+          "description": "Total deduction amount from sanctions."
+        },
         "netSalary": {
           "type": "number",
           "description": "The final net salary after all deductions."
@@ -146,7 +154,43 @@
         "baseSalary",
         "lateCount",
         "lateDeduction",
+        "sanctionCount",
+        "sanctionDeduction",
         "netSalary"
+      ]
+    },
+    "Sanction": {
+      "title": "Sanction",
+      "description": "Represents a disciplinary sanction or penalty for an employee.",
+      "type": "object",
+      "properties": {
+        "employeeId": {
+          "type": "string",
+          "description": "Reference to the Employee receiving the sanction."
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "The date the sanction was issued."
+        },
+        "violation": {
+          "type": "string",
+          "description": "A short description of the violation."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed notes about the incident."
+        },
+        "deduction": {
+          "type": "number",
+          "description": "The monetary deduction amount for this sanction."
+        }
+      },
+      "required": [
+        "employeeId",
+        "date",
+        "violation",
+        "deduction"
       ]
     }
   },
@@ -175,6 +219,16 @@
             "$ref": "#/backend/entities/AttendanceRecord"
           },
           "description": "Stores all attendance records (clock-in/clock-out) for all employees in a single collection for easier querying."
+        }
+      },
+      {
+        "path": "/sanctions/{sanctionId}",
+        "definition": {
+          "entityName": "Sanction",
+          "schema": {
+            "$ref": "#/backend/entities/Sanction"
+          },
+          "description": "Stores all disciplinary sanctions for all employees."
         }
       },
       {

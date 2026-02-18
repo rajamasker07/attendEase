@@ -14,6 +14,14 @@ export interface AttendanceRecord {
   notes?: string;
 }
 
+export interface Sanction {
+  employeeId: string;
+  date: string; // YYYY-MM-DD
+  violation: string;
+  description?: string;
+  deduction: number;
+}
+
 export interface Payroll {
   period: string; // YYYY-MM
   createdAt: string; // ISO String
@@ -26,5 +34,7 @@ export interface Payslip {
   baseSalary: number;
   lateCount: number;
   lateDeduction: number;
+  sanctionCount: number;
+  sanctionDeduction: number;
   netSalary: number;
 }

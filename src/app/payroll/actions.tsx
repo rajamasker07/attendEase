@@ -20,7 +20,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase, WithId } from "@/firebase";
-import { Employee, AttendanceRecord, Payroll, Payslip } from "@/types";
+import { Employee, AttendanceRecord, Payroll, Payslip, Sanction } from "@/types";
 import { useRouter } from "next/navigation";
 import {
   collection,
@@ -108,9 +108,10 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
         return;
       }
 
-      // 2. Get attendance for the period
       const startDate = startOfMonth(periodDate);
       const endDate = endOfMonth(periodDate);
+
+      // 2. Get attendance for the period
       const attendanceQuery = query(
         collection(firestore, "attendance"),
         where("clockIn", ">=", startDate.toISOString()),
@@ -122,10 +123,23 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
         id: d.id,
       }));
 
-      // 3. Define deduction rule
+      // 3. Get sanctions for the period
+      const sanctionsQuery = query(
+        collection(firestore, "sanctions"),
+        where("date", ">=", format(startDate, "yyyy-MM-dd")),
+        where("date", "<=", format(endDate, "yyyy-MM-dd"))
+      );
+      const sanctionsSnap = await getDocs(sanctionsQuery);
+      const periodSanctions = sanctionsSnap.docs.map((d) => ({
+        ...(d.data() as Sanction),
+        id: d.id,
+      }));
+
+
+      // 4. Define deduction rule
       const LATE_DEDUCTION_AMOUNT = 10000;
 
-      // 4. Create Payroll document
+      // 5. Create Payroll document
       const newPayrollRef = doc(collection(firestore, "payrolls"));
       const newPayrollData: Payroll = {
         period: payrollPeriod,
@@ -134,12 +148,12 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
       };
       await setDoc(newPayrollRef, newPayrollData);
 
-      // 5. Create Payslip for each employee
+      // 6. Create Payslip for each employee
       for (const employee of activeEmployees) {
+        // Calculate late deductions
         const employeeAttendance = attendanceRecords.filter(
           (r) => r.employeeId === employee.id
         );
-
         let lateCount = 0;
         employeeAttendance.forEach((record) => {
           const clockInTime = parseISO(record.clockIn);
@@ -149,9 +163,20 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
             lateCount++;
           }
         });
-
         const lateDeduction = lateCount * LATE_DEDUCTION_AMOUNT;
-        const netSalary = (employee.salary || 0) - lateDeduction;
+        
+        // Calculate sanction deductions
+        const employeeSanctions = periodSanctions.filter(
+          (s) => s.employeeId === employee.id
+        );
+        const sanctionCount = employeeSanctions.length;
+        const sanctionDeduction = employeeSanctions.reduce(
+            (total, s) => total + s.deduction,
+            0
+        );
+
+        // Calculate net salary
+        const netSalary = (employee.salary || 0) - lateDeduction - sanctionDeduction;
 
         const newPayslipData: Payslip = {
           employeeId: employee.id,
@@ -159,6 +184,8 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
           baseSalary: employee.salary || 0,
           lateCount: lateCount,
           lateDeduction: lateDeduction,
+          sanctionCount: sanctionCount,
+          sanctionDeduction: sanctionDeduction,
           netSalary: netSalary,
         };
 
@@ -268,15 +295,33 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip }: PayslipDetai
                         <span className="text-muted-foreground">Gaji Pokok</span>
                         <span className="font-medium">{formatCurrency(payslip.baseSalary)}</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <p className="text-muted-foreground">Potongan Keterlambatan</p>
-                            <p className="text-xs text-muted-foreground">({payslip.lateCount} kali)</p>
-                        </div>
-                        <span className="font-medium text-destructive">
-                           - {formatCurrency(payslip.lateDeduction)}
-                        </span>
-                    </div>
+
+                    {(payslip.lateDeduction > 0 || (payslip.sanctionDeduction > 0)) && <hr />}
+
+                    {payslip.lateDeduction > 0 && (
+                      <div className="flex justify-between items-center">
+                          <div>
+                              <p className="text-muted-foreground">Potongan Keterlambatan</p>
+                              <p className="text-xs text-muted-foreground">({payslip.lateCount} kali)</p>
+                          </div>
+                          <span className="font-medium text-destructive">
+                             - {formatCurrency(payslip.lateDeduction)}
+                          </span>
+                      </div>
+                    )}
+                    
+                    {payslip.sanctionDeduction > 0 && (
+                      <div className="flex justify-between items-center">
+                          <div>
+                              <p className="text-muted-foreground">Potongan Sanksi</p>
+                              <p className="text-xs text-muted-foreground">({payslip.sanctionCount} kali)</p>
+                          </div>
+                          <span className="font-medium text-destructive">
+                             - {formatCurrency(payslip.sanctionDeduction)}
+                          </span>
+                      </div>
+                    )}
+
                     <hr/>
                     <div className="flex justify-between font-bold text-base">
                         <span>Gaji Bersih</span>

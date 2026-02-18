@@ -11,7 +11,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Home, Users, BookText, DollarSign } from "lucide-react"
+import { Home, Users, BookText, DollarSign, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -24,6 +24,8 @@ function PageHeader() {
     title = "Laporan Kehadiran";
   } else if (pathname.startsWith("/payroll")) {
     title = "Penggajian";
+  } else if (pathname.startsWith("/sanctions")) {
+    title = "Manajemen Sanksi";
   }
 
   return (
@@ -78,6 +80,14 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 <SidebarMenuButton isActive={pathname.startsWith("/payroll")} tooltip="Penggajian">
                   <DollarSign />
                   <span className="group-data-[state=collapsed]:hidden">Penggajian</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <Link href="/sanctions">
+                <SidebarMenuButton isActive={pathname.startsWith("/sanctions")} tooltip="Sanksi">
+                  <AlertTriangle />
+                  <span className="group-data-[state=collapsed]:hidden">Sanksi</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>

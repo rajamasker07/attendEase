@@ -67,12 +67,13 @@ export default function PayrollDetailPage() {
   }
 
   const totals = useMemo(() => {
-    if (!payslips) return { base: 0, deduction: 0, net: 0 };
+    if (!payslips) return { base: 0, late: 0, sanction: 0, net: 0 };
     return payslips.reduce((acc, p) => ({
         base: acc.base + p.baseSalary,
-        deduction: acc.deduction + p.lateDeduction,
+        late: acc.late + p.lateDeduction,
+        sanction: acc.sanction + p.sanctionDeduction,
         net: acc.net + p.netSalary,
-    }), { base: 0, deduction: 0, net: 0 });
+    }), { base: 0, late: 0, sanction: 0, net: 0 });
   }, [payslips]);
 
   const isLoading = isLoadingPayroll || isLoadingPayslips;
@@ -106,7 +107,7 @@ export default function PayrollDetailPage() {
           </div>
         </CardHeader>
         <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 text-center md:text-left">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 text-center md:text-left">
                 <div className="rounded-lg border p-4">
                     <div className="text-sm text-muted-foreground">Status</div>
                     {isLoadingPayroll ? <Skeleton className="h-6 w-20 mt-1" /> : (
@@ -122,8 +123,12 @@ export default function PayrollDetailPage() {
                     {isLoadingPayslips ? <Skeleton className="h-6 w-32 mt-1" /> : <div className="text-lg font-bold">{formatCurrency(totals.base)}</div>}
                 </div>
                 <div className="rounded-lg border p-4">
-                    <div className="text-sm text-muted-foreground">Total Potongan</div>
-                    {isLoadingPayslips ? <Skeleton className="h-6 w-28 mt-1" /> : <div className="text-lg font-bold text-destructive">{formatCurrency(totals.deduction)}</div>}
+                    <div className="text-sm text-muted-foreground">Potongan Telat</div>
+                    {isLoadingPayslips ? <Skeleton className="h-6 w-28 mt-1" /> : <div className="text-lg font-bold text-destructive">{formatCurrency(totals.late)}</div>}
+                </div>
+                 <div className="rounded-lg border p-4">
+                    <div className="text-sm text-muted-foreground">Potongan Sanksi</div>
+                    {isLoadingPayslips ? <Skeleton className="h-6 w-28 mt-1" /> : <div className="text-lg font-bold text-destructive">{formatCurrency(totals.sanction)}</div>}
                 </div>
                  <div className="rounded-lg border p-4">
                     <div className="text-sm text-muted-foreground">Total Gaji Bersih</div>
@@ -136,8 +141,8 @@ export default function PayrollDetailPage() {
                 <TableRow>
                   <TableHead>Nama Karyawan</TableHead>
                   <TableHead>Gaji Pokok</TableHead>
-                  <TableHead>Total Keterlambatan</TableHead>
-                  <TableHead>Total Potongan</TableHead>
+                  <TableHead>Potongan Telat</TableHead>
+                  <TableHead>Potongan Sanksi</TableHead>
                   <TableHead>Gaji Bersih</TableHead>
                 </TableRow>
               </TableHeader>
@@ -157,8 +162,8 @@ export default function PayrollDetailPage() {
                     <TableRow key={payslip.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleViewDetails(payslip)}>
                       <TableCell className="font-medium">{payslip.employeeName}</TableCell>
                       <TableCell>{formatCurrency(payslip.baseSalary)}</TableCell>
-                      <TableCell>{payslip.lateCount} kali</TableCell>
                       <TableCell className="text-destructive">{formatCurrency(payslip.lateDeduction)}</TableCell>
+                      <TableCell className="text-destructive">{formatCurrency(payslip.sanctionDeduction)}</TableCell>
                       <TableCell className="font-semibold">{formatCurrency(payslip.netSalary)}</TableCell>
                     </TableRow>
                   ))
