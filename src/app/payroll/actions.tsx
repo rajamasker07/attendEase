@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase, WithId } from "@/firebase";
 import { Employee, AttendanceRecord, Payroll, Payslip, Sanction } from "@/types";
@@ -48,6 +49,7 @@ import {
   endOfMonth,
 } from "date-fns";
 import { id as localeId } from "date-fns/locale";
+import { Copy } from "lucide-react";
 
 interface CreatePayrollDialogProps {
   isOpen: boolean;
@@ -284,12 +286,23 @@ interface PayslipDetailDialogProps {
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
     payslip: WithId<Payslip> | null;
+    payrollId: string;
 }
 
-export function PayslipDetailDialog({ isOpen, setIsOpen, payslip }: PayslipDetailDialogProps) {
+export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: PayslipDetailDialogProps) {
+    const [copied, setCopied] = useState(false);
+    
     if (!payslip) return null;
 
     const formatCurrency = (amount: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
+    
+    const payslipUrl = `${window.location.origin}/payslip/${payrollId}/${payslip.id}`;
+
+    const handleCopyLink = () => {
+        navigator.clipboard.writeText(payslipUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+    }
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -336,6 +349,17 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip }: PayslipDetai
                     <div className="flex justify-between font-bold text-base">
                         <span>Gaji Bersih</span>
                         <span>{formatCurrency(payslip.netSalary)}</span>
+                    </div>
+
+                    <div className="space-y-2 pt-4">
+                        <Label htmlFor="payslip-link">Tautan Slip Gaji</Label>
+                        <div className="flex items-center space-x-2">
+                            <Input id="payslip-link" value={payslipUrl} readOnly />
+                            <Button type="button" size="sm" onClick={handleCopyLink}>
+                                <Copy className="mr-2 h-4 w-4" />
+                                {copied ? 'Disalin!' : 'Salin'}
+                            </Button>
+                        </div>
                     </div>
                 </div>
                  <DialogFooter>

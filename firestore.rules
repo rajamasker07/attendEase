@@ -23,7 +23,9 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
 
       match /payslips/{payslipId} {
-        allow read, write: if isSignedIn();
+        // Allow anyone with the link to read, but only signed-in users to write/delete.
+        allow read;
+        allow write, delete: if isSignedIn();
       }
     }
   }

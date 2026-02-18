@@ -179,7 +179,7 @@ export default function PayrollDetailPage() {
           </div>
         </CardContent>
       </Card>
-      <PayslipDetailDialog isOpen={isDetailOpen} setIsOpen={setIsDetailOpen} payslip={selectedPayslip} />
+      <PayslipDetailDialog isOpen={isDetailOpen} setIsOpen={setIsDetailOpen} payslip={selectedPayslip} payrollId={payrollId}/>
     </div>
   );
 }
