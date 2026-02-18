@@ -17,26 +17,56 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { PlusCircle, FileText } from "lucide-react";
-import { useCollection, useFirebase, useMemoFirebase, WithId } from "@/firebase";
-import { collection, query, orderBy } from "firebase/firestore";
+import { PlusCircle, FileText, Trash2 } from "lucide-react";
+import { useCollection, useFirebase, useMemoFirebase, WithId, deleteDocumentNonBlocking } from "@/firebase";
+import { collection, query, orderBy, doc, getDocs } from "firebase/firestore";
 import type { Payroll } from "@/types";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
-import { CreatePayrollDialog } from "./actions";
+import { CreatePayrollDialog, DeletePayrollAlert } from "./actions";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function PayrollPage() {
   const { firestore } = useFirebase();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [selectedPayroll, setSelectedPayroll] = useState<WithId<Payroll> | null>(null);
 
   const payrollsCollection = useMemoFirebase(
     () => (firestore ? query(collection(firestore, "payrolls"), orderBy("period", "desc")) : null),
     [firestore]
   );
   const { data: payrolls, isLoading } = useCollection<Payroll>(payrollsCollection);
+
+  const handleDeleteClick = (payroll: WithId<Payroll>) => {
+    setSelectedPayroll(payroll);
+    setIsAlertOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (selectedPayroll && firestore) {
+      try {
+        // First, delete all payslips in the subcollection
+        const payslipsRef = collection(firestore, "payrolls", selectedPayroll.id, "payslips");
+        const payslipsSnap = await getDocs(payslipsRef);
+        payslipsSnap.forEach((payslipDoc) => {
+          deleteDocumentNonBlocking(payslipDoc.ref);
+        });
+
+        // Then, delete the payroll document itself
+        const payrollDocRef = doc(firestore, "payrolls", selectedPayroll.id);
+        deleteDocumentNonBlocking(payrollDocRef);
+
+        setSelectedPayroll(null);
+      } catch (error) {
+        console.error("Error deleting payroll:", error);
+        // Optionally show an error toast
+      }
+    }
+  };
+
 
   return (
     <>
@@ -70,7 +100,12 @@ export default function PayrollPage() {
                       <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                       <TableCell><Skeleton className="h-6 w-16" /></TableCell>
-                      <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end items-center gap-2">
+                            <Skeleton className="h-9 w-28" />
+                            <Skeleton className="h-10 w-10" />
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : payrolls && payrolls.length > 0 ? (
@@ -94,6 +129,10 @@ export default function PayrollPage() {
                             Lihat Detail
                           </Link>
                         </Button>
+                        <Button variant="ghost" size="icon" className="ml-2" onClick={() => handleDeleteClick(payroll)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                            <span className="sr-only">Hapus</span>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -110,6 +149,12 @@ export default function PayrollPage() {
         </CardContent>
       </Card>
       <CreatePayrollDialog isOpen={isCreateOpen} setIsOpen={setIsCreateOpen} />
+      <DeletePayrollAlert
+        isOpen={isAlertOpen}
+        setIsOpen={setIsAlertOpen}
+        onConfirm={confirmDelete}
+        payrollPeriod={selectedPayroll ? format(parseISO(selectedPayroll.period), "MMMM yyyy", { locale: id }) : ''}
+      />
     </>
   );
 }

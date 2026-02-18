@@ -9,6 +9,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -333,5 +343,46 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip }: PayslipDetai
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+    );
+}
+
+interface DeletePayrollAlertProps {
+    isOpen: boolean;
+    setIsOpen: (isOpen: boolean) => void;
+    onConfirm: () => void;
+    payrollPeriod?: string;
+}
+
+export function DeletePayrollAlert({ isOpen, setIsOpen, onConfirm, payrollPeriod }: DeletePayrollAlertProps) {
+    const { toast } = useToast();
+    
+    const handleConfirm = () => {
+        onConfirm();
+        setIsOpen(false);
+        toast({
+            title: "Riwayat Penggajian Dihapus",
+            description: `Penggajian untuk periode ${payrollPeriod} telah dihapus.`,
+            variant: "destructive"
+        })
+    }
+
+    return (
+        <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Tindakan ini tidak dapat dibatalkan. Ini akan menghapus riwayat penggajian untuk
+                        <strong> periode {payrollPeriod}</strong> dan semua data slip gaji terkait secara permanen.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirm} className="bg-destructive hover:bg-destructive/90">
+                      Hapus
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     );
 }
