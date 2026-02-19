@@ -38,6 +38,7 @@ import type { WithId } from "@/firebase";
 import { format, parseISO, intervalToDuration } from "date-fns";
 import { id } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 const employeeSchema = z.object({
   name: z.string().min(2, "Nama minimal harus 2 karakter."),
@@ -171,7 +172,18 @@ export function EmployeeFormDialog({
                 Gaji
               </Label>
               <div className="col-span-3">
-                <Input id="salary" {...register("salary")} className="w-full" type="number" />
+                <Controller
+                  name="salary"
+                  control={control}
+                  render={({ field }) => (
+                    <CurrencyInput
+                      id="salary"
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      onBlur={field.onBlur}
+                    />
+                  )}
+                />
                 {errors.salary && <p className="text-destructive text-sm mt-1">{errors.salary.message}</p>}
               </div>
             </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm, SubmitHandler } from "react-hook-form";
+import { useForm, SubmitHandler, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -12,13 +12,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useFirebase, useDoc, useMemoFirebase, setDocumentNonBlocking, WithId } from "@/firebase";
+import { useFirebase, useDoc, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
 import { doc } from "firebase/firestore";
 import type { Setting } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 const settingsSchema = z.object({
   lateDeductionAmount: z.coerce.number().min(0, "Potongan tidak boleh negatif."),
@@ -37,7 +37,7 @@ export default function SettingsPage() {
   const { data: settings, isLoading } = useDoc<Setting>(settingsDocRef);
 
   const {
-    register,
+    control,
     handleSubmit,
     reset,
     formState: { errors },
@@ -89,10 +89,17 @@ export default function SettingsPage() {
                     <Label htmlFor="lateDeductionAmount">
                     Jumlah Potongan Keterlambatan (Rp)
                     </Label>
-                    <Input
-                    id="lateDeductionAmount"
-                    type="number"
-                    {...register("lateDeductionAmount")}
+                     <Controller
+                      name="lateDeductionAmount"
+                      control={control}
+                      render={({ field }) => (
+                        <CurrencyInput
+                          id="lateDeductionAmount"
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          onBlur={field.onBlur}
+                        />
+                      )}
                     />
                     {errors.lateDeductionAmount && (
                     <p className="text-sm text-destructive">

@@ -37,6 +37,7 @@ import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { WithId } from "@/firebase";
 import { format } from "date-fns";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 const sanctionSchema = z.object({
   employeeId: z.string().min(1, "Karyawan harus dipilih."),
@@ -169,7 +170,18 @@ export function SanctionFormDialog({
                 Potongan (Rp)
               </Label>
               <div className="col-span-3">
-                <Input id="deduction" {...register("deduction")} className="w-full" type="number" />
+                <Controller
+                  name="deduction"
+                  control={control}
+                  render={({ field }) => (
+                    <CurrencyInput
+                      id="deduction"
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      onBlur={field.onBlur}
+                    />
+                  )}
+                />
                 {errors.deduction && <p className="text-destructive text-sm mt-1">{errors.deduction.message}</p>}
               </div>
             </div>
