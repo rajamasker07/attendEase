@@ -41,6 +41,8 @@ export default function SanctionsPage() {
   
   const [searchTerm, setSearchTerm] = useState("");
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
+  const [monthFilter, setMonthFilter] = useState<string>("all");
+  const [yearFilter, setYearFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
 
@@ -58,10 +60,27 @@ export default function SanctionsPage() {
     return new Map(employees.map(e => [e.id, e.name]));
   }, [employees]);
 
+  const months = useMemo(() => Array.from({ length: 12 }, (_, i) => ({
+    value: i.toString(),
+    label: format(new Date(0, i), "MMMM", { locale: id }),
+  })), []);
+
+  const years = useMemo(() => Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString()), []);
+
   const filteredSanctions = useMemo(() => {
     if (!sanctions) return [];
 
     let filteredItems = [...sanctions];
+    
+    const year = parseInt(yearFilter, 10);
+    const month = parseInt(monthFilter, 10);
+
+    if (!isNaN(year) && yearFilter !== 'all') {
+        filteredItems = filteredItems.filter(s => parseISO(s.date).getFullYear() === year);
+    }
+    if (!isNaN(month) && monthFilter !== 'all') {
+        filteredItems = filteredItems.filter(s => parseISO(s.date).getMonth() === month);
+    }
 
     // Filter by employee
     if (employeeFilter !== "all") {
@@ -79,12 +98,12 @@ export default function SanctionsPage() {
     }
 
     return filteredItems;
-  }, [sanctions, searchTerm, employeeFilter, employeeMap]);
+  }, [sanctions, searchTerm, employeeFilter, employeeMap, monthFilter, yearFilter]);
 
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, employeeFilter]);
+  }, [searchTerm, employeeFilter, monthFilter, yearFilter]);
 
   const totalPages = Math.ceil(filteredSanctions.length / rowsPerPage);
   const paginatedSanctions = useMemo(() => {
@@ -144,7 +163,7 @@ export default function SanctionsPage() {
         </Button>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center py-4 gap-2">
+        <div className="flex flex-wrap items-center py-4 gap-2">
             <Input
                 placeholder="Cari pelanggaran atau nama..."
                 value={searchTerm}
@@ -152,7 +171,7 @@ export default function SanctionsPage() {
                 className="max-w-sm"
             />
             <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
-                <SelectTrigger className="w-[240px]">
+                <SelectTrigger className="w-full sm:w-[200px]">
                     <SelectValue placeholder="Filter karyawan"/>
                 </SelectTrigger>
                 <SelectContent>
@@ -161,6 +180,32 @@ export default function SanctionsPage() {
                         <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
                     ))}
                 </SelectContent>
+            </Select>
+            <Select value={monthFilter} onValueChange={setMonthFilter}>
+              <SelectTrigger className="w-full sm:w-[150px]">
+                <SelectValue placeholder="Filter bulan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Bulan</SelectItem>
+                {months.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={yearFilter} onValueChange={setYearFilter}>
+              <SelectTrigger className="w-full sm:w-[120px]">
+                <SelectValue placeholder="Filter tahun" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Tahun</SelectItem>
+                {years.map((y) => (
+                  <SelectItem key={y} value={y}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
         </div>
         <div className="rounded-md border">
