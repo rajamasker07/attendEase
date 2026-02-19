@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
-import { MainLayout } from '@/components/main-layout';
 import { FirebaseClientProvider } from '@/firebase';
+import { ConditionalLayout } from '@/components/conditional-layout';
 
 export const metadata: Metadata = {
   title: 'AttendEase',
@@ -23,7 +23,7 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased h-full">
         <FirebaseClientProvider>
-          <MainLayout>{children}</MainLayout>
+          <ConditionalLayout>{children}</ConditionalLayout>
           <Toaster />
         </FirebaseClientProvider>
       </body>
