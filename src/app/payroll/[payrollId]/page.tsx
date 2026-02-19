@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CheckCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, Printer } from "lucide-react";
 import { useCollection, useDoc, useFirebase, useMemoFirebase, WithId, setDocumentNonBlocking } from "@/firebase";
 import { collection, doc } from "firebase/firestore";
 import type { Payroll, Payslip } from "@/types";
@@ -98,12 +98,20 @@ export default function PayrollDetailPage() {
               </div>
               <CardDescription>Rincian penggajian untuk periode yang dipilih.</CardDescription>
             </div>
-            {payroll?.status === "draft" && (
-                <Button onClick={handleFinalize}>
-                    <CheckCircle className="mr-2 h-4 w-4"/>
-                    Finalisasi Penggajian
+             <div className="flex items-center gap-2">
+                {payroll?.status === "draft" && (
+                    <Button onClick={handleFinalize}>
+                        <CheckCircle className="mr-2 h-4 w-4"/>
+                        Finalisasi Penggajian
+                    </Button>
+                )}
+                 <Button asChild variant="outline">
+                    <Link href={`/payroll/${payrollId}/report`}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Cetak Laporan
+                    </Link>
                 </Button>
-            )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
