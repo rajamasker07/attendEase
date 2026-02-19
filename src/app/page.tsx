@@ -55,7 +55,7 @@ import * as z from "zod";
 
 const absenceSchema = z.object({
   employeeId: z.string().min(1, "Karyawan harus dipilih."),
-  date: z.date({ required_error: "Tanggal harus diisi."}),
+  date: z.string().min(1, "Tanggal harus diisi."),
   status: z.enum(['sakit', 'izin', 'alpa'], { required_error: "Status harus dipilih."}),
   notes: z.string().optional(),
 });
@@ -84,7 +84,7 @@ function MarkAbsenceDialog({
 
   useEffect(() => {
     if (isOpen) {
-        reset({ date: new Date(), employeeId: '', status: undefined, notes: '' });
+        reset({ date: format(new Date(), "yyyy-MM-dd"), employeeId: '', status: undefined, notes: '' });
     }
   }, [isOpen, reset]);
 
@@ -123,23 +123,9 @@ function MarkAbsenceDialog({
                 </div>
             </div>
              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Tanggal</Label>
+                <Label htmlFor="absence-date" className="text-right">Tanggal</Label>
                 <div className="col-span-3">
-                    <Controller
-                        name="date"
-                        control={control}
-                        render={({ field }) => (
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant={"outline"} className="w-full justify-start text-left font-normal">
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {field.value ? format(field.value, "PPP", { locale: id }) : <span>Pilih tanggal</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={id} /></PopoverContent>
-                            </Popover>
-                        )}
-                    />
+                    <Input id="absence-date" type="date" {...register("date")} />
                     {errors.date && <p className="text-destructive text-sm mt-1">{errors.date.message}</p>}
                 </div>
             </div>
@@ -190,22 +176,14 @@ export default function DashboardPage() {
   
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const { toast } = useToast();
-  const [manualDate, setManualDate] = useState<string>("");
-  const [manualTime, setManualTime] = useState<string>("");
+  const [manualDate, setManualDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [manualTime, setManualTime] = useState<string>(format(new Date(), "HH:mm"));
   const [notes, setNotes] = useState<string>("");
   const [historyFilter, setHistoryFilter] = useState<string>("7");
   const [historyEmployeeFilter, setHistoryEmployeeFilter] = useState<string>("all");
   
   const [isEmployeeFormOpen, setIsEmployeeFormOpen] = useState(false);
   const [isAbsenceFormOpen, setIsAbsenceFormOpen] = useState(false);
-
-
-  useEffect(() => {
-    // This effect runs once on mount to set the initial date and time.
-    const now = new Date();
-    setManualDate(format(now, "yyyy-MM-dd"));
-    setManualTime(format(now, "HH:mm"));
-  }, []);
 
   const activeEmployees = useMemo(() => {
     return employees?.filter(e => e.status !== 'tidak aktif');
@@ -413,12 +391,13 @@ export default function DashboardPage() {
   const handleSaveAbsence = async (data: AbsenceFormData) => {
     if (!firestore) return;
     const { employeeId, date, status, notes } = data;
-    const dateStr = format(date, "yyyy-MM-dd");
+    const dateStr = date;
+    const dateObj = parseISO(date);
 
     // Check for conflicts
     const attendanceConflictQuery = query(collection(firestore, "attendance"), where("employeeId", "==", employeeId));
     const attendanceSnap = await getDocs(attendanceConflictQuery);
-    const hasAttendance = attendanceSnap.docs.some(d => isSameDay(parseISO(d.data().clockIn), date));
+    const hasAttendance = attendanceSnap.docs.some(d => isSameDay(parseISO(d.data().clockIn), dateObj));
 
     const absenceConflictQuery = query(collection(firestore, "absences"), where("employeeId", "==", employeeId), where("date", "==", dateStr));
     const absenceSnap = await getDocs(absenceConflictQuery);
@@ -443,7 +422,7 @@ export default function DashboardPage() {
           employeeId,
           date: dateStr,
           violation: "Alpa (mangkir kerja)",
-          description: `Tidak masuk tanpa keterangan pada tanggal ${format(date, "d MMMM yyyy", { locale: id })}.`,
+          description: `Tidak masuk tanpa keterangan pada tanggal ${format(dateObj, "d MMMM yyyy", { locale: id })}.`,
           deduction: alpaDeduction,
         };
         addDocumentNonBlocking(collection(firestore, "sanctions"), sanctionRecord);
