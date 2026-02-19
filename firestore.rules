@@ -12,11 +12,13 @@ service cloud.firestore {
     }
 
     match /attendance/{attendanceRecordId} {
-      allow read, write: if isSignedIn();
+      allow read;
+      allow write: if isSignedIn();
     }
 
     match /absences/{absenceId} {
-      allow read, write: if isSignedIn();
+      allow read;
+      allow write: if isSignedIn();
     }
 
     match /sanctions/{sanctionId} {
