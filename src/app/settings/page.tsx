@@ -22,6 +22,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 
 const settingsSchema = z.object({
   lateDeductionAmount: z.coerce.number().min(0, "Potongan tidak boleh negatif."),
+  alpaDeductionAmount: z.coerce.number().min(0, "Potongan tidak boleh negatif.").optional(),
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
@@ -40,20 +41,24 @@ export default function SettingsPage() {
     control,
     handleSubmit,
     reset,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       lateDeductionAmount: 10000,
+      alpaDeductionAmount: 0,
     },
   });
 
   useEffect(() => {
     if (settings) {
-      reset({ lateDeductionAmount: settings.lateDeductionAmount });
+      reset({ 
+          lateDeductionAmount: settings.lateDeductionAmount,
+          alpaDeductionAmount: settings.alpaDeductionAmount || 0,
+      });
     } else if (!isLoading) {
       // If not loading and no settings exist, use default
-      reset({ lateDeductionAmount: 10000 });
+      reset({ lateDeductionAmount: 10000, alpaDeductionAmount: 0 });
     }
   }, [settings, isLoading, reset]);
 
@@ -76,12 +81,16 @@ export default function SettingsPage() {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-            <div className="space-y-4">
+            <div className="space-y-8">
                 <div className="space-y-2">
                     <Skeleton className="h-4 w-48" />
                     <Skeleton className="h-10 w-full" />
                 </div>
-                <Skeleton className="h-10 w-24" />
+                 <div className="space-y-2">
+                    <Skeleton className="h-4 w-52" />
+                    <Skeleton className="h-10 w-full" />
+                </div>
+                <Skeleton className="h-10 w-32" />
             </div>
         ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -110,7 +119,36 @@ export default function SettingsPage() {
                     Jumlah ini akan digunakan untuk menghitung potongan gaji untuk setiap keterlambatan absensi.
                     </p>
                 </div>
-                <Button type="submit">Simpan Pengaturan</Button>
+
+                <div className="space-y-2">
+                    <Label htmlFor="alpaDeductionAmount">
+                    Jumlah Potongan Alpa (Mangkir) (Rp)
+                    </Label>
+                     <Controller
+                      name="alpaDeductionAmount"
+                      control={control}
+                      render={({ field }) => (
+                        <CurrencyInput
+                          id="alpaDeductionAmount"
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          onBlur={field.onBlur}
+                        />
+                      )}
+                    />
+                    {errors.alpaDeductionAmount && (
+                    <p className="text-sm text-destructive">
+                        {errors.alpaDeductionAmount.message}
+                    </p>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                    Jumlah ini akan digunakan sebagai sanksi otomatis jika karyawan ditandai "Alpa".
+                    </p>
+                </div>
+
+                <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? "Menyimpan..." : "Simpan Pengaturan"}
+                </Button>
             </form>
         )}
       </CardContent>

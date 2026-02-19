@@ -81,6 +81,40 @@
         "clockIn"
       ]
     },
+    "AbsenceRecord": {
+      "title": "AbsenceRecord",
+      "description": "Records an employee's absence for a specific day (e.g., sick, permit).",
+      "type": "object",
+      "properties": {
+        "employeeId": {
+          "type": "string",
+          "description": "Reference to the Employee who is absent."
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "The date of the absence in YYYY-MM-DD format."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "sakit",
+            "izin",
+            "alpa"
+          ],
+          "description": "The reason for the absence."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes or remarks for this absence record."
+        }
+      },
+      "required": [
+        "employeeId",
+        "date",
+        "status"
+      ]
+    },
     "Payroll": {
       "title": "Payroll",
       "description": "Represents a payroll run for a specific period.",
@@ -229,6 +263,10 @@
         "lateDeductionAmount": {
           "type": "number",
           "description": "The deduction amount in IDR for each instance of being late."
+        },
+        "alpaDeductionAmount": {
+          "type": "number",
+          "description": "The deduction amount in IDR for each instance of being absent without permission (alpa)."
         }
       },
       "required": [
@@ -261,6 +299,16 @@
             "$ref": "#/backend/entities/AttendanceRecord"
           },
           "description": "Stores all attendance records (clock-in/clock-out) for all employees in a single collection for easier querying."
+        }
+      },
+      {
+        "path": "/absences/{absenceId}",
+        "definition": {
+          "entityName": "AbsenceRecord",
+          "schema": {
+            "$ref": "#/backend/entities/AbsenceRecord"
+          },
+          "description": "Stores all employee absence records."
         }
       },
       {

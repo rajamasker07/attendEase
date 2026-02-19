@@ -14,6 +14,13 @@ export interface AttendanceRecord {
   notes?: string;
 }
 
+export interface AbsenceRecord {
+  employeeId: string;
+  date: string; // YYYY-MM-DD
+  status: 'sakit' | 'izin' | 'alpa';
+  notes?: string;
+}
+
 export interface Sanction {
   employeeId: string;
   date: string; // YYYY-MM-DD
@@ -48,4 +55,5 @@ export interface Payslip {
 
 export interface Setting {
   lateDeductionAmount: number;
+  alpaDeductionAmount?: number;
 }
