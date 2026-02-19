@@ -169,6 +169,14 @@
           "type": "number",
           "description": "Total deduction amount for being late."
         },
+        "unpaidAbsenceCount": {
+          "type": "number",
+          "description": "Number of unpaid absence days (sakit, izin, alpa)."
+        },
+        "unpaidAbsenceDeduction": {
+          "type": "number",
+          "description": "Total deduction for unpaid absence days."
+        },
         "sanctionCount": {
           "type": "number",
           "description": "Number of sanctions applied during the period."
@@ -215,6 +223,8 @@
         "baseSalary",
         "lateCount",
         "lateDeduction",
+        "unpaidAbsenceCount",
+        "unpaidAbsenceDeduction",
         "sanctionCount",
         "sanctionDeduction",
         "sanctions",
@@ -267,6 +277,10 @@
         "alpaDeductionAmount": {
           "type": "number",
           "description": "The deduction amount in IDR for each instance of being absent without permission (alpa)."
+        },
+        "deductUnpaidAbsence": {
+            "type": "boolean",
+            "description": "If true, deducts salary for any absence (sick, permit, alpa) based on daily wage."
         }
       },
       "required": [

@@ -25,6 +25,8 @@ function PayslipPageContent({
       minimumFractionDigits: 0,
     }).format(amount);
 
+  const totalDeductions = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction;
+
   return (
     <div className="mx-auto max-w-2xl bg-white p-8 shadow-lg print:shadow-none">
       <header className="flex items-center justify-between border-b pb-4">
@@ -63,9 +65,17 @@ function PayslipPageContent({
         </div>
       </section>
 
-      {(payslip.lateDeduction > 0 || payslip.sanctionDeduction > 0) && (
+      {totalDeductions > 0 && (
         <section className="mt-6">
           <h2 className="mb-2 text-lg font-semibold">Rincian Potongan</h2>
+           {payslip.unpaidAbsenceDeduction > 0 && (
+            <div className="flex justify-between border-t py-2">
+              <p>Potongan Hari Tidak Masuk ({payslip.unpaidAbsenceCount} hari)</p>
+              <p className="font-medium text-destructive">
+                - {formatCurrency(payslip.unpaidAbsenceDeduction)}
+              </p>
+            </div>
+          )}
           {payslip.lateDeduction > 0 && (
             <div className="flex justify-between border-t py-2">
               <p>Potongan Keterlambatan ({payslip.lateCount}x)</p>
@@ -95,7 +105,7 @@ function PayslipPageContent({
           <div className="flex justify-between border-t py-2 font-bold">
             <p>Total Potongan</p>
             <p className="text-destructive">
-              - {formatCurrency(payslip.lateDeduction + payslip.sanctionDeduction)}
+              - {formatCurrency(totalDeductions)}
             </p>
           </div>
         </section>

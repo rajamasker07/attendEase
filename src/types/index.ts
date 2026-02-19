@@ -47,6 +47,8 @@ export interface Payslip {
   baseSalary: number;
   lateCount: number;
   lateDeduction: number;
+  unpaidAbsenceCount: number;
+  unpaidAbsenceDeduction: number;
   sanctionCount: number;
   sanctionDeduction: number;
   sanctions: PayslipSanctionDetail[];
@@ -56,4 +58,5 @@ export interface Payslip {
 export interface Setting {
   lateDeductionAmount: number;
   alpaDeductionAmount?: number;
+  deductUnpaidAbsence?: boolean;
 }

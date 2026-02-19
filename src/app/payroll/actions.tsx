@@ -31,7 +31,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase, WithId } from "@/firebase";
-import type { Employee, AttendanceRecord, Payroll, Payslip, Sanction, PayslipSanctionDetail } from "@/types";
+import type { Employee, AttendanceRecord, Payroll, Payslip, Sanction, PayslipSanctionDetail, AbsenceRecord } from "@/types";
 import { useRouter } from "next/navigation";
 import {
   collection,
@@ -48,6 +48,7 @@ import {
   isAfter,
   startOfMonth,
   endOfMonth,
+  getDaysInMonth,
 } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { Copy } from "lucide-react";
@@ -79,6 +80,7 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
 
     const periodDate = new Date(parseInt(year), parseInt(month));
     const payrollPeriod = format(periodDate, "yyyy-MM");
+    const daysInMonth = getDaysInMonth(periodDate);
 
     // Check if payroll for this period already exists
     try {
@@ -123,6 +125,8 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
 
       const startDate = startOfMonth(periodDate);
       const endDate = endOfMonth(periodDate);
+      const startDateString = format(startDate, "yyyy-MM-dd");
+      const endDateString = format(endDate, "yyyy-MM-dd");
 
       // 2. Get attendance for the period
       const attendanceQuery = query(
@@ -139,8 +143,8 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
       // 3. Get sanctions for the period
       const sanctionsQuery = query(
         collection(firestore, "sanctions"),
-        where("date", ">=", format(startDate, "yyyy-MM-dd")),
-        where("date", "<=", format(endDate, "yyyy-MM-dd"))
+        where("date", ">=", startDateString),
+        where("date", "<=", endDateString)
       );
       const sanctionsSnap = await getDocs(sanctionsQuery);
       const periodSanctions = sanctionsSnap.docs.map((d) => ({
@@ -148,16 +152,24 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
         id: d.id,
       }));
 
+      // 4. Get absences for the period
+      const absencesQuery = query(
+        collection(firestore, "absences"),
+        where("date", ">=", startDateString),
+        where("date", "<=", endDateString)
+      );
+      const absencesSnap = await getDocs(absencesQuery);
+      const periodAbsences = absencesSnap.docs.map((d) => d.data() as AbsenceRecord);
 
-      // 4. Define deduction rule from settings, with a default fallback
+
+      // 5. Get settings
       const settingsRef = doc(firestore, "settings", "payroll");
       const settingsSnap = await getDoc(settingsRef);
-      let LATE_DEDUCTION_AMOUNT = 10000;
-      if (settingsSnap.exists() && typeof settingsSnap.data().lateDeductionAmount === 'number') {
-          LATE_DEDUCTION_AMOUNT = settingsSnap.data().lateDeductionAmount;
-      }
+      const settings = settingsSnap.exists() ? settingsSnap.data() : {};
+      const LATE_DEDUCTION_AMOUNT = settings?.lateDeductionAmount ?? 10000;
+      const DEDUCT_UNPAID_ABSENCE = settings?.deductUnpaidAbsence ?? false;
 
-      // 5. Create Payroll document
+      // 6. Create Payroll document
       const newPayrollRef = doc(collection(firestore, "payrolls"));
       const newPayrollData: Payroll = {
         period: payrollPeriod,
@@ -166,7 +178,7 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
       };
       await setDoc(newPayrollRef, newPayrollData);
 
-      // 6. Create Payslip for each employee
+      // 7. Create Payslip for each employee
       for (const employee of activeEmployees) {
         // Calculate late deductions
         const employeeAttendance = attendanceRecords.filter(
@@ -198,9 +210,20 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
             deduction: s.deduction,
         }));
 
+        // Calculate unpaid absence deduction
+        let unpaidAbsenceCount = 0;
+        let unpaidAbsenceDeduction = 0;
+        if (DEDUCT_UNPAID_ABSENCE) {
+            const employeeAbsences = periodAbsences.filter(
+                (a) => a.employeeId === employee.id
+            );
+            unpaidAbsenceCount = employeeAbsences.length;
+            const dailyWage = (employee.salary || 0) / daysInMonth;
+            unpaidAbsenceDeduction = Math.round(unpaidAbsenceCount * dailyWage);
+        }
 
         // Calculate net salary
-        const netSalary = (employee.salary || 0) - lateDeduction - sanctionDeduction;
+        const netSalary = (employee.salary || 0) - lateDeduction - sanctionDeduction - unpaidAbsenceDeduction;
 
         const newPayslipData: Payslip = {
           employeeId: employee.id,
@@ -208,6 +231,8 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
           baseSalary: employee.salary || 0,
           lateCount: lateCount,
           lateDeduction: lateDeduction,
+          unpaidAbsenceCount: unpaidAbsenceCount,
+          unpaidAbsenceDeduction: unpaidAbsenceDeduction,
           sanctionCount: sanctionCount,
           sanctionDeduction: sanctionDeduction,
           sanctions: sanctionDetails,
@@ -326,14 +351,26 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
                         Rincian gaji untuk {payslip.employeeName}.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4 text-sm">
+                <div className="grid gap-3 py-4 text-sm">
                     <div className="flex justify-between">
                         <span className="text-muted-foreground">Gaji Pokok</span>
                         <span className="font-medium">{formatCurrency(payslip.baseSalary)}</span>
                     </div>
 
-                    {(payslip.lateDeduction > 0 || (payslip.sanctionDeduction > 0)) && <hr />}
+                    {(payslip.lateDeduction > 0 || payslip.sanctionDeduction > 0 || payslip.unpaidAbsenceDeduction > 0) && <hr />}
 
+                    {payslip.unpaidAbsenceDeduction > 0 && (
+                      <div className="flex justify-between items-center">
+                          <div>
+                              <p className="text-muted-foreground">Potongan Hari Tidak Masuk</p>
+                              <p className="text-xs text-muted-foreground">({payslip.unpaidAbsenceCount} hari)</p>
+                          </div>
+                          <span className="font-medium text-destructive">
+                             - {formatCurrency(payslip.unpaidAbsenceDeduction)}
+                          </span>
+                      </div>
+                    )}
+                    
                     {payslip.lateDeduction > 0 && (
                       <div className="flex justify-between items-center">
                           <div>

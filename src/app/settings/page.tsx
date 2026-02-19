@@ -19,10 +19,12 @@ import { doc } from "firebase/firestore";
 import type { Setting } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { Switch } from "@/components/ui/switch";
 
 const settingsSchema = z.object({
   lateDeductionAmount: z.coerce.number().min(0, "Potongan tidak boleh negatif."),
   alpaDeductionAmount: z.coerce.number().min(0, "Potongan tidak boleh negatif.").optional(),
+  deductUnpaidAbsence: z.boolean().optional(),
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
@@ -47,6 +49,7 @@ export default function SettingsPage() {
     defaultValues: {
       lateDeductionAmount: 10000,
       alpaDeductionAmount: 0,
+      deductUnpaidAbsence: false,
     },
   });
 
@@ -55,10 +58,11 @@ export default function SettingsPage() {
       reset({ 
           lateDeductionAmount: settings.lateDeductionAmount,
           alpaDeductionAmount: settings.alpaDeductionAmount || 0,
+          deductUnpaidAbsence: settings.deductUnpaidAbsence || false,
       });
     } else if (!isLoading) {
       // If not loading and no settings exist, use default
-      reset({ lateDeductionAmount: 10000, alpaDeductionAmount: 0 });
+      reset({ lateDeductionAmount: 10000, alpaDeductionAmount: 0, deductUnpaidAbsence: false });
     }
   }, [settings, isLoading, reset]);
 
@@ -93,7 +97,7 @@ export default function SettingsPage() {
                 <Skeleton className="h-10 w-32" />
             </div>
         ) : (
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
                 <div className="space-y-2">
                     <Label htmlFor="lateDeductionAmount">
                     Jumlah Potongan Keterlambatan (Rp)
@@ -144,6 +148,27 @@ export default function SettingsPage() {
                     <p className="text-sm text-muted-foreground">
                     Jumlah ini akan digunakan sebagai sanksi otomatis jika karyawan ditandai "Alpa".
                     </p>
+                </div>
+                
+                 <div className="flex items-center space-x-4 rounded-md border p-4">
+                    <div className="flex-1 space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                            Potong Gaji untuk Hari Tidak Masuk
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            Jika aktif, gaji akan dipotong untuk hari Sakit, Izin, atau Alpa berdasarkan gaji harian.
+                        </p>
+                    </div>
+                     <Controller
+                        name="deductUnpaidAbsence"
+                        control={control}
+                        render={({ field }) => (
+                            <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                            />
+                        )}
+                        />
                 </div>
 
                 <Button type="submit" disabled={isSubmitting}>
