@@ -203,8 +203,9 @@ export default function DashboardPage() {
   useEffect(() => {
     // This effect runs once on mount to set the initial date and time.
     // It prevents the date from being reset on subsequent re-renders.
-    setManualDate(new Date());
-    setManualTime(format(new Date(), "HH:mm"));
+    const now = new Date();
+    setManualDate(now);
+    setManualTime(format(now, "HH:mm"));
   }, []);
 
   const activeEmployees = useMemo(() => {
@@ -312,11 +313,10 @@ export default function DashboardPage() {
     if (currentEmployeeRecord) {
       setNotes(currentEmployeeRecord.notes || '');
       setManualTime("18:00");
-    } else if (!selectedEmployeeId) {
+    } else {
       setNotes('');
-      setManualTime(format(new Date(), "HH:mm"));
     }
-  }, [currentEmployeeRecord, selectedEmployeeId]);
+  }, [currentEmployeeRecord]);
 
   const getManualDateTime = () => {
     if (!manualDate || !manualTime) return new Date();
