@@ -93,6 +93,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
+          </SidebarMenu>
+          <SidebarMenu className="mt-auto">
             <SidebarMenuItem>
               <Link href="/settings">
                 <SidebarMenuButton isActive={pathname.startsWith("/settings")} tooltip="Pengaturan">
