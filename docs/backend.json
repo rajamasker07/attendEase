@@ -220,6 +220,20 @@
         "violation",
         "deduction"
       ]
+    },
+    "Setting": {
+      "title": "Setting",
+      "description": "Stores application-wide settings, like payroll configurations.",
+      "type": "object",
+      "properties": {
+        "lateDeductionAmount": {
+          "type": "number",
+          "description": "The deduction amount in IDR for each instance of being late."
+        }
+      },
+      "required": [
+        "lateDeductionAmount"
+      ]
     }
   },
   "auth": {
@@ -277,6 +291,16 @@
             "$ref": "#/backend/entities/Payslip"
           },
           "description": "Stores individual employee payslips for a given payroll run."
+        }
+      },
+      {
+        "path": "/settings/{settingId}",
+        "definition": {
+          "entityName": "Setting",
+          "schema": {
+            "$ref": "#/backend/entities/Setting"
+          },
+          "description": "Stores application settings. A single document with ID 'payroll' holds payroll-related configurations."
         }
       }
     ]

@@ -40,6 +40,7 @@ import {
   getDocs,
   doc,
   setDoc,
+  getDoc,
 } from "firebase/firestore";
 import {
   format,
@@ -148,8 +149,13 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
       }));
 
 
-      // 4. Define deduction rule
-      const LATE_DEDUCTION_AMOUNT = 10000;
+      // 4. Define deduction rule from settings, with a default fallback
+      const settingsRef = doc(firestore, "settings", "payroll");
+      const settingsSnap = await getDoc(settingsRef);
+      let LATE_DEDUCTION_AMOUNT = 10000;
+      if (settingsSnap.exists() && typeof settingsSnap.data().lateDeductionAmount === 'number') {
+          LATE_DEDUCTION_AMOUNT = settingsSnap.data().lateDeductionAmount;
+      }
 
       // 5. Create Payroll document
       const newPayrollRef = doc(collection(firestore, "payrolls"));

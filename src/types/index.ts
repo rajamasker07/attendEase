@@ -45,3 +45,7 @@ export interface Payslip {
   sanctions: PayslipSanctionDetail[];
   netSalary: number;
 }
+
+export interface Setting {
+  lateDeductionAmount: number;
+}
