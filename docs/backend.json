@@ -143,6 +143,33 @@
           "type": "number",
           "description": "Total deduction amount from sanctions."
         },
+        "sanctions": {
+          "type": "array",
+          "description": "A list of sanction details applied in this payslip.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "violation": {
+                "type": "string",
+                "description": "The description of the violation."
+              },
+              "date": {
+                "type": "string",
+                "format": "date",
+                "description": "The date of the sanction."
+              },
+              "deduction": {
+                "type": "number",
+                "description": "The deduction amount for the sanction."
+              }
+            },
+            "required": [
+              "violation",
+              "date",
+              "deduction"
+            ]
+          }
+        },
         "netSalary": {
           "type": "number",
           "description": "The final net salary after all deductions."
@@ -156,6 +183,7 @@
         "lateDeduction",
         "sanctionCount",
         "sanctionDeduction",
+        "sanctions",
         "netSalary"
       ]
     },

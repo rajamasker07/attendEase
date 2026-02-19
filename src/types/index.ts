@@ -28,6 +28,12 @@ export interface Payroll {
   status: 'draft' | 'finalized';
 }
 
+export interface PayslipSanctionDetail {
+  violation: string;
+  date: string; // YYYY-MM-DD
+  deduction: number;
+}
+
 export interface Payslip {
   employeeId: string;
   employeeName: string;
@@ -36,5 +42,6 @@ export interface Payslip {
   lateDeduction: number;
   sanctionCount: number;
   sanctionDeduction: number;
+  sanctions: PayslipSanctionDetail[];
   netSalary: number;
 }

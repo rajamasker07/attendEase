@@ -31,7 +31,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase, WithId } from "@/firebase";
-import { Employee, AttendanceRecord, Payroll, Payslip, Sanction } from "@/types";
+import type { Employee, AttendanceRecord, Payroll, Payslip, Sanction, PayslipSanctionDetail } from "@/types";
 import { useRouter } from "next/navigation";
 import {
   collection,
@@ -186,6 +186,12 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
             (total, s) => total + s.deduction,
             0
         );
+        const sanctionDetails: PayslipSanctionDetail[] = employeeSanctions.map(s => ({
+            violation: s.violation,
+            date: s.date,
+            deduction: s.deduction,
+        }));
+
 
         // Calculate net salary
         const netSalary = (employee.salary || 0) - lateDeduction - sanctionDeduction;
@@ -198,6 +204,7 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
           lateDeduction: lateDeduction,
           sanctionCount: sanctionCount,
           sanctionDeduction: sanctionDeduction,
+          sanctions: sanctionDetails,
           netSalary: netSalary,
         };
 
@@ -334,14 +341,21 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
                     )}
                     
                     {payslip.sanctionDeduction > 0 && (
-                      <div className="flex justify-between items-center">
-                          <div>
-                              <p className="text-muted-foreground">Potongan Sanksi</p>
-                              <p className="text-xs text-muted-foreground">({payslip.sanctionCount} kali)</p>
-                          </div>
-                          <span className="font-medium text-destructive">
-                             - {formatCurrency(payslip.sanctionDeduction)}
-                          </span>
+                      <div>
+                        <div className="flex justify-between items-center">
+                            <p className="text-muted-foreground">Potongan Sanksi</p>
+                            <span className="font-medium text-destructive">
+                                - {formatCurrency(payslip.sanctionDeduction)}
+                            </span>
+                        </div>
+                        <div className="pl-2 mt-1 text-xs text-muted-foreground space-y-1">
+                            {payslip.sanctions?.map((s, index) => (
+                                <div key={index} className="flex justify-between items-center">
+                                    <span className="pr-2">- {s.violation} ({format(parseISO(s.date), "d MMM", { locale: localeId })})</span>
+                                    <span>{formatCurrency(s.deduction)}</span>
+                                </div>
+                            ))}
+                        </div>
                       </div>
                     )}
 

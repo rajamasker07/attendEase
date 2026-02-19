@@ -75,11 +75,21 @@ function PayslipPageContent({
             </div>
           )}
           {payslip.sanctionDeduction > 0 && (
-            <div className="flex justify-between border-t py-2">
-              <p>Potongan Sanksi ({payslip.sanctionCount}x)</p>
-              <p className="font-medium text-destructive">
-                - {formatCurrency(payslip.sanctionDeduction)}
-              </p>
+            <div className="border-t py-2">
+              <div className="flex justify-between">
+                <p>Potongan Sanksi</p>
+                <p className="font-medium text-destructive">
+                  - {formatCurrency(payslip.sanctionDeduction)}
+                </p>
+              </div>
+              <div className="pl-4 mt-1 space-y-1 text-sm text-muted-foreground">
+                {payslip.sanctions?.map((s, index) => (
+                  <div key={index} className="flex justify-between">
+                    <span className="pr-4">- {s.violation} ({format(parseISO(s.date), "d MMM yyyy", { locale: id })})</span>
+                    <span>{formatCurrency(s.deduction)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           <div className="flex justify-between border-t py-2 font-bold">
