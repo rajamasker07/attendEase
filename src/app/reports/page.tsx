@@ -326,7 +326,7 @@ export default function ReportsPage() {
           )}
           
           <Accordion type="multiple" className="w-full space-y-4">
-            {reportData.map(({ employee, records, totalMinutes, lateCount, sakitCount, izinCount, alpaCount, absenceRecords }) => (
+            {reportData.map(({ employee, records, totalMinutes, totalLateMinutes, lateCount, sakitCount, izinCount, alpaCount, absenceRecords }) => (
                 <Card key={employee.id} className="overflow-hidden">
                     <AccordionItem value={employee.id} className="border-none">
                         <AccordionTrigger className="p-6 hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/50">
@@ -356,8 +356,8 @@ export default function ReportsPage() {
                                     )}
                                     {lateCount > 0 && (
                                         <div className="text-center">
-                                            <div className="text-lg font-bold text-destructive">{lateCount}</div>
-                                            <div className="text-xs text-destructive/80">x Terlambat</div>
+                                            <div className="text-lg font-bold text-destructive">{formatDuration(totalLateMinutes)}</div>
+                                            <div className="text-xs text-destructive/80">{lateCount}x Terlambat</div>
                                         </div>
                                     )}
                                     <div className="text-center">
