@@ -190,7 +190,7 @@ export default function DashboardPage() {
   
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const { toast } = useToast();
-  const [manualDate, setManualDate] = useState<Date | undefined>();
+  const [manualDate, setManualDate] = useState<string>("");
   const [manualTime, setManualTime] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [historyFilter, setHistoryFilter] = useState<string>("7");
@@ -202,9 +202,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     // This effect runs once on mount to set the initial date and time.
-    // It prevents the date from being reset on subsequent re-renders.
     const now = new Date();
-    setManualDate(now);
+    setManualDate(format(now, "yyyy-MM-dd"));
     setManualTime(format(now, "HH:mm"));
   }, []);
 
@@ -213,25 +212,30 @@ export default function DashboardPage() {
   }, [employees]);
 
   // --- Firestore Queries ---
+  const selectedDateAsDateObj = useMemo(() => {
+    if (!manualDate) return null;
+    const [year, month, day] = manualDate.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }, [manualDate]);
+
   const selectedDateQuery = useMemoFirebase(() => {
-    if (!firestore || !manualDate) return null;
-    const start = startOfDay(manualDate);
-    const end = endOfDay(manualDate);
+    if (!firestore || !selectedDateAsDateObj) return null;
+    const start = startOfDay(selectedDateAsDateObj);
+    const end = endOfDay(selectedDateAsDateObj);
     return query(
       collection(firestore, "attendance"),
       where("clockIn", ">=", start.toISOString()),
       where("clockIn", "<=", end.toISOString()),
       orderBy("clockIn", "desc")
     );
-  }, [firestore, manualDate]);
+  }, [firestore, selectedDateAsDateObj]);
   const { data: selectedDateAttendance, isLoading: isLoadingSelectedDate } = useCollection<AttendanceRecord>(selectedDateQuery);
 
   const selectedDateAbsenceQuery = useMemoFirebase(() => {
     if (!firestore || !manualDate) return null;
-    const dateStr = format(manualDate, "yyyy-MM-dd");
     return query(
       collection(firestore, "absences"),
-      where("date", "==", dateStr)
+      where("date", "==", manualDate)
     );
   }, [firestore, manualDate]);
   const { data: selectedDateAbsences, isLoading: isLoadingAbsences } = useCollection<AbsenceRecord>(selectedDateAbsenceQuery);
@@ -312,7 +316,6 @@ export default function DashboardPage() {
   useEffect(() => {
     if (currentEmployeeRecord) {
       setNotes(currentEmployeeRecord.notes || '');
-      setManualTime("18:00");
     } else {
       setNotes('');
     }
@@ -321,9 +324,8 @@ export default function DashboardPage() {
   const getManualDateTime = () => {
     if (!manualDate || !manualTime) return new Date();
     const [hours, minutes] = manualTime.split(':').map(Number);
-    const newDate = new Date(manualDate);
-    newDate.setHours(hours);
-    newDate.setMinutes(minutes);
+    const [year, month, day] = manualDate.split('-').map(Number);
+    const newDate = new Date(year, month - 1, day, hours, minutes);
     newDate.setSeconds(0);
     newDate.setMilliseconds(0);
     return newDate;
@@ -598,27 +600,13 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="attendance-date">Tanggal</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          id="attendance-date"
-                          variant={"outline"}
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {manualDate ? format(manualDate, "PPP", { locale: id }) : <span>Pilih tanggal</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={manualDate}
-                          onSelect={setManualDate}
-                          initialFocus
-                          locale={id}
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <Input
+                      id="attendance-date"
+                      type="date"
+                      value={manualDate}
+                      onChange={(e) => setManualDate(e.target.value)}
+                      className="w-full"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="attendance-time">Waktu</Label>
