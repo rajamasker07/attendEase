@@ -25,8 +25,8 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Calendar as CalendarIcon } from "lucide-react";
-import type { Employee, AttendanceRecord } from "@/types";
-import { format, differenceInMinutes, parseISO, isWithinInterval, isAfter } from "date-fns";
+import type { Employee, AttendanceRecord, AbsenceRecord } from "@/types";
+import { format, differenceInMinutes, parseISO, isAfter } from "date-fns";
 import { id } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
@@ -34,6 +34,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import { useCollection, useFirebase, useMemoFirebase, WithId } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 
 export default function ReportsPage() {
   const { firestore } = useFirebase();
@@ -50,7 +51,7 @@ export default function ReportsPage() {
     if (date?.from) {
         const startDate = date.from;
         const endDate = date.to ? new Date(date.to) : new Date(startDate);
-        endDate.setHours(23, 59, 59, 999); // Include the whole end day
+        endDate.setHours(23, 59, 59, 999);
 
         q = query(q, where("clockIn", ">=", startDate.toISOString()), where("clockIn", "<=", endDate.toISOString()));
     }
@@ -59,6 +60,26 @@ export default function ReportsPage() {
   }, [firestore, date]);
 
   const { data: attendance, isLoading: isLoadingAttendance } = useCollection<AttendanceRecord>(attendanceQuery);
+
+  const absenceQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    let q = query(collection(firestore, "absences"));
+    
+    if (date?.from) {
+        const startDate = date.from;
+        const endDate = date.to ? new Date(date.to) : new Date(startDate);
+        endDate.setHours(23, 59, 59, 999);
+
+        q = query(q, 
+            where("date", ">=", format(startDate, "yyyy-MM-dd")), 
+            where("date", "<=", format(endDate, "yyyy-MM-dd"))
+        );
+    }
+    
+    return q;
+  }, [firestore, date]);
+
+  const { data: absences, isLoading: isLoadingAbsences } = useCollection<AbsenceRecord>(absenceQuery);
   
   const formatDuration = (totalMinutes: number): string => {
     if (totalMinutes < 0) totalMinutes = 0;
@@ -68,31 +89,38 @@ export default function ReportsPage() {
   };
 
   const reportData = useMemo(() => {
-    if (!attendance || !employees) return [];
+    if (!employees) return [];
 
     const employeeDataMap = new Map<string, { 
         employee: WithId<Employee>; 
         records: (WithId<AttendanceRecord> & {isLate: boolean})[]; 
+        absenceRecords: WithId<AbsenceRecord>[];
         totalMinutes: number;
         totalLateMinutes: number;
         lateCount: number;
+        sakitCount: number;
+        izinCount: number;
+        alpaCount: number;
     }>();
 
-    attendance.forEach(record => {
-        const employee = employees.find(e => e.id === record.employeeId);
-        if (!employee) return;
+    employees.forEach(employee => {
+        employeeDataMap.set(employee.id, {
+            employee,
+            records: [],
+            absenceRecords: [],
+            totalMinutes: 0,
+            totalLateMinutes: 0,
+            lateCount: 0,
+            sakitCount: 0,
+            izinCount: 0,
+            alpaCount: 0,
+        });
+    });
+    
+    attendance?.forEach(record => {
+        if (!employeeDataMap.has(record.employeeId)) return;
 
-        if (!employeeDataMap.has(employee.id)) {
-            employeeDataMap.set(employee.id, {
-                employee,
-                records: [],
-                totalMinutes: 0,
-                totalLateMinutes: 0,
-                lateCount: 0,
-            });
-        }
-
-        const data = employeeDataMap.get(employee.id)!;
+        const data = employeeDataMap.get(record.employeeId)!;
 
         const clockInTime = parseISO(record.clockIn);
         const lateTime = new Date(clockInTime);
@@ -115,8 +143,19 @@ export default function ReportsPage() {
         }
     });
 
-    return Array.from(employeeDataMap.values()).sort((a,b) => b.totalMinutes - a.totalMinutes);
-  }, [attendance, employees]);
+    absences?.forEach(record => {
+        if (!employeeDataMap.has(record.employeeId)) return;
+        const data = employeeDataMap.get(record.employeeId)!;
+        data.absenceRecords.push(record);
+        if (record.status === 'sakit') data.sakitCount++;
+        if (record.status === 'izin') data.izinCount++;
+        if (record.status === 'alpa') data.alpaCount++;
+    });
+
+    return Array.from(employeeDataMap.values())
+      .filter(d => d.records.length > 0 || d.absenceRecords.length > 0)
+      .sort((a,b) => b.totalMinutes - a.totalMinutes);
+  }, [attendance, employees, absences]);
 
   const chartData = useMemo(() => {
     return reportData.map(data => ({
@@ -138,8 +177,16 @@ export default function ReportsPage() {
     const minutes = differenceInMinutes(parseISO(clockOut), parseISO(clockIn));
     return formatDuration(minutes);
   };
+
+  const getAbsenceStatusBadge = (status: AbsenceRecord['status']) => {
+    switch (status) {
+        case 'sakit': return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 capitalize">Sakit</Badge>;
+        case 'izin': return <Badge variant="secondary" className="bg-blue-100 text-blue-800 capitalize">Izin</Badge>;
+        case 'alpa': return <Badge variant="destructive" className="capitalize">Alpa</Badge>;
+    }
+  }
   
-  const isLoading = isLoadingEmployees || isLoadingAttendance;
+  const isLoading = isLoadingEmployees || isLoadingAttendance || isLoadingAbsences;
   
   if (isLoading && !attendance) {
     return (
@@ -166,7 +213,6 @@ export default function ReportsPage() {
                                 </Button>
                             </PopoverTrigger>
                         </Popover>
-                        <Button disabled={true}>Hapus Filter</Button>
                     </div>
                 </CardContent>
             </Card>
@@ -230,7 +276,7 @@ export default function ReportsPage() {
                 />
               </PopoverContent>
             </Popover>
-            <Button onClick={() => { setDate(undefined); }} disabled={isLoading}>Hapus Filter</Button>
+            <Button onClick={() => { setDate(undefined); }} disabled={isLoading || !date}>Hapus Filter</Button>
           </div>
         </CardContent>
       </Card>
@@ -280,61 +326,107 @@ export default function ReportsPage() {
           )}
           
           <Accordion type="multiple" className="w-full space-y-4">
-            {reportData.map(({ employee, records, totalMinutes, totalLateMinutes, lateCount }) => (
+            {reportData.map(({ employee, records, totalMinutes, lateCount, sakitCount, izinCount, alpaCount, absenceRecords }) => (
                 <Card key={employee.id} className="overflow-hidden">
                     <AccordionItem value={employee.id} className="border-none">
                         <AccordionTrigger className="p-6 hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/50">
                             <div className="flex w-full items-center justify-between">
                                 <div className="text-left">
                                     <h3 className="text-lg font-semibold">{employee.name}</h3>
-                                    <p className="text-sm text-muted-foreground">{employee.position}</p>
+                                    <p className="text-sm text-muted-foreground capitalize">{employee.position}</p>
                                 </div>
-                                <div className="flex items-center gap-6 text-right">
-                                    {totalLateMinutes > 0 && (
+                                <div className="grid grid-flow-col gap-4 text-right">
+                                    {sakitCount > 0 && (
                                         <div className="text-center">
-                                            <div className="text-lg font-bold text-destructive">{formatDuration(totalLateMinutes)}</div>
-                                            <div className="text-xs text-destructive/80">({lateCount}x) Terlambat</div>
+                                            <div className="text-lg font-bold">{sakitCount}</div>
+                                            <div className="text-xs text-muted-foreground">Sakit</div>
+                                        </div>
+                                    )}
+                                    {izinCount > 0 && (
+                                        <div className="text-center">
+                                            <div className="text-lg font-bold">{izinCount}</div>
+                                            <div className="text-xs text-muted-foreground">Izin</div>
+                                        </div>
+                                    )}
+                                    {alpaCount > 0 && (
+                                        <div className="text-center">
+                                            <div className="text-lg font-bold text-destructive">{alpaCount}</div>
+                                            <div className="text-xs text-destructive/80">Alpa</div>
+                                        </div>
+                                    )}
+                                    {lateCount > 0 && (
+                                        <div className="text-center">
+                                            <div className="text-lg font-bold text-destructive">{lateCount}</div>
+                                            <div className="text-xs text-destructive/80">x Terlambat</div>
                                         </div>
                                     )}
                                     <div className="text-center">
                                         <div className="text-lg font-bold text-primary">{formatDuration(totalMinutes)}</div>
-                                        <div className="text-xs text-muted-foreground">Total Jam Kerja</div>
+                                        <div className="text-xs text-muted-foreground">Total Jam</div>
                                     </div>
                                 </div>
                             </div>
                         </AccordionTrigger>
                         <AccordionContent>
-                           <div className="px-6 pb-6 pt-0">
-                             <Table>
-                                <TableHeader>
-                                <TableRow>
-                                    <TableHead>Tanggal</TableHead>
-                                    <TableHead>Masuk</TableHead>
-                                    <TableHead>Pulang</TableHead>
-                                    <TableHead>Catatan</TableHead>
-                                    <TableHead className="text-right">Durasi</TableHead>
-                                </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                {records.map((record) => (
-                                    <TableRow key={record.id} className={record.isLate ? "bg-destructive/10" : ""}>
-                                    <TableCell>
-                                        {format(parseISO(record.clockIn), "MMMM d, yyyy", { locale: id })}
-                                    </TableCell>
-                                    <TableCell>
-                                        {format(parseISO(record.clockIn), "p")}
-                                    </TableCell>
-                                    <TableCell>
-                                        {record.clockOut ? format(parseISO(record.clockOut), "p") : "-"}
-                                    </TableCell>
-                                    <TableCell>{record.notes || "-"}</TableCell>
-                                    <TableCell className="text-right">
-                                        {calculateDuration(record.clockIn, record.clockOut)}
-                                    </TableCell>
-                                    </TableRow>
-                                ))}
-                                </TableBody>
-                            </Table>
+                           <div className="px-6 pb-6 pt-0 space-y-6">
+                            {records.length > 0 && (
+                                <div>
+                                    <h4 className="font-semibold mb-2 text-sm">Catatan Kehadiran</h4>
+                                    <Table>
+                                        <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Tanggal</TableHead>
+                                            <TableHead>Masuk</TableHead>
+                                            <TableHead>Pulang</TableHead>
+                                            <TableHead>Catatan</TableHead>
+                                            <TableHead className="text-right">Durasi</TableHead>
+                                        </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                        {records.map((record) => (
+                                            <TableRow key={record.id} className={record.isLate ? "bg-destructive/10" : ""}>
+                                            <TableCell>
+                                                {format(parseISO(record.clockIn), "MMMM d, yyyy", { locale: id })}
+                                            </TableCell>
+                                            <TableCell>
+                                                {format(parseISO(record.clockIn), "p")}
+                                            </TableCell>
+                                            <TableCell>
+                                                {record.clockOut ? format(parseISO(record.clockOut), "p") : "-"}
+                                            </TableCell>
+                                            <TableCell>{record.notes || "-"}</TableCell>
+                                            <TableCell className="text-right">
+                                                {calculateDuration(record.clockIn, record.clockOut)}
+                                            </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
+                            {absenceRecords.length > 0 && (
+                                <div>
+                                    <h4 className="font-semibold mb-2 text-sm">Catatan Ketidakhadiran</h4>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Tanggal</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead>Catatan</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {absenceRecords.map((record) => (
+                                                <TableRow key={record.id} className="bg-muted/50">
+                                                    <TableCell>{format(parseISO(record.date), "MMMM d, yyyy", { locale: id })}</TableCell>
+                                                    <TableCell>{getAbsenceStatusBadge(record.status)}</TableCell>
+                                                    <TableCell>{record.notes || "-"}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
                            </div>
                         </AccordionContent>
                     </AccordionItem>
@@ -347,7 +439,9 @@ export default function ReportsPage() {
             <CardHeader><CardTitle>Tidak Ada Data</CardTitle></CardHeader>
             <CardContent>
                 <div className="h-48 flex items-center justify-center">
-                    <p className="text-center text-muted-foreground">Tidak ada hasil ditemukan untuk filter yang dipilih.</p>
+                    <p className="text-center text-muted-foreground">
+                        {date?.from ? "Tidak ada hasil ditemukan untuk rentang tanggal yang dipilih." : "Pilih rentang tanggal untuk melihat laporan."}
+                    </p>
                 </div>
             </CardContent>
         </Card>
