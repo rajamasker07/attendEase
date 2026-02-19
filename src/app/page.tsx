@@ -201,14 +201,11 @@ export default function DashboardPage() {
 
 
   useEffect(() => {
-    const now = new Date();
-    if (!manualDate) {
-      setManualDate(now);
-    }
-    if (!manualTime) {
-      setManualTime(format(now, "HH:mm"));
-    }
-  }, [manualDate, manualTime]);
+    // This effect runs once on mount to set the initial date and time.
+    // It prevents the date from being reset on subsequent re-renders.
+    setManualDate(new Date());
+    setManualTime(format(new Date(), "HH:mm"));
+  }, []);
 
   const activeEmployees = useMemo(() => {
     return employees?.filter(e => e.status !== 'tidak aktif');
