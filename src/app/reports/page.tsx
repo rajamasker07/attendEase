@@ -22,13 +22,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -45,23 +38,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function ReportsPage() {
   const { firestore } = useFirebase();
 
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
   const [date, setDate] = useState<DateRange | undefined>();
 
   const employeesCollection = useMemoFirebase(() => firestore ? collection(firestore, "employees") : null, [firestore]);
   const { data: employees, isLoading: isLoadingEmployees } = useCollection<Employee>(employeesCollection);
 
-  const activeEmployees = useMemo(() => {
-    return employees?.filter(e => e.status !== 'tidak aktif');
-  }, [employees]);
-
   const attendanceQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     let q = query(collection(firestore, "attendance"), where("clockOut", "!=", null));
-    
-    if (selectedEmployeeId !== "all") {
-        q = query(q, where("employeeId", "==", selectedEmployeeId));
-    }
     
     if (date?.from) {
         const startDate = date.from;
@@ -72,7 +56,7 @@ export default function ReportsPage() {
     }
     
     return q;
-  }, [firestore, selectedEmployeeId, date]);
+  }, [firestore, date]);
 
   const { data: attendance, isLoading: isLoadingAttendance } = useCollection<AttendanceRecord>(attendanceQuery);
   
@@ -164,16 +148,11 @@ export default function ReportsPage() {
                 <CardHeader>
                     <CardTitle>Filter Laporan</CardTitle>
                     <CardDescription>
-                        Saring catatan kehadiran berdasarkan karyawan dan rentang tanggal.
+                        Saring catatan kehadiran berdasarkan rentang tanggal.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="flex flex-col gap-4 sm:flex-row">
-                        <Select disabled={true}>
-                            <SelectTrigger className="w-full sm:w-[280px]">
-                                <SelectValue placeholder="Pilih seorang karyawan" />
-                            </SelectTrigger>
-                        </Select>
                         <Popover>
                             <PopoverTrigger asChild>
                                 <Button
@@ -211,24 +190,11 @@ export default function ReportsPage() {
         <CardHeader>
           <CardTitle>Filter Laporan</CardTitle>
           <CardDescription>
-            Saring catatan kehadiran berdasarkan karyawan dan rentang tanggal.
+            Saring catatan kehadiran berdasarkan rentang tanggal.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4 sm:flex-row">
-            <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId} disabled={isLoading}>
-              <SelectTrigger className="w-full sm:w-[280px]">
-                <SelectValue placeholder="Pilih seorang karyawan" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Karyawan</SelectItem>
-                {activeEmployees?.map((employee) => (
-                  <SelectItem key={employee.id} value={employee.id}>
-                    {employee.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -264,7 +230,7 @@ export default function ReportsPage() {
                 />
               </PopoverContent>
             </Popover>
-            <Button onClick={() => { setDate(undefined); setSelectedEmployeeId("all")}} disabled={isLoading}>Hapus Filter</Button>
+            <Button onClick={() => { setDate(undefined); }} disabled={isLoading}>Hapus Filter</Button>
           </div>
         </CardContent>
       </Card>
