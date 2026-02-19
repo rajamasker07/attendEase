@@ -16,7 +16,8 @@ service cloud.firestore {
     }
 
     match /absences/{absenceId} {
-      allow read, write: if isSignedIn();
+      allow read;
+      allow write: if isSignedIn();
     }
 
     match /sanctions/{sanctionId} {
