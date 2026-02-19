@@ -82,4 +82,29 @@
   body {
     @apply bg-background text-foreground;
   }
+  @media print {
+    body {
+      background: white;
+    }
+  }
+}
+
+@media print {
+  .printable-accordion-content[data-state='closed'] {
+    animation: none !important;
+    height: auto !important;
+    visibility: visible !important;
+    overflow: visible !important;
+    padding-bottom: 1.5rem;
+    padding-top: 0;
+  }
+  .printable-accordion-trigger {
+    pointer-events: none;
+  }
+  .printable-accordion-trigger > svg {
+    display: none !important;
+  }
+  .print-hidden {
+    display: none;
+  }
 }

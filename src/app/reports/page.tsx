@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, Printer } from "lucide-react";
 import type { Employee, AttendanceRecord, AbsenceRecord } from "@/types";
 import { format, differenceInMinutes, parseISO, isAfter } from "date-fns";
 import { id } from "date-fns/locale";
@@ -186,6 +186,10 @@ export default function ReportsPage() {
     }
   }
   
+  const handlePrint = () => {
+    window.print();
+  };
+
   const isLoading = isLoadingEmployees || isLoadingAttendance || isLoadingAbsences;
   
   if (isLoading && !attendance) {
@@ -232,7 +236,14 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <div className="fixed top-20 right-6 print:hidden">
+        <Button onClick={handlePrint}>
+          <Printer className="mr-2 h-4 w-4" />
+          Cetak Laporan
+        </Button>
+      </div>
+
+      <Card className="print-hidden">
         <CardHeader>
           <CardTitle>Filter Laporan</CardTitle>
           <CardDescription>
@@ -295,7 +306,7 @@ export default function ReportsPage() {
       ) : reportData.length > 0 ? (
         <>
           {chartData.length > 0 && (
-            <Card>
+            <Card className="print-hidden">
               <CardHeader>
                   <CardTitle>Total Jam Kerja Karyawan</CardTitle>
                   <CardDescription>Visualisasi total jam kerja untuk periode yang dipilih.</CardDescription>
@@ -327,9 +338,9 @@ export default function ReportsPage() {
           
           <Accordion type="multiple" className="w-full space-y-4">
             {reportData.map(({ employee, records, totalMinutes, totalLateMinutes, lateCount, sakitCount, izinCount, alpaCount, absenceRecords }) => (
-                <Card key={employee.id} className="overflow-hidden">
+                <Card key={employee.id} className="overflow-hidden print:border-none print:shadow-none">
                     <AccordionItem value={employee.id} className="border-none">
-                        <AccordionTrigger className="p-6 hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/50">
+                        <AccordionTrigger className="p-6 hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/50 printable-accordion-trigger">
                             <div className="flex w-full items-center justify-between">
                                 <div className="text-left">
                                     <h3 className="text-lg font-semibold">{employee.name}</h3>
@@ -367,7 +378,7 @@ export default function ReportsPage() {
                                 </div>
                             </div>
                         </AccordionTrigger>
-                        <AccordionContent>
+                        <AccordionContent className="printable-accordion-content">
                            <div className="px-6 pb-6 pt-0 space-y-6">
                             {records.length > 0 && (
                                 <div>
@@ -435,7 +446,7 @@ export default function ReportsPage() {
           </Accordion>
         </>
       ) : (
-        <Card>
+        <Card className="print-hidden">
             <CardHeader><CardTitle>Tidak Ada Data</CardTitle></CardHeader>
             <CardContent>
                 <div className="h-48 flex items-center justify-center">
