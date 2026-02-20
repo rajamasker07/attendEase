@@ -12,16 +12,6 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
-    // EXCEPTION: Allow public READ access for dashboard/report data.
-    // This prevents permission errors due to authentication timing issues.
-    // Write access is still protected by the wildcard rule above.
-    match /attendance/{docId} {
-      allow read;
-    }
-    match /absences/{docId} {
-      allow read;
-    }
-
     // EXCEPTION: Allow public access for viewing a single payslip via a direct link.
     // The 'get' rule allows reading a single document, but 'list' (querying the collection)
     // is still protected by the isSignedIn() check from the wildcard rule. This is secure.
