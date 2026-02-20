@@ -8,7 +8,8 @@ service cloud.firestore {
     }
 
     match /employees/{employeeId} {
-      allow read, write: if isSignedIn();
+      allow read;
+      allow write: if isSignedIn();
     }
 
     match /attendance/{attendanceRecordId} {
