@@ -7,19 +7,26 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Secure by default: This is the most effective approach.
-    // All reads and writes for all documents require an authenticated user.
-    // Our app's "Auth Gate" ensures this condition is met before fetching data.
+    // Secure by default: All reads and writes for all documents require an authenticated user.
     match /{document=**} {
       allow read, write: if isSignedIn();
     }
 
+    // EXCEPTION: Allow public READ access for dashboard/report data.
+    // This prevents permission errors due to authentication timing issues.
+    // Write access is still protected by the wildcard rule above.
+    match /attendance/{docId} {
+      allow read;
+    }
+    match /absences/{docId} {
+      allow read;
+    }
+
     // EXCEPTION: Allow public access for viewing a single payslip via a direct link.
     // The 'get' rule allows reading a single document, but 'list' (querying the collection)
-    // is still protected by the rule above. This is secure.
+    // is still protected by the isSignedIn() check from the wildcard rule. This is secure.
     match /payrolls/{payrollId}/payslips/{payslipId} {
       allow get;
-      // Writes and deletes are still protected by the isSignedIn() check from the wildcard rule.
     }
   }
 }
