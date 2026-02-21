@@ -4,44 +4,21 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isSignedIn() {
+      // Periksa apakah pengguna sudah diautentikasi.
       return request.auth != null;
     }
 
-    // Publicly readable data
-    match /employees/{employeeId} {
-      allow read;
-      allow write: if isSignedIn();
-    }
-
-    match /attendance/{attendanceRecordId} {
-      allow read;
-      allow write: if isSignedIn();
-    }
-
-    match /absences/{absenceId} {
-      allow read;
-      allow write: if isSignedIn();
-    }
-
-    match /sanctions/{sanctionId} {
-      allow read;
-      allow write: if isSignedIn();
-    }
-
-    match /settings/{settingId} {
-      allow read;
-      allow write: if isSignedIn();
-    }
-
-    // Payroll data is more sensitive and requires sign-in for viewing lists
-    match /payrolls/{payrollId} {
+    // Aturan default: Semua akses (baca & tulis) ke semua dokumen
+    // memerlukan pengguna untuk masuk.
+    match /{document=**} {
       allow read, write: if isSignedIn();
+    }
 
-      match /payslips/{payslipId} {
-        // Exception: Allow anyone with the direct link to read a single payslip.
-        allow read;
-        allow write, delete: if isSignedIn();
-      }
+    // Pengecualian: Izinkan baca publik untuk slip gaji tunggal.
+    // Ini menimpa aturan di atas HANYA untuk metode 'get' pada path spesifik ini.
+    // Metode 'list', 'write', dan 'delete' tetap dilindungi oleh aturan default.
+    match /payrolls/{payrollId}/payslips/{payslipId} {
+      allow get;
     }
   }
 }

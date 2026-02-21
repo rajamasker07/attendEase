@@ -6,10 +6,11 @@ import type { ReactNode } from 'react';
 
 export function ConditionalLayout({ children }: { children: ReactNode }) {
     const pathname = usePathname();
+    const isLoginPage = pathname === '/login';
     const isPayslipPage = pathname.startsWith('/payslip/');
     const isPayrollReportPage = /^\/payroll\/[^/]+\/report$/.test(pathname);
 
-    if (isPayslipPage || isPayrollReportPage) {
+    if (isLoginPage || isPayslipPage || isPayrollReportPage) {
         return <>{children}</>;
     }
 

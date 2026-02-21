@@ -11,9 +11,22 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Home, Users, BookText, DollarSign, AlertTriangle, Settings } from "lucide-react"
+import { Home, Users, BookText, DollarSign, AlertTriangle, Settings, LogOut } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { useAuth, useUser } from "@/firebase"
+import { signOut } from "firebase/auth"
+
 
 function PageHeader() {
   const pathname = usePathname();
@@ -29,11 +42,46 @@ function PageHeader() {
   } else if (pathname.startsWith("/settings")) {
     title = "Pengaturan";
   }
+  
+  const auth = useAuth();
+  const { user } = useUser();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    // The AuthGate will automatically redirect to the login page.
+    router.push('/login');
+  };
+
 
   return (
     <header className="flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6">
       <SidebarTrigger />
-      <h1 className="text-lg font-semibold">{title}</h1>
+      <h1 className="flex-1 text-lg font-semibold">{title}</h1>
+       <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback>{user?.email?.[0].toUpperCase() ?? 'A'}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56" align="end" forceMount>
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium leading-none">Admin</p>
+              <p className="text-xs leading-none text-muted-foreground">
+                {user?.email}
+              </p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Keluar</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </header>
   );
 }
