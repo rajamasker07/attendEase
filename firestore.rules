@@ -7,6 +7,7 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Publicly readable data
     match /employees/{employeeId} {
       allow read;
       allow write: if isSignedIn();
@@ -28,14 +29,16 @@ service cloud.firestore {
     }
 
     match /settings/{settingId} {
-      allow read, write: if isSignedIn();
+      allow read;
+      allow write: if isSignedIn();
     }
 
+    // Payroll data is more sensitive and requires sign-in for viewing lists
     match /payrolls/{payrollId} {
       allow read, write: if isSignedIn();
 
       match /payslips/{payslipId} {
-        // Allow anyone with the link to read, but only signed-in users to write/delete.
+        // Exception: Allow anyone with the direct link to read a single payslip.
         allow read;
         allow write, delete: if isSignedIn();
       }
