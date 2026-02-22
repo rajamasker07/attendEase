@@ -46,7 +46,6 @@ export default function ReportsPage() {
 
   const attendanceQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // We fetch all completed attendances and filter by date on the client.
     return query(collection(firestore, "attendance"), where("clockOut", "!=", null));
   }, [firestore]);
 
@@ -54,7 +53,6 @@ export default function ReportsPage() {
 
   const absenceQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // We fetch all absences and filter by date on the client.
     return query(collection(firestore, "absences"));
   }, [firestore]);
 
@@ -68,16 +66,13 @@ export default function ReportsPage() {
   };
 
   const reportData = useMemo(() => {
-    // Wait until all data sources are loaded before processing.
     if (!employees || !attendance || !absences) return [];
 
     let filteredAttendance = attendance;
     let filteredAbsences = absences;
 
-    // Apply date filtering if a date range is selected.
     if (date?.from) {
         const startDate = startOfDay(date.from);
-        // Use end of day for the 'to' date to include the full day.
         const endDate = date.to ? endOfDay(date.to) : endOfDay(date.from);
         
         filteredAttendance = attendance.filter(record => {
@@ -117,7 +112,6 @@ export default function ReportsPage() {
         });
     });
     
-    // Use the client-side filtered data.
     filteredAttendance.forEach(record => {
         if (!employeeDataMap.has(record.employeeId)) return;
 
@@ -125,7 +119,7 @@ export default function ReportsPage() {
 
         const clockInTime = parseISO(record.clockIn);
         const lateTime = new Date(clockInTime);
-        lateTime.setHours(7, 35, 0, 0); // 07:35 threshold
+        lateTime.setHours(7, 35, 0, 0); 
         
         const isRecordLate = isAfter(clockInTime, lateTime);
         
@@ -193,7 +187,7 @@ export default function ReportsPage() {
 
   const isLoading = isLoadingEmployees || isLoadingAttendance || isLoadingAbsences;
   
-  if (isLoading && !attendance) {
+  if (isLoading) {
     return (
         <div className="space-y-6">
             <Card>
@@ -293,18 +287,7 @@ export default function ReportsPage() {
         </CardContent>
       </Card>
       
-      {isLoading ? (
-         <Card>
-            <CardHeader><CardTitle>Memuat Laporan...</CardTitle></CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <Skeleton className="h-48 w-full" />
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-24 w-full" />
-              </div>
-            </CardContent>
-        </Card>
-      ) : reportData.length > 0 ? (
+      {reportData.length > 0 ? (
         <>
           {chartData.length > 0 && (
             <Card className="print-hidden">

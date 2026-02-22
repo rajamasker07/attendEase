@@ -185,7 +185,7 @@ export default function DashboardPage() {
   // --- Firestore Queries ---
   const employeesCollection = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
-    return collection(firestore, "employees");
+    return query(collection(firestore, "employees"), orderBy("name", "asc"));
   }, [firestore, isUserLoading, user]);
   const { data: employees, isLoading: isLoadingEmployees } = useCollection<Employee>(employeesCollection);
 
@@ -224,9 +224,8 @@ export default function DashboardPage() {
 
   const historyQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
-    const attendanceRef = collection(firestore, "attendance");
     
-    let q = query(attendanceRef);
+    let q = query(collection(firestore, "attendance"));
     
     if (historyFilter !== 'all') {
         const days = parseInt(historyFilter, 10);
@@ -242,9 +241,7 @@ export default function DashboardPage() {
 
   const historyAbsenceQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
-    const absenceRef = collection(firestore, "absences");
-
-    let q = query(absenceRef);
+    let q = query(collection(firestore, "absences"));
 
     if (historyFilter !== 'all') {
         const days = parseInt(historyFilter, 10);
@@ -495,9 +492,9 @@ export default function DashboardPage() {
 
   }, [filteredHistoryAttendance, filteredHistoryAbsences]);
 
-  const isLoading = isUserLoading || isLoadingEmployees || isLoadingSelectedDate || isLoadingAbsences;
+  const isLoading = isUserLoading || isLoadingEmployees || isLoadingSelectedDate || isLoadingAbsences || isLoadingHistory || isLoadingHistoryAbsences;
   
-  if (isLoading && !employees) {
+  if (isLoading) {
     return (
        <div className="space-y-6">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

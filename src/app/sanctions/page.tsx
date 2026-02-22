@@ -33,6 +33,7 @@ import { useCollection, useFirebase, WithId, setDocumentNonBlocking, deleteDocum
 import { collection, doc, query, orderBy } from "firebase/firestore";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SanctionsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -149,6 +150,64 @@ export default function SanctionsPage() {
   const isLoading = isLoadingSanctions || isLoadingEmployees;
   const formatCurrency = (amount: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
 
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Sanksi</CardTitle>
+            <CardDescription>
+              Kelola daftar sanksi dan denda untuk karyawan.
+            </CardDescription>
+          </div>
+          <Button disabled>
+            <PlusCircle className="mr-2 h-4 w-4" /> Tambah Sanksi
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-center py-4 gap-2">
+            <Skeleton className="h-10 max-w-sm w-full" />
+            <Skeleton className="h-10 w-[200px]" />
+            <Skeleton className="h-10 w-[150px]" />
+            <Skeleton className="h-10 w-[120px]" />
+          </div>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead><Skeleton className="h-5 w-24" /></TableHead>
+                  <TableHead><Skeleton className="h-5 w-24" /></TableHead>
+                  <TableHead><Skeleton className="h-5 w-32" /></TableHead>
+                  <TableHead><Skeleton className="h-5 w-28" /></TableHead>
+                  <TableHead className="text-right"><Skeleton className="h-5 w-16 ml-auto" /></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+        <CardFooter className="flex items-center justify-between pt-6">
+          <Skeleton className="h-5 w-48" />
+          <div className="flex items-center space-x-2">
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-9 w-24" />
+          </div>
+        </CardFooter>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -220,13 +279,7 @@ export default function SanctionsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
-                    Memuat data sanksi...
-                  </TableCell>
-                </TableRow>
-              ) : paginatedSanctions.length > 0 ? (
+              {paginatedSanctions.length > 0 ? (
                 paginatedSanctions.map((sanction) => (
                   <TableRow key={sanction.id}>
                     <TableCell className="font-medium">
