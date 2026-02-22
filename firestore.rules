@@ -1,39 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    match /employees/{employeeId} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /attendance/{attendanceRecordId} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /absences/{absenceId} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /sanctions/{sanctionId} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /settings/{settingId} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /payrolls/{payrollId} {
-      allow read, write: if isSignedIn();
-
-      match /payslips/{payslipId} {
-        // Allow anyone with the link to read, but only signed-in users to write/delete.
-        allow read;
-        allow write, delete: if isSignedIn();
-      }
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }
