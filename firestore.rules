@@ -1,46 +1,11 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    match /employees/{employeeId} {
-      allow read;
-      allow write: if isSignedIn();
-    }
-
-    match /attendance/{attendanceRecordId} {
-      allow read;
-      allow write: if isSignedIn();
-    }
-
-    match /absences/{absenceId} {
-      allow read;
-      allow write: if isSignedIn();
-    }
-
-    match /sanctions/{sanctionId} {
-      allow read;
-      allow write: if isSignedIn();
-    }
-
-    match /settings/{settingId} {
-      allow read;
-      allow write: if isSignedIn();
-    }
-
-    match /payrolls/{payrollId} {
-      allow read, write: if isSignedIn();
-
-      match /payslips/{payslipId} {
-        // Allow anyone with the link to read a single payslip
-        allow get;
-        // Listing, creating, updating, or deleting payslips requires sign-in
-        allow list, write, delete: if isSignedIn();
-      }
+    // WARNING: These rules are completely open and insecure.
+    // They allow anyone to read, write, and delete any data in your database.
+    // This should only be used for temporary debugging.
+    match /{document=**} {
+      allow read, write;
     }
   }
 }
