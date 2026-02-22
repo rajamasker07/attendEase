@@ -169,10 +169,7 @@ function MarkAbsenceDialog({
 
 
 export default function DashboardPage() {
-  const { firestore } = useFirebase();
-  
-  const employeesCollection = useMemoFirebase(() => firestore ? collection(firestore, "employees") : null, [firestore]);
-  const { data: employees, isLoading: isLoadingEmployees } = useCollection<Employee>(employeesCollection);
+  const { firestore, user, isUserLoading } = useFirebase();
   
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const { toast } = useToast();
@@ -184,12 +181,18 @@ export default function DashboardPage() {
   
   const [isEmployeeFormOpen, setIsEmployeeFormOpen] = useState(false);
   const [isAbsenceFormOpen, setIsAbsenceFormOpen] = useState(false);
+  
+  // --- Firestore Queries ---
+  const employeesCollection = useMemoFirebase(() => {
+    if (!firestore || isUserLoading || !user) return null;
+    return collection(firestore, "employees");
+  }, [firestore, isUserLoading, user]);
+  const { data: employees, isLoading: isLoadingEmployees } = useCollection<Employee>(employeesCollection);
 
   const activeEmployees = useMemo(() => {
     return employees?.filter(e => e.status !== 'tidak aktif');
   }, [employees]);
 
-  // --- Firestore Queries ---
   const selectedDateAsDateObj = useMemo(() => {
     if (!manualDate) return null;
     const [year, month, day] = manualDate.split('-').map(Number);
@@ -197,7 +200,7 @@ export default function DashboardPage() {
   }, [manualDate]);
 
   const selectedDateQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedDateAsDateObj) return null;
+    if (!firestore || isUserLoading || !user || !selectedDateAsDateObj) return null;
     const start = startOfDay(selectedDateAsDateObj);
     const end = endOfDay(selectedDateAsDateObj);
     return query(
@@ -206,21 +209,21 @@ export default function DashboardPage() {
       where("clockIn", "<=", end.toISOString()),
       orderBy("clockIn", "desc")
     );
-  }, [firestore, selectedDateAsDateObj]);
+  }, [firestore, isUserLoading, user, selectedDateAsDateObj]);
   const { data: selectedDateAttendance, isLoading: isLoadingSelectedDate } = useCollection<AttendanceRecord>(selectedDateQuery);
 
   const selectedDateAbsenceQuery = useMemoFirebase(() => {
-    if (!firestore || !manualDate) return null;
+    if (!firestore || isUserLoading || !user || !manualDate) return null;
     return query(
       collection(firestore, "absences"),
       where("date", "==", manualDate)
     );
-  }, [firestore, manualDate]);
+  }, [firestore, isUserLoading, user, manualDate]);
   const { data: selectedDateAbsences, isLoading: isLoadingAbsences } = useCollection<AbsenceRecord>(selectedDateAbsenceQuery);
 
 
   const historyQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading || !user) return null;
     const attendanceRef = collection(firestore, "attendance");
     
     let q;
@@ -240,11 +243,11 @@ export default function DashboardPage() {
     q = query(q, orderBy("clockIn", "desc"));
     
     return q;
-  }, [firestore, historyFilter, historyEmployeeFilter]);
+  }, [firestore, historyFilter, historyEmployeeFilter, isUserLoading, user]);
   const { data: historyAttendance, isLoading: isLoadingHistory } = useCollection<AttendanceRecord>(historyQuery);
 
   const historyAbsenceQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isUserLoading || !user) return null;
     const absenceRef = collection(firestore, "absences");
 
     let q = query(absenceRef);
@@ -262,7 +265,7 @@ export default function DashboardPage() {
     q = query(q, orderBy("date", "desc"));
 
     return q;
-  }, [firestore, historyFilter, historyEmployeeFilter]);
+  }, [firestore, historyFilter, historyEmployeeFilter, isUserLoading, user]);
   const { data: historyAbsences, isLoading: isLoadingHistoryAbsences } = useCollection<AbsenceRecord>(historyAbsenceQuery);
   
   // --- Derived State ---
@@ -488,7 +491,7 @@ export default function DashboardPage() {
 
   }, [historyAttendance, historyAbsences]);
 
-  const isLoading = isLoadingEmployees || isLoadingSelectedDate || isLoadingAbsences;
+  const isLoading = isUserLoading || isLoadingEmployees || isLoadingSelectedDate || isLoadingAbsences;
   
   if (isLoading && !employees) {
     return (
