@@ -1,8 +1,44 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    match /employees/{employeeId} {
+      allow read;
+      allow write: if isSignedIn();
+    }
+
+    match /attendance/{attendanceRecordId} {
+      allow read;
+      allow write: if isSignedIn();
+    }
+
+    match /absences/{absenceId} {
+      allow read;
+      allow write: if isSignedIn();
+    }
+
+    match /sanctions/{sanctionId} {
+      allow read;
+      allow write: if isSignedIn();
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /payrolls/{payrollId} {
+      allow read, write: if isSignedIn();
+
+      match /payslips/{payslipId} {
+        // Allow anyone with the link to read.
+        allow read;
+        // Only signed-in users can manage payslips.
+        allow write, delete: if isSignedIn();
+      }
     }
   }
 }
