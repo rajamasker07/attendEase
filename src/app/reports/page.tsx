@@ -26,7 +26,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Calendar as CalendarIcon, Printer } from "lucide-react";
 import type { Employee, AttendanceRecord, AbsenceRecord } from "@/types";
-import { format, differenceInMinutes, parseISO, isAfter } from "date-fns";
+import { format, differenceInMinutes, parseISO, isAfter, startOfDay, endOfDay } from "date-fns";
 import { id } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
@@ -46,38 +46,17 @@ export default function ReportsPage() {
 
   const attendanceQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    let q = query(collection(firestore, "attendance"), where("clockOut", "!=", null));
-    
-    if (date?.from) {
-        const startDate = date.from;
-        const endDate = date.to ? new Date(date.to) : new Date(startDate);
-        endDate.setHours(23, 59, 59, 999);
-
-        q = query(q, where("clockIn", ">=", startDate.toISOString()), where("clockIn", "<=", endDate.toISOString()));
-    }
-    
-    return q;
-  }, [firestore, date]);
+    // We fetch all completed attendances and filter by date on the client.
+    return query(collection(firestore, "attendance"), where("clockOut", "!=", null));
+  }, [firestore]);
 
   const { data: attendance, isLoading: isLoadingAttendance } = useCollection<AttendanceRecord>(attendanceQuery);
 
   const absenceQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    let q = query(collection(firestore, "absences"));
-    
-    if (date?.from) {
-        const startDate = date.from;
-        const endDate = date.to ? new Date(date.to) : new Date(startDate);
-        endDate.setHours(23, 59, 59, 999);
-
-        q = query(q, 
-            where("date", ">=", format(startDate, "yyyy-MM-dd")), 
-            where("date", "<=", format(endDate, "yyyy-MM-dd"))
-        );
-    }
-    
-    return q;
-  }, [firestore, date]);
+    // We fetch all absences and filter by date on the client.
+    return query(collection(firestore, "absences"));
+  }, [firestore]);
 
   const { data: absences, isLoading: isLoadingAbsences } = useCollection<AbsenceRecord>(absenceQuery);
   
@@ -89,7 +68,28 @@ export default function ReportsPage() {
   };
 
   const reportData = useMemo(() => {
-    if (!employees) return [];
+    // Wait until all data sources are loaded before processing.
+    if (!employees || !attendance || !absences) return [];
+
+    let filteredAttendance = attendance;
+    let filteredAbsences = absences;
+
+    // Apply date filtering if a date range is selected.
+    if (date?.from) {
+        const startDate = startOfDay(date.from);
+        // Use end of day for the 'to' date to include the full day.
+        const endDate = date.to ? endOfDay(date.to) : endOfDay(date.from);
+        
+        filteredAttendance = attendance.filter(record => {
+            const clockInDate = parseISO(record.clockIn);
+            return clockInDate >= startDate && clockInDate <= endDate;
+        });
+
+        filteredAbsences = absences.filter(record => {
+            const absenceDate = startOfDay(parseISO(record.date));
+            return absenceDate >= startDate && absenceDate <= endDate;
+        });
+    }
 
     const employeeDataMap = new Map<string, { 
         employee: WithId<Employee>; 
@@ -117,7 +117,8 @@ export default function ReportsPage() {
         });
     });
     
-    attendance?.forEach(record => {
+    // Use the client-side filtered data.
+    filteredAttendance.forEach(record => {
         if (!employeeDataMap.has(record.employeeId)) return;
 
         const data = employeeDataMap.get(record.employeeId)!;
@@ -143,7 +144,7 @@ export default function ReportsPage() {
         }
     });
 
-    absences?.forEach(record => {
+    filteredAbsences.forEach(record => {
         if (!employeeDataMap.has(record.employeeId)) return;
         const data = employeeDataMap.get(record.employeeId)!;
         data.absenceRecords.push(record);
@@ -155,7 +156,7 @@ export default function ReportsPage() {
     return Array.from(employeeDataMap.values())
       .filter(d => d.records.length > 0 || d.absenceRecords.length > 0)
       .sort((a,b) => b.totalMinutes - a.totalMinutes);
-  }, [attendance, employees, absences]);
+  }, [attendance, employees, absences, date]);
 
   const chartData = useMemo(() => {
     return reportData.map(data => ({
@@ -460,3 +461,5 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+    
