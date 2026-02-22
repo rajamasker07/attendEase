@@ -226,13 +226,7 @@ export default function DashboardPage() {
     if (!firestore || isUserLoading || !user) return null;
     const attendanceRef = collection(firestore, "attendance");
     
-    let q;
-
-    if (historyEmployeeFilter !== "all") {
-      q = query(attendanceRef, where("employeeId", "==", historyEmployeeFilter));
-    } else {
-      q = query(attendanceRef);
-    }
+    let q = query(attendanceRef);
     
     if (historyFilter !== 'all') {
         const days = parseInt(historyFilter, 10);
@@ -243,7 +237,7 @@ export default function DashboardPage() {
     q = query(q, orderBy("clockIn", "desc"));
     
     return q;
-  }, [firestore, historyFilter, historyEmployeeFilter, isUserLoading, user]);
+  }, [firestore, historyFilter, isUserLoading, user]);
   const { data: historyAttendance, isLoading: isLoadingHistory } = useCollection<AttendanceRecord>(historyQuery);
 
   const historyAbsenceQuery = useMemoFirebase(() => {
@@ -251,10 +245,6 @@ export default function DashboardPage() {
     const absenceRef = collection(firestore, "absences");
 
     let q = query(absenceRef);
-
-    if (historyEmployeeFilter !== "all") {
-        q = query(q, where("employeeId", "==", historyEmployeeFilter));
-    }
 
     if (historyFilter !== 'all') {
         const days = parseInt(historyFilter, 10);
@@ -265,9 +255,23 @@ export default function DashboardPage() {
     q = query(q, orderBy("date", "desc"));
 
     return q;
-  }, [firestore, historyFilter, historyEmployeeFilter, isUserLoading, user]);
+  }, [firestore, historyFilter, isUserLoading, user]);
   const { data: historyAbsences, isLoading: isLoadingHistoryAbsences } = useCollection<AbsenceRecord>(historyAbsenceQuery);
   
+  // --- Client-side filtering ---
+  const filteredHistoryAttendance = useMemo(() => {
+    if (!historyAttendance) return null;
+    if (historyEmployeeFilter === 'all') return historyAttendance;
+    return historyAttendance.filter(item => item.employeeId === historyEmployeeFilter);
+  }, [historyAttendance, historyEmployeeFilter]);
+
+  const filteredHistoryAbsences = useMemo(() => {
+    if (!historyAbsences) return null;
+    if (historyEmployeeFilter === 'all') return historyAbsences;
+    return historyAbsences.filter(item => item.employeeId === historyEmployeeFilter);
+  }, [historyAbsences, historyEmployeeFilter]);
+
+
   // --- Derived State ---
   const currentEmployeeRecord = useMemo(() => {
     if (!selectedEmployeeId || !selectedDateAttendance) return null;
@@ -480,16 +484,16 @@ export default function DashboardPage() {
   }, [selectedDateAttendance, selectedDateAbsences]);
 
   const historyLogItems = useMemo(() => {
-    if (!historyAttendance && !historyAbsences) return [];
+    if (!filteredHistoryAttendance && !filteredHistoryAbsences) return [];
 
-    const attendanceItems = (historyAttendance || []).map(item => ({ ...item, type: 'attendance' as const, sortDate: parseISO(item.clockIn) }));
-    const absenceItems = (historyAbsences || []).map(item => ({ ...item, type: 'absence' as const, sortDate: startOfDay(parseISO(item.date)) }));
+    const attendanceItems = (filteredHistoryAttendance || []).map(item => ({ ...item, type: 'attendance' as const, sortDate: parseISO(item.clockIn) }));
+    const absenceItems = (filteredHistoryAbsences || []).map(item => ({ ...item, type: 'absence' as const, sortDate: startOfDay(parseISO(item.date)) }));
     
     const combined = [...attendanceItems, ...absenceItems];
     combined.sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
     return combined;
 
-  }, [historyAttendance, historyAbsences]);
+  }, [filteredHistoryAttendance, filteredHistoryAbsences]);
 
   const isLoading = isUserLoading || isLoadingEmployees || isLoadingSelectedDate || isLoadingAbsences;
   
