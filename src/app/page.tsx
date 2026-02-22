@@ -18,13 +18,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -36,7 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Employee, AttendanceRecord, AbsenceRecord, Sanction } from "@/types";
 import { format, isSameDay, parseISO, subDays, isAfter, startOfDay, endOfDay } from "date-fns";
 import { id } from "date-fns/locale";
-import { Calendar as CalendarIcon, LogIn, LogOut, PlusCircle, UserX } from "lucide-react";
+import { Calendar as CalendarIcon, LogIn, LogOut, PlusCircle, UserX, Check, ChevronsUpDown } from "lucide-react";
 import { Clock } from "@/components/clock";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -49,8 +42,10 @@ import { collection, doc, query, where, orderBy, getDocs, getDoc } from "firebas
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmployeeFormDialog, type EmployeeFormData } from "@/app/employees/employee-actions";
 import { useForm, SubmitHandler, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { cn } from "@/lib/utils";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 
 const absenceSchema = z.object({
@@ -165,6 +160,64 @@ function MarkAbsenceDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function EmployeeCombobox({ employees, value, onChange, disabled }: { employees: WithId<Employee>[] | null, value: string, onChange: (value: string) => void, disabled?: boolean }) {
+  const [open, setOpen] = useState(false)
+  
+  const selectedEmployeeName = useMemo(() => {
+    if (!employees) return undefined;
+    return employees.find((employee) => employee.id === value)?.name
+  }, [employees, value]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between"
+          disabled={disabled}
+        >
+          {selectedEmployeeName || "Pilih seorang karyawan"}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+        <Command>
+          <CommandInput placeholder="Cari karyawan..." />
+          <CommandEmpty>Karyawan tidak ditemukan.</CommandEmpty>
+          <CommandGroup>
+            <ScrollArea className="h-48">
+              {employees && employees.length > 0 ? (
+                employees.map((employee) => (
+                  <CommandItem
+                    key={employee.id}
+                    value={employee.name} // Use name for searching
+                    onSelect={() => {
+                      onChange(employee.id) // Pass id on select
+                      setOpen(false)
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        value === employee.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    {employee.name}
+                  </CommandItem>
+                ))
+              ) : (
+                 <div className="py-6 text-center text-sm">Tidak ada karyawan aktif.</div>
+              )}
+            </ScrollArea>
+          </CommandGroup>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 
@@ -558,22 +611,12 @@ export default function DashboardPage() {
                 <div className="space-y-2">
                   <Label htmlFor="employee-select">Karyawan</Label>
                   <div className="flex items-center gap-2">
-                    <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId} disabled={isLoadingEmployees}>
-                      <SelectTrigger id="employee-select" className="w-full">
-                        <SelectValue placeholder="Pilih seorang karyawan" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {activeEmployees && activeEmployees.length > 0 ? (
-                          activeEmployees.map((employee) => (
-                            <SelectItem key={employee.id} value={employee.id}>
-                              {employee.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <div className="p-4 text-sm text-muted-foreground">Tidak ada karyawan aktif.</div>
-                        )}
-                      </SelectContent>
-                    </Select>
+                    <EmployeeCombobox 
+                      employees={activeEmployees} 
+                      value={selectedEmployeeId} 
+                      onChange={setSelectedEmployeeId} 
+                      disabled={isLoadingEmployees} 
+                    />
                     <Button variant="outline" size="icon" onClick={() => setIsEmployeeFormOpen(true)} disabled={isLoadingEmployees} aria-label="Tambah Karyawan Baru">
                       <PlusCircle className="h-4 w-4" />
                     </Button>
