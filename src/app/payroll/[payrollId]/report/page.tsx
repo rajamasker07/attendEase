@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { useMemo } from "react";
+import { Badge } from "@/components/ui/badge";
 
 function PayrollReportPageContent({
   payslips,
@@ -19,7 +20,7 @@ function PayrollReportPageContent({
 }: {
   payslips: WithId<Payslip>[];
   payroll: WithId<Payroll>;
-  totals: { base: number; bonus: number; unpaidAbsence: number; late: number; sanction: number; net: number; };
+  totals: { base: number; bonus: number; deduction: number; net: number; paid: number; remaining: number; };
 }) {
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("id-ID", {
@@ -27,9 +28,22 @@ function PayrollReportPageContent({
       currency: "IDR",
       minimumFractionDigits: 0,
     }).format(amount);
+    
+  const getStatusBadge = (status: Payslip['paymentStatus']) => {
+    switch (status) {
+      case "lunas":
+        return <Badge variant="default" className="capitalize print:bg-green-100 print:text-green-800 print:border-green-300">{status}</Badge>;
+      case "sebagian":
+        return <Badge variant="outline" className="capitalize print:bg-yellow-100 print:text-yellow-800 print:border-yellow-300">{status}</Badge>;
+      case "belum dibayar":
+        return <Badge variant="secondary" className="capitalize print:bg-gray-100 print:text-gray-800 print:border-gray-300">Belum Dibayar</Badge>;
+      default:
+        return <Badge variant="secondary" className="capitalize">{status}</Badge>;
+    }
+  };
 
   return (
-    <div className="mx-auto max-w-4xl bg-white p-8 shadow-lg print:shadow-none">
+    <div className="mx-auto max-w-5xl bg-white p-8 shadow-lg print:shadow-none">
       <header className="flex items-center justify-between border-b pb-4">
         <div>
           <h1 className="text-3xl font-bold">Laporan Penggajian</h1>
@@ -51,10 +65,11 @@ function PayrollReportPageContent({
                     <TableHead>Nama Karyawan</TableHead>
                     <TableHead className="text-right">Gaji Pokok</TableHead>
                     <TableHead className="text-right">Bonus</TableHead>
-                    <TableHead className="text-right">Potongan Absen</TableHead>
-                    <TableHead className="text-right">Potongan Telat</TableHead>
-                    <TableHead className="text-right">Potongan Sanksi</TableHead>
+                    <TableHead className="text-right">Potongan</TableHead>
                     <TableHead className="text-right">Gaji Bersih</TableHead>
+                    <TableHead className="text-right">Telah Dibayar</TableHead>
+                    <TableHead className="text-right">Sisa Gaji</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -63,22 +78,24 @@ function PayrollReportPageContent({
                         <TableCell className="font-medium">{p.employeeName}</TableCell>
                         <TableCell className="text-right">{formatCurrency(p.baseSalary)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(p.bonusTotal)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(p.unpaidAbsenceDeduction)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(p.lateDeduction)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(p.sanctionDeduction)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(p.unpaidAbsenceDeduction + p.lateDeduction + p.sanctionDeduction)}</TableCell>
                         <TableCell className="text-right font-semibold">{formatCurrency(p.netSalary)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(p.paidAmount)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(p.remainingAmount)}</TableCell>
+                        <TableCell className="text-center">{getStatusBadge(p.paymentStatus)}</TableCell>
                     </TableRow>
                 ))}
             </TableBody>
             <TableFooter>
-                <TableRow className="font-bold">
+                <TableRow className="font-bold bg-muted/50">
                     <TableCell>Total</TableCell>
                     <TableCell className="text-right">{formatCurrency(totals.base)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(totals.bonus)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(totals.unpaidAbsence)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(totals.late)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(totals.sanction)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(totals.deduction)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(totals.net)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(totals.paid)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(totals.remaining)}</TableCell>
+                    <TableCell></TableCell>
                 </TableRow>
             </TableFooter>
         </Table>
@@ -109,15 +126,15 @@ export default function PayrollReportPage() {
   const { data: payslips, isLoading: isLoadingPayslips, error: errorPayslips } = useCollection<Payslip>(payslipsCollectionRef);
 
   const totals = useMemo(() => {
-    if (!payslips) return { base: 0, bonus: 0, late: 0, sanction: 0, unpaidAbsence: 0, net: 0 };
+    if (!payslips) return { base: 0, bonus: 0, deduction: 0, net: 0, paid: 0, remaining: 0 };
     return payslips.reduce((acc, p) => ({
         base: acc.base + p.baseSalary,
         bonus: acc.bonus + p.bonusTotal,
-        late: acc.late + p.lateDeduction,
-        sanction: acc.sanction + p.sanctionDeduction,
-        unpaidAbsence: acc.unpaidAbsence + p.unpaidAbsenceDeduction,
+        deduction: acc.deduction + p.lateDeduction + p.sanctionDeduction + p.unpaidAbsenceDeduction,
         net: acc.net + p.netSalary,
-    }), { base: 0, bonus: 0, late: 0, sanction: 0, unpaidAbsence: 0, net: 0 });
+        paid: acc.paid + p.paidAmount,
+        remaining: acc.remaining + p.remainingAmount,
+    }), { base: 0, bonus: 0, deduction: 0, net: 0, paid: 0, remaining: 0 });
   }, [payslips]);
 
   const isLoading = isLoadingPayroll || isLoadingPayslips;
@@ -137,13 +154,13 @@ export default function PayrollReportPage() {
       </div>
 
       {isLoading && (
-        <div className="mx-auto max-w-4xl bg-white p-8 shadow-lg">
+        <div className="mx-auto max-w-5xl bg-white p-8 shadow-lg">
           <Skeleton className="h-[700px] w-full" />
         </div>
       )}
 
       {error && (
-        <div className="mx-auto max-w-4xl text-center">
+        <div className="mx-auto max-w-5xl text-center">
           <p className="text-destructive">Gagal memuat laporan penggajian.</p>
           <p className="text-sm text-muted-foreground">
             Tautan mungkin tidak valid atau Anda tidak memiliki izin.
@@ -156,7 +173,7 @@ export default function PayrollReportPage() {
       )}
       
       {!isLoading && !error && !payroll && (
-        <div className="mx-auto max-w-4xl text-center">
+        <div className="mx-auto max-w-5xl text-center">
             <h1 className="text-xl font-semibold">Laporan Penggajian Tidak Ditemukan</h1>
             <p className="text-muted-foreground">Pastikan tautan yang Anda masukkan sudah benar.</p>
         </div>
@@ -164,5 +181,3 @@ export default function PayrollReportPage() {
     </div>
   );
 }
-
-    

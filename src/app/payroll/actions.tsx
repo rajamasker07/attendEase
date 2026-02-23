@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -51,7 +51,13 @@ import {
   getDaysInMonth,
 } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import { Copy } from "lucide-react";
+import { Copy, Wallet } from "lucide-react";
+import { useForm, Controller, SubmitHandler } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 interface CreatePayrollDialogProps {
   isOpen: boolean;
@@ -238,6 +244,9 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
           sanctionDeduction,
           sanctions: sanctionDetails,
           netSalary,
+          paidAmount: 0,
+          remainingAmount: netSalary,
+          paymentStatus: 'belum dibayar',
         };
 
         const newPayslipRef = doc(collection(firestore, "payrolls", newPayrollRef.id, "payslips"));
@@ -319,6 +328,8 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
   );
 }
 
+const formatCurrency = (amount: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
+
 interface PayslipDetailDialogProps {
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
@@ -330,8 +341,6 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
     const [copied, setCopied] = useState(false);
     
     if (!payslip) return null;
-
-    const formatCurrency = (amount: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
     
     const payslipUrl = `${window.location.origin}/payslip/${payrollId}/${payslip.id}`;
 
@@ -428,6 +437,23 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
                         <span>{formatCurrency(payslip.netSalary)}</span>
                     </div>
 
+                    <Separator className="my-2" />
+
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Telah Dibayar</span>
+                        <span className="font-medium">{formatCurrency(payslip.paidAmount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">Sisa Gaji</span>
+                        <span className="font-medium">{formatCurrency(payslip.remainingAmount)}</span>
+                    </div>
+                     <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Status Pembayaran</span>
+                        <Badge variant={payslip.paymentStatus === 'lunas' ? 'default' : (payslip.paymentStatus === 'sebagian' ? 'outline' : 'secondary')} className="capitalize">
+                            {payslip.paymentStatus}
+                        </Badge>
+                    </div>
+
                     <div className="space-y-2 pt-4">
                         <Label htmlFor="payslip-link">Tautan Slip Gaji</Label>
                         <div className="flex items-center space-x-2">
@@ -445,6 +471,94 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
             </DialogContent>
         </Dialog>
     );
+}
+
+const paymentSchema = z.object({
+  amount: z.coerce.number().min(1, "Jumlah pembayaran harus lebih dari 0."),
+});
+type PaymentFormData = z.infer<typeof paymentSchema>;
+
+interface RecordPaymentDialogProps {
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
+  payslip: WithId<Payslip> | null;
+  onSave: (payslipId: string, amount: number) => void;
+}
+
+export function RecordPaymentDialog({ isOpen, setIsOpen, payslip, onSave }: RecordPaymentDialogProps) {
+  const { toast } = useToast();
+  
+  const resolver = zodResolver(paymentSchema.refine(
+    (data) => !payslip || data.amount <= payslip.remainingAmount, {
+      message: "Pembayaran tidak boleh melebihi sisa gaji.",
+      path: ["amount"],
+    }
+  ));
+  
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<PaymentFormData>({
+    resolver,
+    defaultValues: { amount: 0 },
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      reset({ amount: 0 });
+    }
+  }, [isOpen, reset]);
+  
+  if (!payslip) return null;
+
+  const onSubmit: SubmitHandler<PaymentFormData> = (data) => {
+    onSave(payslip.id, data.amount);
+    toast({
+      title: "Pembayaran Dicatat",
+      description: `Pembayaran untuk ${payslip.employeeName} telah dicatat.`,
+    });
+    setIsOpen(false);
+  };
+  
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Catat Pembayaran Gaji</DialogTitle>
+          <DialogDescription>Untuk: {payslip.employeeName}</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(onSubmit)}>
+            <div className="space-y-4 py-4 text-sm">
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Gaji Bersih</span>
+                    <span className="font-medium">{formatCurrency(payslip.netSalary)}</span>
+                </div>
+                 <div className="flex justify-between">
+                    <span className="text-muted-foreground">Sisa Gaji</span>
+                    <span className="font-medium">{formatCurrency(payslip.remainingAmount)}</span>
+                </div>
+                <div className="space-y-2 pt-2">
+                    <Label htmlFor="amount">Jumlah Pembayaran Baru</Label>
+                    <Controller
+                        name="amount"
+                        control={control}
+                        render={({ field }) => (
+                            <CurrencyInput
+                            id="amount"
+                            placeholder="0"
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            onBlur={field.onBlur}
+                            />
+                        )}
+                    />
+                    {errors.amount && <p className="text-sm text-destructive mt-1">{errors.amount.message}</p>}
+                </div>
+            </div>
+            <DialogFooter>
+                <Button type="submit">Simpan Pembayaran</Button>
+            </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 interface DeletePayrollAlertProps {
@@ -487,5 +601,3 @@ export function DeletePayrollAlert({ isOpen, setIsOpen, onConfirm, payrollPeriod
         </AlertDialog>
     );
 }
-
-    

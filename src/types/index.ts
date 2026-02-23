@@ -70,6 +70,9 @@ export interface Payslip {
   sanctionDeduction: number;
   sanctions: PayslipSanctionDetail[];
   netSalary: number;
+  paidAmount: number;
+  remainingAmount: number;
+  paymentStatus: 'lunas' | 'sebagian' | 'belum dibayar';
 }
 
 export interface Setting {
@@ -82,5 +85,3 @@ export interface Holiday {
   date: string; // YYYY-MM-DD
   description: string;
 }
-
-    

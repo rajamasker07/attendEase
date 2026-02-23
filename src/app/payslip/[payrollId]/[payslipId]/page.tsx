@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 
 function PayslipPageContent({
   payslip,
@@ -132,10 +133,24 @@ function PayslipPageContent({
 
       <Separator className="my-6" />
 
-      <section className="mt-6">
-        <div className="flex justify-between rounded-md bg-primary/10 p-4 text-lg font-bold">
+      <section>
+        <div className="flex justify-between rounded-md bg-muted/50 p-4 text-lg font-bold">
           <p>Gaji Bersih (Take Home Pay)</p>
           <p>{formatCurrency(payslip.netSalary)}</p>
+        </div>
+      </section>
+
+      <section className="mt-6 grid grid-cols-2 gap-x-8 gap-y-2 rounded-md border p-4 text-sm">
+        <h2 className="col-span-2 mb-2 text-base font-semibold">Status Pembayaran</h2>
+        <div className="text-muted-foreground">Jumlah Telah Dibayar</div>
+        <div className="text-right font-medium">{formatCurrency(payslip.paidAmount)}</div>
+        <div className="text-muted-foreground">Sisa Gaji Periode Ini</div>
+        <div className="text-right font-medium text-destructive">{formatCurrency(payslip.remainingAmount)}</div>
+        <div className="text-muted-foreground">Status</div>
+        <div className="text-right">
+            <Badge variant={payslip.paymentStatus === 'lunas' ? 'default' : (payslip.paymentStatus === 'sebagian' ? 'outline' : 'secondary')} className="capitalize">
+                {payslip.paymentStatus === 'belum dibayar' ? 'Belum Dibayar' : payslip.paymentStatus}
+            </Badge>
         </div>
       </section>
 
@@ -218,5 +233,3 @@ export default function PayslipPage() {
     </div>
   );
 }
-
-    

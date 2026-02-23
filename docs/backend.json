@@ -247,6 +247,23 @@
         "netSalary": {
           "type": "number",
           "description": "The final net salary after all deductions and bonuses."
+        },
+        "paidAmount": {
+          "type": "number",
+          "description": "The total amount of salary that has been paid for this payslip."
+        },
+        "remainingAmount": {
+          "type": "number",
+          "description": "The remaining unpaid salary for this period (netSalary - paidAmount)."
+        },
+        "paymentStatus": {
+          "type": "string",
+          "description": "The payment status of the payslip.",
+          "enum": [
+            "lunas",
+            "sebagian",
+            "belum dibayar"
+          ]
         }
       },
       "required": [
@@ -262,7 +279,10 @@
         "sanctionCount",
         "sanctionDeduction",
         "sanctions",
-        "netSalary"
+        "netSalary",
+        "paidAmount",
+        "remainingAmount",
+        "paymentStatus"
       ]
     },
     "Sanction": {
@@ -474,5 +494,3 @@
     ]
   }
 }
-
-    
