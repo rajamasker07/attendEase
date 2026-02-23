@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -207,6 +208,16 @@ export default function DashboardPage() {
     return new Date(year, month - 1, day);
   }, [manualDate]);
 
+  const isSelectedDateHoliday = useMemo(() => {
+    if (!selectedDateAsDateObj || !holidays) return false;
+    try {
+        return holidays.some(h => isSameDay(parseISO(h.date), selectedDateAsDateObj));
+    } catch (e) {
+        console.error("Invalid date format in holidays data", e);
+        return false;
+    }
+  }, [selectedDateAsDateObj, holidays]);
+
   const selectedDateQuery = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user || !selectedDateAsDateObj) return null;
     const start = startOfDay(selectedDateAsDateObj);
@@ -407,7 +418,7 @@ export default function DashboardPage() {
     const dateObj = parseISO(date);
 
     // Check if the date is a holiday
-    if (holidays?.some(h => h.date === dateStr)) {
+    if (holidays?.some(h => isSameDay(parseISO(h.date), dateObj))) {
         toast({
             title: "Gagal: Hari Libur",
             description: "Tidak dapat mencatat ketidakhadiran pada hari libur.",
@@ -614,6 +625,12 @@ export default function DashboardPage() {
                     />
                   </div>
                 </div>
+
+                {isSelectedDateHoliday && (
+                  <div className="rounded-md border border-yellow-300 bg-yellow-50 p-3 text-center text-sm text-yellow-800">
+                    Tanggal yang dipilih adalah hari libur.
+                  </div>
+                )}
                 
                 <div className="space-y-2">
                   <Label htmlFor="attendance-notes">Catatan</Label>
@@ -629,7 +646,7 @@ export default function DashboardPage() {
                 <div className="flex w-full flex-col sm:flex-row gap-2">
                   <Button 
                     onClick={handleClockIn} 
-                    disabled={!selectedEmployeeId || !!currentEmployeeRecord || hasCompletedAttendanceOnSelectedDate || hasAbsenceOnSelectedDate} 
+                    disabled={!selectedEmployeeId || !!currentEmployeeRecord || hasCompletedAttendanceOnSelectedDate || hasAbsenceOnSelectedDate || isSelectedDateHoliday} 
                     className="w-full"
                   >
                     <LogIn className="mr-2 h-4 w-4" /> Absen Masuk
@@ -652,7 +669,7 @@ export default function DashboardPage() {
                     <UserX className="mr-2 h-4 w-4" /> Tandai Ketidakhadiran
                 </Button>
 
-                {selectedEmployeeId && (
+                {selectedEmployeeId && !isSelectedDateHoliday && (
                   <div className="pt-4 text-center text-sm text-muted-foreground">
                       {hasAbsenceOnSelectedDate ? (
                          <span>
