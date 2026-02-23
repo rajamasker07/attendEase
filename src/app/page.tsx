@@ -29,7 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Employee, AttendanceRecord, AbsenceRecord, Sanction } from "@/types";
 import { format, isSameDay, parseISO, subDays, isAfter, startOfDay, endOfDay } from "date-fns";
 import { id } from "date-fns/locale";
-import { Calendar as CalendarIcon, LogIn, LogOut, PlusCircle, UserX } from "lucide-react";
+import { Calendar as CalendarIcon, LogIn, LogOut, PlusCircle, UserX, Check, ChevronsUpDown } from "lucide-react";
 import { Clock } from "@/components/clock";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 
 const absenceSchema = z.object({
@@ -164,6 +179,57 @@ function MarkAbsenceDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function EmployeeCombobox({ employees, value, onSelect, disabled }: { employees: WithId<Employee>[], value: string, onSelect: (id: string) => void, disabled?: boolean }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between"
+          disabled={disabled}
+        >
+          {value
+            ? employees.find((employee) => employee.id === value)?.name
+            : "Pilih seorang karyawan..."}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+        <Command>
+          <CommandInput placeholder="Cari karyawan..." />
+          <CommandList>
+            <CommandEmpty>Karyawan tidak ditemukan.</CommandEmpty>
+            <CommandGroup>
+                {employees.map((employee) => (
+                  <CommandItem
+                    key={employee.id}
+                    value={employee.name} // The value used for filtering.
+                    onSelect={() => {
+                      onSelect(employee.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        value === employee.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    {employee.name}
+                  </CommandItem>
+                ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 export default function DashboardPage() {
@@ -556,26 +622,12 @@ export default function DashboardPage() {
                 <div className="space-y-2">
                   <Label htmlFor="employee-select">Karyawan</Label>
                   <div className="flex items-center gap-2">
-                    <Select
+                    <EmployeeCombobox
+                      employees={activeEmployees || []}
                       value={selectedEmployeeId}
-                      onValueChange={setSelectedEmployeeId}
+                      onSelect={setSelectedEmployeeId}
                       disabled={isLoadingEmployees}
-                    >
-                      <SelectTrigger id="employee-select">
-                        <SelectValue placeholder="Pilih seorang karyawan" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {activeEmployees && activeEmployees.length > 0 ? (
-                            activeEmployees.map((employee) => (
-                                <SelectItem key={employee.id} value={employee.id}>
-                                    {employee.name}
-                                </SelectItem>
-                            ))
-                        ) : (
-                            <div className="px-2 py-1.5 text-sm text-muted-foreground">Tidak ada karyawan aktif.</div>
-                        )}
-                      </SelectContent>
-                    </Select>
+                    />
                     <Button variant="outline" size="icon" onClick={() => setIsEmployeeFormOpen(true)} disabled={isLoadingEmployees} aria-label="Tambah Karyawan Baru">
                       <PlusCircle className="h-4 w-4" />
                     </Button>
