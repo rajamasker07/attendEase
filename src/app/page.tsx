@@ -202,9 +202,10 @@ function EmployeeCombobox({ employees, value, onChange, disabled }: { employees:
                 employees.map((employee) => (
                   <CommandItem
                     key={employee.id}
-                    value={employee.id}
+                    value={employee.name}
                     onSelect={(currentValue) => {
-                      onChange(currentValue);
+                      const selectedEmp = employees.find(e => e.name.toLowerCase() === currentValue.toLowerCase())
+                      onChange(selectedEmp ? selectedEmp.id : "");
                       setOpen(false);
                     }}
                   >
