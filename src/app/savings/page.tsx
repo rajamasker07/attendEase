@@ -156,9 +156,25 @@ export default function SavingsPage() {
                                             <div className="text-muted-foreground text-xs">Saldo</div>
                                             <div className="font-semibold text-lg">{formatCurrency(savingsMap.get(employee.id)?.balance ?? 0)}</div>
                                         </div>
-                                        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); handleWithdrawClick(employee); }}>
-                                            <Wallet className="mr-2 h-4 w-4" />
-                                            Tarik Tunai
+                                        <Button asChild size="sm" variant="outline">
+                                            <div
+                                                role="button"
+                                                tabIndex={0}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleWithdrawClick(employee);
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        handleWithdrawClick(employee);
+                                                    }
+                                                }}
+                                            >
+                                                <Wallet className="mr-2 h-4 w-4" />
+                                                Tarik Tunai
+                                            </div>
                                         </Button>
                                     </div>
                                 </div>
