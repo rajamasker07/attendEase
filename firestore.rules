@@ -38,6 +38,14 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
     }
+    
+    match /savings/{employeeId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /savings-transactions/{transactionId} {
+      allow read, write: if isSignedIn();
+    }
 
     match /payrolls/{payrollId} {
       // Allow payroll document to be public for payslip access
@@ -53,5 +61,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

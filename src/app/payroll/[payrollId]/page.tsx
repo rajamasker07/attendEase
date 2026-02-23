@@ -19,15 +19,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CheckCircle, Printer, Wallet } from "lucide-react";
+import { ArrowLeft, CheckCircle, Printer, Wallet, PiggyBank } from "lucide-react";
 import { useCollection, useDoc, useFirebase, useMemoFirebase, WithId, setDocumentNonBlocking } from "@/firebase";
-import { collection, doc } from "firebase/firestore";
+import { collection, doc, Firestore } from "firebase/firestore";
 import type { Payroll, Payslip } from "@/types";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PayslipDetailDialog, RecordPaymentDialog } from "../actions";
+import { PayslipDetailDialog, RecordPaymentDialog, StoreSavingsAlert, storeRemainingSavings } from "../actions";
 import { useToast } from "@/hooks/use-toast";
 
 export default function PayrollDetailPage() {
@@ -38,6 +38,7 @@ export default function PayrollDetailPage() {
   const [selectedPayslip, setSelectedPayslip] = useState<WithId<Payslip> | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isStoreSavingsAlertOpen, setIsStoreSavingsAlertOpen] = useState(false);
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
 
@@ -62,6 +63,29 @@ export default function PayrollDetailPage() {
     setSelectedPayslip(payslip);
     setIsPaymentDialogOpen(true);
   };
+
+  const handleStoreSavingsClick = (payslip: WithId<Payslip>) => {
+    setSelectedPayslip(payslip);
+    setIsStoreSavingsAlertOpen(true);
+  };
+  
+  const handleConfirmStoreSavings = async () => {
+    if (!firestore || !selectedPayslip || !payroll) return;
+    try {
+        await storeRemainingSavings(firestore, selectedPayslip, payrollId, payroll.period);
+        toast({
+            title: "Berhasil",
+            description: `Sisa gaji ${selectedPayslip.employeeName} telah disimpan ke tabungan.`
+        });
+    } catch (e: any) {
+        toast({
+            title: "Gagal Menyimpan",
+            description: e.message || "Terjadi kesalahan saat menyimpan sisa gaji.",
+            variant: "destructive"
+        });
+    }
+  }
+
 
   const handleSavePayment = (payslipId: string, amount: number) => {
     if (!firestore || !payslips) return;
@@ -219,10 +243,16 @@ export default function PayrollDetailPage() {
                       <TableCell className="text-right space-x-2">
                         <Button variant="outline" size="sm" onClick={() => handleViewDetails(payslip)}>Rincian</Button>
                         {payslip.paymentStatus !== 'lunas' && payroll?.status === 'draft' && (
-                           <Button size="sm" onClick={() => handleRecordPayment(payslip)}>
+                           <>
+                            <Button size="sm" onClick={() => handleRecordPayment(payslip)}>
                                 <Wallet className="mr-2 h-4 w-4"/>
                                 Bayar
                             </Button>
+                            <Button size="sm" variant="outline" onClick={() => handleStoreSavingsClick(payslip)}>
+                                <PiggyBank className="mr-2 h-4 w-4"/>
+                                Simpan Sisa
+                            </Button>
+                           </>
                         )}
                       </TableCell>
                     </TableRow>
@@ -251,6 +281,12 @@ export default function PayrollDetailPage() {
         setIsOpen={setIsPaymentDialogOpen}
         payslip={selectedPayslip}
         onSave={handleSavePayment}
+      />
+      <StoreSavingsAlert 
+        isOpen={isStoreSavingsAlertOpen}
+        setIsOpen={setIsStoreSavingsAlertOpen}
+        onConfirm={handleConfirmStoreSavings}
+        payslip={selectedPayslip}
       />
     </div>
   );

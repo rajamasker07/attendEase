@@ -85,3 +85,18 @@ export interface Holiday {
   date: string; // YYYY-MM-DD
   description: string;
 }
+
+export interface Savings {
+  employeeId: string;
+  balance: number;
+  lastUpdated: string; // ISO String
+}
+
+export interface SavingsTransaction {
+  employeeId: string;
+  date: string; // ISO String
+  type: 'deposit' | 'withdrawal';
+  amount: number;
+  description: string;
+  sourcePayslipId?: string;
+}

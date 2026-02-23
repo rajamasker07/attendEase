@@ -31,7 +31,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase, WithId } from "@/firebase";
-import type { Employee, AttendanceRecord, Payroll, Payslip, Sanction, Bonus, PayslipSanctionDetail, PayslipBonusDetail, AbsenceRecord } from "@/types";
+import type { Employee, AttendanceRecord, Payroll, Payslip, Sanction, Bonus, PayslipSanctionDetail, PayslipBonusDetail, AbsenceRecord, Savings, SavingsTransaction } from "@/types";
 import { useRouter } from "next/navigation";
 import {
   collection,
@@ -41,6 +41,8 @@ import {
   doc,
   setDoc,
   getDoc,
+  runTransaction,
+  Firestore,
 } from "firebase/firestore";
 import {
   format,
@@ -595,6 +597,89 @@ export function DeletePayrollAlert({ isOpen, setIsOpen, onConfirm, payrollPeriod
                     <AlertDialogCancel>Batal</AlertDialogCancel>
                     <AlertDialogAction onClick={handleConfirm} className="bg-destructive hover:bg-destructive/90">
                       Hapus
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+}
+
+export async function storeRemainingSavings(
+  firestore: Firestore,
+  payslip: WithId<Payslip>,
+  payrollId: string,
+  payrollPeriod: string,
+) {
+  if (!payslip || payslip.remainingAmount <= 0) {
+    throw new Error("Tidak ada sisa gaji untuk disimpan.");
+  }
+
+  const savingsRef = doc(firestore, "savings", payslip.employeeId);
+  const payslipRef = doc(firestore, "payrolls", payrollId, "payslips", payslip.id);
+  const transactionRef = doc(collection(firestore, "savings-transactions"));
+
+  await runTransaction(firestore, async (transaction) => {
+    const savingsDoc = await transaction.get(savingsRef);
+    const currentBalance = savingsDoc.exists() ? savingsDoc.data().balance : 0;
+    const newBalance = currentBalance + payslip.remainingAmount;
+
+    // 1. Update savings balance
+    transaction.set(savingsRef, {
+      employeeId: payslip.employeeId,
+      balance: newBalance,
+      lastUpdated: new Date().toISOString(),
+    }, { merge: true });
+
+    // 2. Create savings transaction record
+    transaction.set(transactionRef, {
+      employeeId: payslip.employeeId,
+      date: new Date().toISOString(),
+      type: 'deposit',
+      amount: payslip.remainingAmount,
+      description: `Setoran dari Gaji ${format(parseISO(payrollPeriod), "MMMM yyyy", { locale: localeId })}`,
+      sourcePayslipId: payslip.id,
+    } as SavingsTransaction);
+    
+    // 3. Update the payslip to be fully settled
+    transaction.update(payslipRef, {
+      paidAmount: payslip.netSalary, 
+      remainingAmount: 0,
+      paymentStatus: 'lunas',
+    });
+  });
+}
+
+interface StoreSavingsAlertProps {
+    isOpen: boolean;
+    setIsOpen: (isOpen: boolean) => void;
+    onConfirm: () => void;
+    payslip: WithId<Payslip> | null;
+}
+
+export function StoreSavingsAlert({ isOpen, setIsOpen, onConfirm, payslip }: StoreSavingsAlertProps) {
+    if (!payslip) return null;
+    
+    const handleConfirm = () => {
+        onConfirm();
+        setIsOpen(false);
+    }
+
+    return (
+        <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Simpan Sisa Gaji ke Tabungan?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Anda akan memindahkan sisa gaji sebesar{' '}
+                        <strong>{formatCurrency(payslip.remainingAmount)}</strong> untuk{' '}
+                        <strong>{payslip.employeeName}</strong> ke dalam saldo tabungannya.
+                        Slip gaji ini akan ditandai sebagai lunas.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirm}>
+                      Ya, Simpan ke Tabungan
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

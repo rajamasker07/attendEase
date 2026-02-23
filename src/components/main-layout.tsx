@@ -11,7 +11,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Home, Users, BookText, DollarSign, AlertTriangle, Settings, LogOut, CalendarDays, Star } from "lucide-react"
+import { Home, Users, BookText, DollarSign, AlertTriangle, Settings, LogOut, CalendarDays, Star, Wallet } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -45,6 +45,8 @@ function PageHeader() {
     title = "Manajemen Hari Libur";
   } else if (pathname.startsWith("/settings")) {
     title = "Pengaturan";
+  } else if (pathname.startsWith("/savings")) {
+    title = "Tabungan Karyawan";
   }
   
   const auth = useAuth();
@@ -138,6 +140,14 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               </Link>
             </SidebarMenuItem>
              <SidebarMenuItem>
+              <Link href="/savings">
+                <SidebarMenuButton isActive={pathname.startsWith("/savings")} tooltip="Tabungan">
+                  <Wallet />
+                  <span className="group-data-[state=collapsed]:hidden">Tabungan</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
               <Link href="/holidays">
                 <SidebarMenuButton isActive={pathname.startsWith("/holidays")} tooltip="Hari Libur">
                   <CalendarDays />
@@ -181,5 +191,3 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   )
 }
-
-    

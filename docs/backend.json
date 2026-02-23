@@ -392,6 +392,61 @@
         }
       },
       "required": ["date", "description"]
+    },
+    "Savings": {
+      "title": "Savings",
+      "description": "Stores an employee's total savings balance.",
+      "type": "object",
+      "properties": {
+        "employeeId": {
+          "type": "string",
+          "description": "Reference to the Employee."
+        },
+        "balance": {
+          "type": "number",
+          "description": "The current total savings balance for the employee."
+        },
+        "lastUpdated": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp of the last update to the balance."
+        }
+      },
+      "required": ["employeeId", "balance", "lastUpdated"]
+    },
+    "SavingsTransaction": {
+      "title": "SavingsTransaction",
+      "description": "Records a single transaction (deposit or withdrawal) for an employee's savings account.",
+      "type": "object",
+      "properties": {
+        "employeeId": {
+          "type": "string",
+          "description": "Reference to the Employee."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp of the transaction."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["deposit", "withdrawal"],
+          "description": "The type of transaction."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount of the transaction. Always positive."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the transaction, e.g., 'Setoran dari Gaji Oktober 2024'."
+        },
+        "sourcePayslipId": {
+          "type": "string",
+          "description": "Optional reference to the payslip ID if the deposit is from a payroll run."
+        }
+      },
+      "required": ["employeeId", "date", "type", "amount", "description"]
     }
   },
   "auth": {
@@ -489,6 +544,26 @@
             "$ref": "#/backend/entities/Holiday"
           },
           "description": "Stores all public and company holidays."
+        }
+      },
+      {
+        "path": "/savings/{employeeId}",
+        "definition": {
+            "entityName": "Savings",
+            "schema": {
+                "$ref": "#/backend/entities/Savings"
+            },
+            "description": "Stores employee savings balances. The document ID is the employee ID."
+        }
+      },
+      {
+        "path": "/savings-transactions/{transactionId}",
+        "definition": {
+            "entityName": "SavingsTransaction",
+            "schema": {
+                "$ref": "#/backend/entities/SavingsTransaction"
+            },
+            "description": "Stores all savings transactions for all employees."
         }
       }
     ]
