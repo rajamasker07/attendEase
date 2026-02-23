@@ -60,3 +60,8 @@ export interface Setting {
   alpaDeductionAmount?: number;
   deductUnpaidAbsence?: boolean;
 }
+
+export interface Holiday {
+  date: string; // YYYY-MM-DD
+  description: string;
+}

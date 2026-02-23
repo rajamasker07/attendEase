@@ -286,6 +286,23 @@
       "required": [
         "lateDeductionAmount"
       ]
+    },
+    "Holiday": {
+      "title": "Holiday",
+      "description": "Represents a public or company holiday.",
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "The date of the holiday in YYYY-MM-DD format."
+        },
+        "description": {
+          "type": "string",
+          "description": "The name or description of the holiday (e.g., 'New Year''s Day')."
+        }
+      },
+      "required": ["date", "description"]
     }
   },
   "auth": {
@@ -363,6 +380,16 @@
             "$ref": "#/backend/entities/Setting"
           },
           "description": "Stores application settings. A single document with ID 'payroll' holds payroll-related configurations."
+        }
+      },
+      {
+        "path": "/holidays/{holidayId}",
+        "definition": {
+          "entityName": "Holiday",
+          "schema": {
+            "$ref": "#/backend/entities/Holiday"
+          },
+          "description": "Stores all public and company holidays."
         }
       }
     ]

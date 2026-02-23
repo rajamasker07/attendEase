@@ -26,10 +26,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import type { Employee, AttendanceRecord, AbsenceRecord, Sanction } from "@/types";
+import type { Employee, AttendanceRecord, AbsenceRecord, Sanction, Holiday } from "@/types";
 import { format, isSameDay, parseISO, subDays, isAfter, startOfDay, endOfDay } from "date-fns";
 import { id } from "date-fns/locale";
-import { Calendar as CalendarIcon, LogIn, LogOut, PlusCircle, UserX, Check, ChevronsUpDown } from "lucide-react";
+import { Calendar as CalendarIcon, LogIn, LogOut, PlusCircle, UserX, Check } from "lucide-react";
 import { Clock } from "@/components/clock";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -55,14 +55,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -181,57 +173,6 @@ function MarkAbsenceDialog({
   );
 }
 
-function EmployeeCombobox({ employees, value, onSelect, disabled }: { employees: WithId<Employee>[], value: string, onSelect: (id: string) => void, disabled?: boolean }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between"
-          disabled={disabled}
-        >
-          {value
-            ? employees.find((employee) => employee.id === value)?.name
-            : "Pilih seorang karyawan..."}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command>
-          <CommandInput placeholder="Cari karyawan..." />
-          <CommandList>
-            <CommandEmpty>Karyawan tidak ditemukan.</CommandEmpty>
-            <CommandGroup>
-                {employees.map((employee) => (
-                  <CommandItem
-                    key={employee.id}
-                    value={employee.name} // The value used for filtering.
-                    onSelect={() => {
-                      onSelect(employee.id);
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        value === employee.id ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    {employee.name}
-                  </CommandItem>
-                ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  )
-}
-
 export default function DashboardPage() {
   const { firestore, user, isUserLoading } = useFirebase();
   
@@ -252,6 +193,9 @@ export default function DashboardPage() {
     return query(collection(firestore, "employees"), orderBy("name", "asc"));
   }, [firestore, isUserLoading, user]);
   const { data: employees, isLoading: isLoadingEmployees } = useCollection<Employee>(employeesCollection);
+  
+  const holidaysCollection = useMemoFirebase(() => firestore ? collection(firestore, "holidays") : null, [firestore]);
+  const { data: holidays, isLoading: isLoadingHolidays } = useCollection<Holiday>(holidaysCollection);
 
   const activeEmployees = useMemo(() => {
     return employees?.filter(e => e.status !== 'tidak aktif');
@@ -458,9 +402,19 @@ export default function DashboardPage() {
 
   const handleSaveAbsence = async (data: AbsenceFormData) => {
     if (!firestore) return;
-    const { employeeId, date, status, notes } = data;
+    const { employeeId, date, status, notes: absenceNotes } = data;
     const dateStr = date;
     const dateObj = parseISO(date);
+
+    // Check if the date is a holiday
+    if (holidays?.some(h => h.date === dateStr)) {
+        toast({
+            title: "Gagal: Hari Libur",
+            description: "Tidak dapat mencatat ketidakhadiran pada hari libur.",
+            variant: "destructive"
+        });
+        return;
+    }
 
     // Check for conflicts
     const attendanceConflictQuery = query(collection(firestore, "attendance"), where("employeeId", "==", employeeId));
@@ -476,7 +430,7 @@ export default function DashboardPage() {
         return;
     }
 
-    const newRecord: Omit<AbsenceRecord, 'id'> = { employeeId, date: dateStr, status, notes };
+    const newRecord: Omit<AbsenceRecord, 'id'> = { employeeId, date: dateStr, status, notes: absenceNotes };
     addDocumentNonBlocking(collection(firestore, "absences"), newRecord);
     
     if (status === 'alpa') {
@@ -556,7 +510,7 @@ export default function DashboardPage() {
 
   }, [filteredHistoryAttendance, filteredHistoryAbsences]);
 
-  const isLoading = isUserLoading || isLoadingEmployees || isLoadingSelectedDate || isLoadingAbsences || isLoadingHistory || isLoadingHistoryAbsences;
+  const isLoading = isUserLoading || isLoadingEmployees || isLoadingSelectedDate || isLoadingAbsences || isLoadingHistory || isLoadingHistoryAbsences || isLoadingHolidays;
   
   if (isLoading) {
     return (
@@ -622,12 +576,16 @@ export default function DashboardPage() {
                 <div className="space-y-2">
                   <Label htmlFor="employee-select">Karyawan</Label>
                   <div className="flex items-center gap-2">
-                    <EmployeeCombobox
-                      employees={activeEmployees || []}
-                      value={selectedEmployeeId}
-                      onSelect={setSelectedEmployeeId}
-                      disabled={isLoadingEmployees}
-                    />
+                     <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                        <SelectTrigger id="employee-select">
+                            <SelectValue placeholder="Pilih seorang karyawan..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {activeEmployees?.map(emp => (
+                                <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                     <Button variant="outline" size="icon" onClick={() => setIsEmployeeFormOpen(true)} disabled={isLoadingEmployees} aria-label="Tambah Karyawan Baru">
                       <PlusCircle className="h-4 w-4" />
                     </Button>

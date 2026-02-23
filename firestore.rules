@@ -30,6 +30,11 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
+    match /holidays/{holidayId} {
+      allow read;
+      allow write: if isSignedIn();
+    }
+
     match /payrolls/{payrollId} {
       allow read;
       allow write: if isSignedIn();
