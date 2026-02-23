@@ -46,7 +46,7 @@ export default function ReportsPage() {
 
   const attendanceQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, "attendance"), where("clockOut", "!=", null));
+    return query(collection(firestore, "attendance"));
   }, [firestore]);
 
   const { data: attendance, isLoading: isLoadingAttendance } = useCollection<AttendanceRecord>(attendanceQuery);
@@ -68,14 +68,14 @@ export default function ReportsPage() {
   const reportData = useMemo(() => {
     if (!employees || !attendance || !absences) return [];
 
-    let filteredAttendance = attendance;
+    let filteredAttendance = attendance.filter(record => record.clockOut);
     let filteredAbsences = absences;
 
     if (date?.from) {
         const startDate = startOfDay(date.from);
         const endDate = date.to ? endOfDay(date.to) : endOfDay(date.from);
         
-        filteredAttendance = attendance.filter(record => {
+        filteredAttendance = filteredAttendance.filter(record => {
             const clockInDate = parseISO(record.clockIn);
             return clockInDate >= startDate && clockInDate <= endDate;
         });
@@ -152,8 +152,11 @@ export default function ReportsPage() {
       .sort((a,b) => b.totalMinutes - a.totalMinutes);
   }, [attendance, employees, absences, date]);
 
+  const CHART_DATA_LIMIT = 15;
   const chartData = useMemo(() => {
-    return reportData.map(data => ({
+    return reportData
+      .slice(0, CHART_DATA_LIMIT)
+      .map(data => ({
         name: data.employee.name.split(" ")[0], // Use first name for brevity
         fullName: data.employee.name,
         totalHours: parseFloat((data.totalMinutes / 60).toFixed(1)),
@@ -292,8 +295,10 @@ export default function ReportsPage() {
           {chartData.length > 0 && (
             <Card className="print-hidden">
               <CardHeader>
-                  <CardTitle>Total Jam Kerja Karyawan</CardTitle>
-                  <CardDescription>Visualisasi total jam kerja untuk periode yang dipilih.</CardDescription>
+                  <CardTitle>Total Jam Kerja Karyawan Teratas</CardTitle>
+                  <CardDescription>
+                    Visualisasi {CHART_DATA_LIMIT} karyawan dengan total jam kerja tertinggi untuk periode yang dipilih.
+                  </CardDescription>
               </CardHeader>
               <CardContent>
                   <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
@@ -444,5 +449,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
-    
