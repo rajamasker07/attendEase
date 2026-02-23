@@ -202,10 +202,10 @@ function EmployeeCombobox({ employees, value, onChange, disabled }: { employees:
                 employees.map((employee) => (
                   <CommandItem
                     key={employee.id}
-                    value={employee.name} // Use name for searching
-                    onSelect={() => {
-                      onChange(employee.id) // Pass id on select
-                      setOpen(false)
+                    value={employee.id}
+                    onSelect={(currentValue) => {
+                      onChange(currentValue);
+                      setOpen(false);
                     }}
                   >
                     <Check
