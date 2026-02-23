@@ -161,6 +161,38 @@
           "type": "number",
           "description": "The employee's base salary for the period."
         },
+        "bonusTotal": {
+          "type": "number",
+          "description": "Total amount from bonuses."
+        },
+        "bonuses": {
+          "type": "array",
+          "description": "A list of bonus details applied in this payslip.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "The type of the bonus.",
+                "enum": ["lembur", "penjualan", "tunjangan", "lainnya"]
+              },
+              "date": {
+                "type": "string",
+                "format": "date",
+                "description": "The date of the bonus."
+              },
+              "amount": {
+                "type": "number",
+                "description": "The amount for the bonus."
+              },
+              "description": {
+                "type": "string",
+                "description": "Optional description for the bonus."
+              }
+            },
+            "required": ["type", "date", "amount"]
+          }
+        },
         "lateCount": {
           "type": "number",
           "description": "Number of times the employee was late during the period."
@@ -214,13 +246,15 @@
         },
         "netSalary": {
           "type": "number",
-          "description": "The final net salary after all deductions."
+          "description": "The final net salary after all deductions and bonuses."
         }
       },
       "required": [
         "employeeId",
         "employeeName",
         "baseSalary",
+        "bonusTotal",
+        "bonuses",
         "lateCount",
         "lateDeduction",
         "unpaidAbsenceCount",
@@ -263,6 +297,41 @@
         "date",
         "violation",
         "deduction"
+      ]
+    },
+     "Bonus": {
+      "title": "Bonus",
+      "description": "Represents a bonus or additional income for an employee.",
+      "type": "object",
+      "properties": {
+        "employeeId": {
+          "type": "string",
+          "description": "Reference to the Employee receiving the bonus."
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "The date the bonus was given."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of the bonus.",
+           "enum": ["lembur", "penjualan", "tunjangan", "lainnya"]
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed notes about the bonus."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The monetary amount for this bonus."
+        }
+      },
+      "required": [
+        "employeeId",
+        "date",
+        "type",
+        "amount"
       ]
     },
     "Setting": {
@@ -352,6 +421,16 @@
           "description": "Stores all disciplinary sanctions for all employees."
         }
       },
+       {
+        "path": "/bonuses/{bonusId}",
+        "definition": {
+          "entityName": "Bonus",
+          "schema": {
+            "$ref": "#/backend/entities/Bonus"
+          },
+          "description": "Stores all bonuses for all employees."
+        }
+      },
       {
         "path": "/payrolls/{payrollId}",
         "definition": {
@@ -395,3 +474,5 @@
     ]
   }
 }
+
+    

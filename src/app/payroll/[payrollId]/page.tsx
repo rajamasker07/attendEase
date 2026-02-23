@@ -67,14 +67,15 @@ export default function PayrollDetailPage() {
   }
 
   const totals = useMemo(() => {
-    if (!payslips) return { base: 0, late: 0, sanction: 0, unpaidAbsence: 0, net: 0 };
+    if (!payslips) return { base: 0, bonus: 0, late: 0, sanction: 0, unpaidAbsence: 0, net: 0 };
     return payslips.reduce((acc, p) => ({
         base: acc.base + p.baseSalary,
+        bonus: acc.bonus + p.bonusTotal,
         late: acc.late + p.lateDeduction,
         sanction: acc.sanction + p.sanctionDeduction,
         unpaidAbsence: acc.unpaidAbsence + p.unpaidAbsenceDeduction,
         net: acc.net + p.netSalary,
-    }), { base: 0, late: 0, sanction: 0, unpaidAbsence: 0, net: 0 });
+    }), { base: 0, bonus: 0, late: 0, sanction: 0, unpaidAbsence: 0, net: 0 });
   }, [payslips]);
 
   const isLoading = isLoadingPayroll || isLoadingPayslips;
@@ -116,7 +117,7 @@ export default function PayrollDetailPage() {
           </div>
         </CardHeader>
         <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6 text-center md:text-left">
+            <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-6 text-center md:text-left">
                 <div className="rounded-lg border p-4">
                     <div className="text-sm text-muted-foreground">Status</div>
                     {isLoadingPayroll ? <Skeleton className="h-6 w-20 mt-1" /> : (
@@ -130,6 +131,10 @@ export default function PayrollDetailPage() {
                 <div className="rounded-lg border p-4">
                     <div className="text-sm text-muted-foreground">Total Gaji Pokok</div>
                     {isLoadingPayslips ? <Skeleton className="h-6 w-32 mt-1" /> : <div className="text-lg font-bold">{formatCurrency(totals.base)}</div>}
+                </div>
+                 <div className="rounded-lg border p-4">
+                    <div className="text-sm text-muted-foreground">Total Bonus</div>
+                    {isLoadingPayslips ? <Skeleton className="h-6 w-28 mt-1" /> : <div className="text-lg font-bold text-green-600">{formatCurrency(totals.bonus)}</div>}
                 </div>
                 <div className="rounded-lg border p-4">
                     <div className="text-sm text-muted-foreground">Potongan Absen</div>
@@ -154,9 +159,8 @@ export default function PayrollDetailPage() {
                 <TableRow>
                   <TableHead>Nama Karyawan</TableHead>
                   <TableHead>Gaji Pokok</TableHead>
-                  <TableHead>Potongan Absen</TableHead>
-                  <TableHead>Potongan Telat</TableHead>
-                  <TableHead>Potongan Sanksi</TableHead>
+                  <TableHead>Bonus</TableHead>
+                  <TableHead>Potongan</TableHead>
                   <TableHead>Gaji Bersih</TableHead>
                 </TableRow>
               </TableHeader>
@@ -168,7 +172,6 @@ export default function PayrollDetailPage() {
                       <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                     </TableRow>
                   ))
@@ -177,15 +180,14 @@ export default function PayrollDetailPage() {
                     <TableRow key={payslip.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleViewDetails(payslip)}>
                       <TableCell className="font-medium">{payslip.employeeName}</TableCell>
                       <TableCell>{formatCurrency(payslip.baseSalary)}</TableCell>
-                      <TableCell className="text-destructive">{formatCurrency(payslip.unpaidAbsenceDeduction)}</TableCell>
-                      <TableCell className="text-destructive">{formatCurrency(payslip.lateDeduction)}</TableCell>
-                      <TableCell className="text-destructive">{formatCurrency(payslip.sanctionDeduction)}</TableCell>
+                      <TableCell className="text-green-600">{formatCurrency(payslip.bonusTotal)}</TableCell>
+                      <TableCell className="text-destructive">{formatCurrency(payslip.unpaidAbsenceDeduction + payslip.lateDeduction + payslip.sanctionDeduction)}</TableCell>
                       <TableCell className="font-semibold">{formatCurrency(payslip.netSalary)}</TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                       Tidak ada data slip gaji untuk periode ini.
                     </TableCell>
                   </TableRow>
@@ -199,3 +201,5 @@ export default function PayrollDetailPage() {
     </div>
   );
 }
+
+    

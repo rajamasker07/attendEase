@@ -26,6 +26,7 @@ function PayslipPageContent({
     }).format(amount);
 
   const totalDeductions = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction;
+  const totalIncome = payslip.baseSalary + payslip.bonusTotal;
 
   return (
     <div className="mx-auto max-w-2xl bg-white p-8 shadow-lg print:shadow-none">
@@ -59,9 +60,27 @@ function PayslipPageContent({
           <p>Gaji Pokok</p>
           <p className="font-medium">{formatCurrency(payslip.baseSalary)}</p>
         </div>
+        {payslip.bonusTotal > 0 && (
+            <div className="border-t py-2">
+              <div className="flex justify-between">
+                <p>Bonus</p>
+                <p className="font-medium text-green-600">
+                  + {formatCurrency(payslip.bonusTotal)}
+                </p>
+              </div>
+              <div className="pl-4 mt-1 space-y-1 text-sm text-muted-foreground">
+                {payslip.bonuses?.map((b, index) => (
+                  <div key={index} className="flex justify-between">
+                    <span className="pr-4 capitalize">- {b.type} ({format(parseISO(b.date), "d MMM yyyy", { locale: id })})</span>
+                    <span>{formatCurrency(b.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         <div className="flex justify-between border-t py-2 font-bold">
           <p>Total Pendapatan</p>
-          <p>{formatCurrency(payslip.baseSalary)}</p>
+          <p>{formatCurrency(totalIncome)}</p>
         </div>
       </section>
 
@@ -199,3 +218,5 @@ export default function PayslipPage() {
     </div>
   );
 }
+
+    

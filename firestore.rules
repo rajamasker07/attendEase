@@ -26,6 +26,10 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
 
+    match /bonuses/{bonusId} {
+      allow read, write: if isSignedIn();
+    }
+
     match /settings/{settingId} {
       allow read, write: if isSignedIn();
     }
@@ -36,6 +40,7 @@ service cloud.firestore {
     }
 
     match /payrolls/{payrollId} {
+      // Allow payroll document to be public for payslip access
       allow read;
       allow write: if isSignedIn();
 
@@ -48,3 +53,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

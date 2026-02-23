@@ -19,7 +19,7 @@ function PayrollReportPageContent({
 }: {
   payslips: WithId<Payslip>[];
   payroll: WithId<Payroll>;
-  totals: { base: number; unpaidAbsence: number; late: number; sanction: number; net: number; };
+  totals: { base: number; bonus: number; unpaidAbsence: number; late: number; sanction: number; net: number; };
 }) {
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("id-ID", {
@@ -50,6 +50,7 @@ function PayrollReportPageContent({
                 <TableRow>
                     <TableHead>Nama Karyawan</TableHead>
                     <TableHead className="text-right">Gaji Pokok</TableHead>
+                    <TableHead className="text-right">Bonus</TableHead>
                     <TableHead className="text-right">Potongan Absen</TableHead>
                     <TableHead className="text-right">Potongan Telat</TableHead>
                     <TableHead className="text-right">Potongan Sanksi</TableHead>
@@ -61,6 +62,7 @@ function PayrollReportPageContent({
                     <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.employeeName}</TableCell>
                         <TableCell className="text-right">{formatCurrency(p.baseSalary)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(p.bonusTotal)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(p.unpaidAbsenceDeduction)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(p.lateDeduction)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(p.sanctionDeduction)}</TableCell>
@@ -72,6 +74,7 @@ function PayrollReportPageContent({
                 <TableRow className="font-bold">
                     <TableCell>Total</TableCell>
                     <TableCell className="text-right">{formatCurrency(totals.base)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(totals.bonus)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(totals.unpaidAbsence)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(totals.late)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(totals.sanction)}</TableCell>
@@ -106,14 +109,15 @@ export default function PayrollReportPage() {
   const { data: payslips, isLoading: isLoadingPayslips, error: errorPayslips } = useCollection<Payslip>(payslipsCollectionRef);
 
   const totals = useMemo(() => {
-    if (!payslips) return { base: 0, late: 0, sanction: 0, unpaidAbsence: 0, net: 0 };
+    if (!payslips) return { base: 0, bonus: 0, late: 0, sanction: 0, unpaidAbsence: 0, net: 0 };
     return payslips.reduce((acc, p) => ({
         base: acc.base + p.baseSalary,
+        bonus: acc.bonus + p.bonusTotal,
         late: acc.late + p.lateDeduction,
         sanction: acc.sanction + p.sanctionDeduction,
         unpaidAbsence: acc.unpaidAbsence + p.unpaidAbsenceDeduction,
         net: acc.net + p.netSalary,
-    }), { base: 0, late: 0, sanction: 0, unpaidAbsence: 0, net: 0 });
+    }), { base: 0, bonus: 0, late: 0, sanction: 0, unpaidAbsence: 0, net: 0 });
   }, [payslips]);
 
   const isLoading = isLoadingPayroll || isLoadingPayslips;
@@ -160,3 +164,5 @@ export default function PayrollReportPage() {
     </div>
   );
 }
+
+    

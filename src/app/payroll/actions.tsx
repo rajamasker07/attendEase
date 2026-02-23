@@ -31,7 +31,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase, WithId } from "@/firebase";
-import type { Employee, AttendanceRecord, Payroll, Payslip, Sanction, PayslipSanctionDetail, AbsenceRecord } from "@/types";
+import type { Employee, AttendanceRecord, Payroll, Payslip, Sanction, Bonus, PayslipSanctionDetail, PayslipBonusDetail, AbsenceRecord } from "@/types";
 import { useRouter } from "next/navigation";
 import {
   collection,
@@ -82,7 +82,6 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
     const payrollPeriod = format(periodDate, "yyyy-MM");
     const daysInMonth = getDaysInMonth(periodDate);
 
-    // Check if payroll for this period already exists
     try {
       const existingPayrollQuery = query(
         collection(firestore, "payrolls"),
@@ -128,48 +127,52 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
       const startDateString = format(startDate, "yyyy-MM-dd");
       const endDateString = format(endDate, "yyyy-MM-dd");
 
-      // 2. Get attendance for the period
+      // Fetch all relevant data
       const attendanceQuery = query(
         collection(firestore, "attendance"),
         where("clockIn", ">=", startDate.toISOString()),
         where("clockIn", "<=", endDate.toISOString())
       );
-      const attendanceSnap = await getDocs(attendanceQuery);
-      const attendanceRecords = attendanceSnap.docs.map((d) => ({
-        ...(d.data() as AttendanceRecord),
-        id: d.id,
-      }));
-
-      // 3. Get sanctions for the period
       const sanctionsQuery = query(
         collection(firestore, "sanctions"),
         where("date", ">=", startDateString),
         where("date", "<=", endDateString)
       );
-      const sanctionsSnap = await getDocs(sanctionsQuery);
-      const periodSanctions = sanctionsSnap.docs.map((d) => ({
-        ...(d.data() as Sanction),
-        id: d.id,
-      }));
-
-      // 4. Get absences for the period
+      const bonusesQuery = query(
+        collection(firestore, "bonuses"),
+        where("date", ">=", startDateString),
+        where("date", "<=", endDateString)
+      );
       const absencesQuery = query(
         collection(firestore, "absences"),
         where("date", ">=", startDateString),
         where("date", "<=", endDateString)
       );
-      const absencesSnap = await getDocs(absencesQuery);
-      const periodAbsences = absencesSnap.docs.map((d) => d.data() as AbsenceRecord);
-
-
-      // 5. Get settings
       const settingsRef = doc(firestore, "settings", "payroll");
-      const settingsSnap = await getDoc(settingsRef);
+
+      const [
+          attendanceSnap, 
+          sanctionsSnap, 
+          bonusesSnap, 
+          absencesSnap, 
+          settingsSnap
+      ] = await Promise.all([
+          getDocs(attendanceQuery),
+          getDocs(sanctionsQuery),
+          getDocs(bonusesQuery),
+          getDocs(absencesQuery),
+          getDoc(settingsRef)
+      ]);
+      
+      const attendanceRecords = attendanceSnap.docs.map((d) => d.data() as AttendanceRecord);
+      const periodSanctions = sanctionsSnap.docs.map((d) => d.data() as Sanction);
+      const periodBonuses = bonusesSnap.docs.map((d) => d.data() as Bonus);
+      const periodAbsences = absencesSnap.docs.map((d) => d.data() as AbsenceRecord);
       const settings = settingsSnap.exists() ? settingsSnap.data() : {};
       const LATE_DEDUCTION_AMOUNT = settings?.lateDeductionAmount ?? 10000;
       const DEDUCT_UNPAID_ABSENCE = settings?.deductUnpaidAbsence ?? false;
 
-      // 6. Create Payroll document
+      // Create Payroll document
       const newPayrollRef = doc(collection(firestore, "payrolls"));
       const newPayrollData: Payroll = {
         period: payrollPeriod,
@@ -178,12 +181,10 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
       };
       await setDoc(newPayrollRef, newPayrollData);
 
-      // 7. Create Payslip for each employee
+      // Create Payslip for each employee
       for (const employee of activeEmployees) {
-        // Calculate late deductions
-        const employeeAttendance = attendanceRecords.filter(
-          (r) => r.employeeId === employee.id
-        );
+        // Late deductions
+        const employeeAttendance = attendanceRecords.filter((r) => r.employeeId === employee.id);
         let lateCount = 0;
         employeeAttendance.forEach((record) => {
           const clockInTime = parseISO(record.clockIn);
@@ -195,53 +196,51 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
         });
         const lateDeduction = lateCount * LATE_DEDUCTION_AMOUNT;
         
-        // Calculate sanction deductions
-        const employeeSanctions = periodSanctions.filter(
-          (s) => s.employeeId === employee.id
-        );
+        // Sanction deductions
+        const employeeSanctions = periodSanctions.filter((s) => s.employeeId === employee.id);
         const sanctionCount = employeeSanctions.length;
-        const sanctionDeduction = employeeSanctions.reduce(
-            (total, s) => total + s.deduction,
-            0
-        );
+        const sanctionDeduction = employeeSanctions.reduce((total, s) => total + s.deduction, 0);
         const sanctionDetails: PayslipSanctionDetail[] = employeeSanctions.map(s => ({
-            violation: s.violation,
-            date: s.date,
-            deduction: s.deduction,
+            violation: s.violation, date: s.date, deduction: s.deduction,
         }));
 
-        // Calculate unpaid absence deduction
+        // Bonus additions
+        const employeeBonuses = periodBonuses.filter((b) => b.employeeId === employee.id);
+        const bonusTotal = employeeBonuses.reduce((total, b) => total + b.amount, 0);
+        const bonusDetails: PayslipBonusDetail[] = employeeBonuses.map(b => ({
+            type: b.type, date: b.date, amount: b.amount, description: b.description
+        }));
+
+        // Unpaid absence deduction
         let unpaidAbsenceCount = 0;
         let unpaidAbsenceDeduction = 0;
         if (DEDUCT_UNPAID_ABSENCE) {
-            const employeeAbsences = periodAbsences.filter(
-                (a) => a.employeeId === employee.id
-            );
+            const employeeAbsences = periodAbsences.filter((a) => a.employeeId === employee.id);
             unpaidAbsenceCount = employeeAbsences.length;
             const dailyWage = (employee.salary || 0) / daysInMonth;
             unpaidAbsenceDeduction = Math.round(unpaidAbsenceCount * dailyWage);
         }
 
-        // Calculate net salary
-        const netSalary = (employee.salary || 0) - lateDeduction - sanctionDeduction - unpaidAbsenceDeduction;
+        // Net salary calculation
+        const netSalary = (employee.salary || 0) + bonusTotal - lateDeduction - sanctionDeduction - unpaidAbsenceDeduction;
 
         const newPayslipData: Payslip = {
           employeeId: employee.id,
           employeeName: employee.name,
           baseSalary: employee.salary || 0,
-          lateCount: lateCount,
-          lateDeduction: lateDeduction,
-          unpaidAbsenceCount: unpaidAbsenceCount,
-          unpaidAbsenceDeduction: unpaidAbsenceDeduction,
-          sanctionCount: sanctionCount,
-          sanctionDeduction: sanctionDeduction,
+          bonusTotal,
+          bonuses: bonusDetails,
+          lateCount,
+          lateDeduction,
+          unpaidAbsenceCount,
+          unpaidAbsenceDeduction,
+          sanctionCount,
+          sanctionDeduction,
           sanctions: sanctionDetails,
-          netSalary: netSalary,
+          netSalary,
         };
 
-        const newPayslipRef = doc(
-          collection(firestore, "payrolls", newPayrollRef.id, "payslips")
-        );
+        const newPayslipRef = doc(collection(firestore, "payrolls", newPayrollRef.id, "payslips"));
         await setDoc(newPayslipRef, newPayslipData);
       }
 
@@ -342,6 +341,8 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
         setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
     }
 
+    const totalDeductions = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction;
+
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-md">
@@ -357,7 +358,26 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
                         <span className="font-medium">{formatCurrency(payslip.baseSalary)}</span>
                     </div>
 
-                    {(payslip.lateDeduction > 0 || payslip.sanctionDeduction > 0 || payslip.unpaidAbsenceDeduction > 0) && <hr />}
+                    {payslip.bonusTotal > 0 && (
+                      <div>
+                        <div className="flex justify-between items-center">
+                            <p className="text-muted-foreground">Bonus</p>
+                            <span className="font-medium text-green-600">
+                                + {formatCurrency(payslip.bonusTotal)}
+                            </span>
+                        </div>
+                        <div className="pl-2 mt-1 text-xs text-muted-foreground space-y-1">
+                            {payslip.bonuses?.map((b, index) => (
+                                <div key={index} className="flex justify-between items-center">
+                                    <span className="pr-2 capitalize">- {b.type} ({format(parseISO(b.date), "d MMM", { locale: localeId })})</span>
+                                    <span>{formatCurrency(b.amount)}</span>
+                                </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {(totalDeductions > 0) && <hr />}
 
                     {payslip.unpaidAbsenceDeduction > 0 && (
                       <div className="flex justify-between items-center">
@@ -467,3 +487,5 @@ export function DeletePayrollAlert({ isOpen, setIsOpen, onConfirm, payrollPeriod
         </AlertDialog>
     );
 }
+
+    

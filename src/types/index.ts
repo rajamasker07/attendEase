@@ -29,6 +29,14 @@ export interface Sanction {
   deduction: number;
 }
 
+export interface Bonus {
+  employeeId: string;
+  date: string; // YYYY-MM-DD
+  type: 'lembur' | 'penjualan' | 'tunjangan' | 'lainnya';
+  amount: number;
+  description?: string;
+}
+
 export interface Payroll {
   period: string; // YYYY-MM
   createdAt: string; // ISO String
@@ -41,10 +49,19 @@ export interface PayslipSanctionDetail {
   deduction: number;
 }
 
+export interface PayslipBonusDetail {
+  type: 'lembur' | 'penjualan' | 'tunjangan' | 'lainnya';
+  date: string; // YYYY-MM-DD
+  amount: number;
+  description?: string;
+}
+
 export interface Payslip {
   employeeId: string;
   employeeName: string;
   baseSalary: number;
+  bonusTotal: number;
+  bonuses: PayslipBonusDetail[];
   lateCount: number;
   lateDeduction: number;
   unpaidAbsenceCount: number;
@@ -65,3 +82,5 @@ export interface Holiday {
   date: string; // YYYY-MM-DD
   description: string;
 }
+
+    
