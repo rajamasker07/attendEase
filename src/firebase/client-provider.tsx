@@ -16,9 +16,12 @@ function AuthGate({ children }: { children: ReactNode }) {
     }
 
     const isAuthPage = pathname === '/login';
+    const isPayslipPage = pathname.startsWith('/payslip/');
+    const isPayrollReportPage = /^\/payroll\/[^/]+\/report$/.test(pathname);
+    const isPublicPage = isAuthPage || isPayslipPage || isPayrollReportPage;
 
-    if (!user && !isAuthPage) {
-      // Jika tidak ada user dan bukan di halaman login, arahkan ke login
+    if (!user && !isPublicPage) {
+      // Jika tidak ada user dan bukan di halaman publik, arahkan ke login
       router.push('/login');
     } else if (user && isAuthPage) {
       // Jika ada user dan berada di halaman login, arahkan ke dasbor
@@ -26,9 +29,13 @@ function AuthGate({ children }: { children: ReactNode }) {
     }
   }, [user, isUserLoading, pathname, router]);
 
+  const isAuthPage = pathname === '/login';
+  const isPayslipPage = pathname.startsWith('/payslip/');
+  const isPayrollReportPage = /^\/payroll\/[^/]+\/report$/.test(pathname);
+  const isPublicPage = isAuthPage || isPayslipPage || isPayrollReportPage;
 
   // Tampilkan layar memuat saat status auth sedang diperiksa, atau saat akan mengarahkan
-  if (isUserLoading || (!user && pathname !== '/login')) {
+  if (isUserLoading || (!user && !isPublicPage)) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
         <p>Memuat aplikasi...</p>
@@ -36,7 +43,7 @@ function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  // Jika user sudah login atau berada di halaman login, tampilkan konten
+  // Jika user sudah login atau berada di halaman publik, tampilkan konten
   return <>{children}</>;
 }
 

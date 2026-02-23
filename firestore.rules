@@ -31,7 +31,8 @@ service cloud.firestore {
     }
 
     match /payrolls/{payrollId} {
-      allow read, write: if isSignedIn();
+      allow read;
+      allow write: if isSignedIn();
 
       match /payslips/{payslipId} {
         // Allow anyone with the link to read.
