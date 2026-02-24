@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -8,6 +8,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   Table,
@@ -106,6 +107,9 @@ export default function SavingsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "aktif" | "tidak aktif">("aktif");
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
+
 
   const employeesCollection = useMemoFirebase(() => firestore ? collection(firestore, "employees") : null, [firestore]);
   const { data: employees, isLoading: isLoadingEmployees } = useCollection<Employee>(employeesCollection);
@@ -134,6 +138,16 @@ export default function SavingsPage() {
     return filtered;
 
   }, [employees, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  const totalPages = Math.ceil(filteredEmployees.length / rowsPerPage);
+  const paginatedEmployees = useMemo(() => {
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    return filteredEmployees.slice(startIndex, startIndex + rowsPerPage);
+  }, [filteredEmployees, currentPage]);
 
   const handleWithdrawClick = (employee: WithId<Employee>) => {
     setSelectedEmployee(employee);
@@ -195,7 +209,7 @@ export default function SavingsPage() {
             </div>
         ) : (
             <Accordion type="single" collapsible className="w-full space-y-2">
-                {filteredEmployees.length > 0 ? filteredEmployees.map(employee => (
+                {paginatedEmployees.length > 0 ? paginatedEmployees.map(employee => (
                     <Card key={employee.id} className="overflow-hidden">
                         <AccordionItem value={employee.id} className="border-none">
                             <AccordionTrigger className="p-4 hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/50">
@@ -247,6 +261,32 @@ export default function SavingsPage() {
             </Accordion>
         )}
       </CardContent>
+      <CardFooter className="flex items-center justify-between pt-6">
+        <div className="text-sm text-muted-foreground">
+          Menampilkan {paginatedEmployees.length} dari {filteredEmployees.length} karyawan.
+        </div>
+        <div className="flex items-center space-x-2">
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+            >
+                Sebelumnya
+            </Button>
+            <span className="text-sm text-muted-foreground">
+                Halaman {currentPage} dari {totalPages > 0 ? totalPages : 1}
+            </span>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages || totalPages === 0}
+            >
+                Berikutnya
+            </Button>
+        </div>
+      </CardFooter>
     </Card>
 
     <RecordWithdrawalDialog
