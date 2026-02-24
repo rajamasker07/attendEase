@@ -40,6 +40,32 @@
             "aktif",
             "tidak aktif"
           ]
+        },
+        "paymentAccounts": {
+          "type": "array",
+          "description": "A list of the employee's bank accounts or e-wallets for payroll.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "provider": {
+                "type": "string",
+                "description": "The name of the bank or e-wallet (e.g., BCA, Mandiri, DANA, OVO)."
+              },
+              "accountNumber": {
+                "type": "string",
+                "description": "The account number or e-wallet phone number."
+              },
+              "accountName": {
+                "type": "string",
+                "description": "The name of the account holder, as registered with the provider."
+              }
+            },
+            "required": [
+              "provider",
+              "accountNumber",
+              "accountName"
+            ]
+          }
         }
       },
       "required": [
@@ -574,5 +600,3 @@
     ]
   }
 }
-
-    

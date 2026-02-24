@@ -1,3 +1,9 @@
+export interface PaymentAccount {
+  provider: string;
+  accountNumber: string;
+  accountName: string;
+}
+
 export interface Employee {
   name: string;
   position: string;
@@ -5,6 +11,7 @@ export interface Employee {
   phone: string;
   salary: number;
   status: 'aktif' | 'tidak aktif';
+  paymentAccounts?: PaymentAccount[];
 }
 
 export interface AttendanceRecord {
@@ -101,5 +108,3 @@ export interface SavingsTransaction {
   description: string;
   sourcePayslipId?: string;
 }
-
-    
