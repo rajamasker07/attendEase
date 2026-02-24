@@ -122,6 +122,11 @@ export default function SavingsPage() {
     return new Map(savings.map(s => [s.id, s]));
   }, [savings]);
 
+  const totalSavingsBalance = useMemo(() => {
+    if (!savings) return 0;
+    return savings.reduce((acc, s) => acc + s.balance, 0);
+  }, [savings]);
+
   const filteredEmployees = useMemo(() => {
     if (!employees) return [];
     
@@ -158,143 +163,161 @@ export default function SavingsPage() {
   const formatCurrency = (amount: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
 
   return (
-    <>
-    <Card>
-      <CardHeader>
-        <CardTitle>Tabungan Karyawan</CardTitle>
-        <CardDescription>
-          Kelola saldo tabungan yang berasal dari sisa gaji karyawan.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col sm:flex-row items-center gap-2 pb-4">
-            <Input
-                placeholder="Cari nama karyawan..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:max-w-sm"
-            />
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "all" | "aktif" | "tidak aktif")}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filter status"/>
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Semua Status</SelectItem>
-                    <SelectItem value="aktif">Aktif</SelectItem>
-                    <SelectItem value="tidak aktif">Tidak Aktif</SelectItem>
-                </SelectContent>
-            </Select>
-        </div>
-
-        {isLoading ? (
-            <div className="rounded-md border">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead><Skeleton className="h-5 w-32" /></TableHead>
-                            <TableHead><Skeleton className="h-5 w-40" /></TableHead>
-                            <TableHead className="text-right"><Skeleton className="h-5 w-24 ml-auto" /></TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {Array.from({length: 5}).map((_, i) => (
-                            <TableRow key={i}>
-                                <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                                <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                                <TableCell><Skeleton className="h-9 w-28 ml-auto" /></TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Total Saldo Tabungan</CardTitle>
+          <CardDescription>
+            Total saldo gabungan dari semua tabungan karyawan.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoadingSavings ? (
+            <Skeleton className="h-8 w-48" />
+          ) : (
+            <div className="text-3xl font-bold">
+              {formatCurrency(totalSavingsBalance)}
             </div>
-        ) : (
-            <Accordion type="single" collapsible className="w-full space-y-2">
-                {paginatedEmployees.length > 0 ? paginatedEmployees.map(employee => (
-                    <Card key={employee.id} className="overflow-hidden">
-                        <AccordionItem value={employee.id} className="border-none">
-                            <AccordionTrigger className="p-4 hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/50">
-                                <div className="flex w-full items-center justify-between">
-                                    <div className="text-left">
-                                        <h3 className="font-semibold">{employee.name}</h3>
-                                        <p className="text-sm text-muted-foreground capitalize">{employee.position}</p>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="text-right">
-                                            <div className="text-muted-foreground text-xs">Saldo</div>
-                                            <div className="font-semibold text-lg">{formatCurrency(savingsMap.get(employee.id)?.balance ?? 0)}</div>
-                                        </div>
-                                        <div
-                                            role="button"
-                                            tabIndex={0}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleWithdrawClick(employee);
-                                            }}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' || e.key === ' ') {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    handleWithdrawClick(employee);
-                                                }
-                                            }}
-                                        >
-                                            <Button size="sm" variant="outline" asChild>
-                                                <div>
-                                                    <Wallet className="mr-2 h-4 w-4" />
-                                                    Tarik Tunai
-                                                </div>
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </AccordionTrigger>
-                            <AccordionContent>
-                                <TransactionHistory employeeId={employee.id} />
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Card>
-                )) : (
-                     <div className="text-center text-muted-foreground py-10">
-                        {employees && employees.length > 0 ? 'Tidak ada karyawan yang cocok dengan filter.' : 'Tidak ada karyawan ditemukan.'}
-                    </div>
-                )}
-            </Accordion>
-        )}
-      </CardContent>
-      <CardFooter className="flex items-center justify-between pt-6">
-        <div className="text-sm text-muted-foreground">
-          Menampilkan {paginatedEmployees.length} dari {filteredEmployees.length} karyawan.
-        </div>
-        <div className="flex items-center space-x-2">
-            <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-            >
-                Sebelumnya
-            </Button>
-            <span className="text-sm text-muted-foreground">
-                Halaman {currentPage} dari {totalPages > 0 ? totalPages : 1}
-            </span>
-            <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages || totalPages === 0}
-            >
-                Berikutnya
-            </Button>
-        </div>
-      </CardFooter>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Rincian Tabungan Karyawan</CardTitle>
+          <CardDescription>
+            Kelola saldo tabungan per karyawan dan lihat riwayat transaksinya.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row items-center gap-2 pb-4">
+              <Input
+                  placeholder="Cari nama karyawan..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full sm:max-w-sm"
+              />
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "all" | "aktif" | "tidak aktif")}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="Filter status"/>
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="all">Semua Status</SelectItem>
+                      <SelectItem value="aktif">Aktif</SelectItem>
+                      <SelectItem value="tidak aktif">Tidak Aktif</SelectItem>
+                  </SelectContent>
+              </Select>
+          </div>
 
-    <RecordWithdrawalDialog
-        isOpen={isWithdrawalDialogOpen}
-        setIsOpen={setIsWithdrawalDialogOpen}
-        employee={selectedEmployee}
-        savings={selectedEmployee ? savingsMap.get(selectedEmployee.id) ?? null : null}
-    />
-    </>
+          {isLoading ? (
+              <div className="rounded-md border">
+                  <Table>
+                      <TableHeader>
+                          <TableRow>
+                              <TableHead><Skeleton className="h-5 w-32" /></TableHead>
+                              <TableHead><Skeleton className="h-5 w-40" /></TableHead>
+                              <TableHead className="text-right"><Skeleton className="h-5 w-24 ml-auto" /></TableHead>
+                          </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                          {Array.from({length: 5}).map((_, i) => (
+                              <TableRow key={i}>
+                                  <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                                  <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                                  <TableCell><Skeleton className="h-9 w-28 ml-auto" /></TableCell>
+                              </TableRow>
+                          ))}
+                      </TableBody>
+                  </Table>
+              </div>
+          ) : (
+              <Accordion type="single" collapsible className="w-full space-y-2">
+                  {paginatedEmployees.length > 0 ? paginatedEmployees.map(employee => (
+                      <Card key={employee.id} className="overflow-hidden">
+                          <AccordionItem value={employee.id} className="border-none">
+                              <AccordionTrigger className="p-4 hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/50">
+                                  <div className="flex w-full items-center justify-between">
+                                      <div className="text-left">
+                                          <h3 className="font-semibold">{employee.name}</h3>
+                                          <p className="text-sm text-muted-foreground capitalize">{employee.position}</p>
+                                      </div>
+                                      <div className="flex items-center gap-4">
+                                          <div className="text-right">
+                                              <div className="text-muted-foreground text-xs">Saldo</div>
+                                              <div className="font-semibold text-lg">{formatCurrency(savingsMap.get(employee.id)?.balance ?? 0)}</div>
+                                          </div>
+                                          <div
+                                              role="button"
+                                              tabIndex={0}
+                                              onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleWithdrawClick(employee);
+                                              }}
+                                              onKeyDown={(e) => {
+                                                  if (e.key === 'Enter' || e.key === ' ') {
+                                                      e.preventDefault();
+                                                      e.stopPropagation();
+                                                      handleWithdrawClick(employee);
+                                                  }
+                                              }}
+                                          >
+                                              <Button size="sm" variant="outline" asChild>
+                                                  <div>
+                                                      <Wallet className="mr-2 h-4 w-4" />
+                                                      Tarik Tunai
+                                                  </div>
+                                              </Button>
+                                          </div>
+                                      </div>
+                                  </div>
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                  <TransactionHistory employeeId={employee.id} />
+                              </AccordionContent>
+                          </AccordionItem>
+                      </Card>
+                  )) : (
+                       <div className="text-center text-muted-foreground py-10">
+                          {employees && employees.length > 0 ? 'Tidak ada karyawan yang cocok dengan filter.' : 'Tidak ada karyawan ditemukan.'}
+                      </div>
+                  )}
+              </Accordion>
+          )}
+        </CardContent>
+        <CardFooter className="flex items-center justify-between pt-6">
+          <div className="text-sm text-muted-foreground">
+            Menampilkan {paginatedEmployees.length} dari {filteredEmployees.length} karyawan.
+          </div>
+          <div className="flex items-center space-x-2">
+              <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+              >
+                  Sebelumnya
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                  Halaman {currentPage} dari {totalPages > 0 ? totalPages : 1}
+              </span>
+              <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages || totalPages === 0}
+              >
+                  Berikutnya
+              </Button>
+          </div>
+        </CardFooter>
+      </Card>
+
+      <RecordWithdrawalDialog
+          isOpen={isWithdrawalDialogOpen}
+          setIsOpen={setIsWithdrawalDialogOpen}
+          employee={selectedEmployee}
+          savings={selectedEmployee ? savingsMap.get(selectedEmployee.id) ?? null : null}
+      />
+    </div>
   );
 }
