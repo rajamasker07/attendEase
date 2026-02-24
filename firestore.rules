@@ -40,13 +40,11 @@ service cloud.firestore {
     }
     
     match /savings/{employeeId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
 
     match /savings-transactions/{transactionId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
 
     match /payrolls/{payrollId} {
