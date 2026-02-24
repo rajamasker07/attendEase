@@ -77,6 +77,7 @@ export interface Payslip {
 
 export interface Setting {
   lateDeductionAmount: number;
+  lateThresholdTime?: string; // e.g., "07:35"
   alpaDeductionAmount?: number;
   deductUnpaidAbsence?: boolean;
 }
@@ -100,3 +101,5 @@ export interface SavingsTransaction {
   description: string;
   sourcePayslipId?: string;
 }
+
+    

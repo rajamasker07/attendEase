@@ -363,6 +363,11 @@
           "type": "number",
           "description": "The deduction amount in IDR for each instance of being late."
         },
+        "lateThresholdTime": {
+          "type": "string",
+          "format": "time",
+          "description": "The time threshold after which an employee is considered late (e.g., '07:35')."
+        },
         "alpaDeductionAmount": {
           "type": "number",
           "description": "The deduction amount in IDR for each instance of being absent without permission (alpa)."
@@ -569,3 +574,5 @@
     ]
   }
 }
+
+    

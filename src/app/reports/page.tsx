@@ -25,14 +25,14 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Calendar as CalendarIcon, Printer } from "lucide-react";
-import type { Employee, AttendanceRecord, AbsenceRecord } from "@/types";
+import type { Employee, AttendanceRecord, AbsenceRecord, Setting } from "@/types";
 import { format, differenceInMinutes, parseISO, isAfter, startOfDay, endOfDay } from "date-fns";
 import { id } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { useCollection, useFirebase, useMemoFirebase, WithId } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { useCollection, useDoc, useFirebase, useMemoFirebase, WithId } from "@/firebase";
+import { collection, query, where, doc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
@@ -48,15 +48,16 @@ export default function ReportsPage() {
     if (!firestore) return null;
     return query(collection(firestore, "attendance"));
   }, [firestore]);
-
   const { data: attendance, isLoading: isLoadingAttendance } = useCollection<AttendanceRecord>(attendanceQuery);
 
   const absenceQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, "absences"));
   }, [firestore]);
-
   const { data: absences, isLoading: isLoadingAbsences } = useCollection<AbsenceRecord>(absenceQuery);
+
+  const settingsDocRef = useMemoFirebase(() => (firestore ? doc(firestore, "settings", "payroll") : null), [firestore]);
+  const { data: settings, isLoading: isLoadingSettings } = useDoc<Setting>(settingsDocRef);
   
   const formatDuration = (totalMinutes: number): string => {
     if (totalMinutes < 0) totalMinutes = 0;
@@ -112,6 +113,9 @@ export default function ReportsPage() {
         });
     });
     
+    const lateThreshold = settings?.lateThresholdTime || "07:35";
+    const [lateHours, lateMinutes] = lateThreshold.split(':').map(Number);
+    
     filteredAttendance.forEach(record => {
         if (!employeeDataMap.has(record.employeeId)) return;
 
@@ -119,15 +123,15 @@ export default function ReportsPage() {
 
         const clockInTime = parseISO(record.clockIn);
         const lateTime = new Date(clockInTime);
-        lateTime.setHours(7, 35, 0, 0); 
+        lateTime.setHours(lateHours, lateMinutes, 0, 0); 
         
         const isRecordLate = isAfter(clockInTime, lateTime);
         
         if (isRecordLate) {
             data.lateCount += 1;
-            const lateMinutes = differenceInMinutes(clockInTime, lateTime);
-            if (lateMinutes > 0) {
-              data.totalLateMinutes += lateMinutes;
+            const lateDuration = differenceInMinutes(clockInTime, lateTime);
+            if (lateDuration > 0) {
+              data.totalLateMinutes += lateDuration;
             }
         }
 
@@ -150,7 +154,7 @@ export default function ReportsPage() {
     return Array.from(employeeDataMap.values())
       .filter(d => d.records.length > 0 || d.absenceRecords.length > 0)
       .sort((a,b) => b.totalMinutes - a.totalMinutes);
-  }, [attendance, employees, absences, date]);
+  }, [attendance, employees, absences, date, settings]);
 
   const CHART_DATA_LIMIT = 15;
   const chartData = useMemo(() => {
@@ -188,7 +192,7 @@ export default function ReportsPage() {
     window.print();
   };
 
-  const isLoading = isLoadingEmployees || isLoadingAttendance || isLoadingAbsences;
+  const isLoading = isLoadingEmployees || isLoadingAttendance || isLoadingAbsences || isLoadingSettings;
   
   if (isLoading) {
     return (
@@ -449,3 +453,5 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+    

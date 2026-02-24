@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase, useDoc, useMemoFirebase, setDocumentNonBlocking } from "@/firebase";
@@ -23,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 
 const settingsSchema = z.object({
   lateDeductionAmount: z.coerce.number().min(0, "Potongan tidak boleh negatif."),
+  lateThresholdTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Format waktu tidak valid (HH:MM).").optional(),
   alpaDeductionAmount: z.coerce.number().min(0, "Potongan tidak boleh negatif.").optional(),
   deductUnpaidAbsence: z.boolean().optional(),
 });
@@ -43,11 +45,13 @@ export default function SettingsPage() {
     control,
     handleSubmit,
     reset,
+    register,
     formState: { errors, isSubmitting },
   } = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       lateDeductionAmount: 10000,
+      lateThresholdTime: "07:35",
       alpaDeductionAmount: 0,
       deductUnpaidAbsence: false,
     },
@@ -57,12 +61,13 @@ export default function SettingsPage() {
     if (settings) {
       reset({ 
           lateDeductionAmount: settings.lateDeductionAmount,
+          lateThresholdTime: settings.lateThresholdTime || "07:35",
           alpaDeductionAmount: settings.alpaDeductionAmount || 0,
           deductUnpaidAbsence: settings.deductUnpaidAbsence || false,
       });
     } else if (!isLoading) {
       // If not loading and no settings exist, use default
-      reset({ lateDeductionAmount: 10000, alpaDeductionAmount: 0, deductUnpaidAbsence: false });
+      reset({ lateDeductionAmount: 10000, lateThresholdTime: "07:35", alpaDeductionAmount: 0, deductUnpaidAbsence: false });
     }
   }, [settings, isLoading, reset]);
 
@@ -98,6 +103,24 @@ export default function SettingsPage() {
             </div>
         ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+                <div className="space-y-2">
+                    <Label htmlFor="lateThresholdTime">Batas Waktu Keterlambatan</Label>
+                    <Input
+                      id="lateThresholdTime"
+                      type="time"
+                      {...register("lateThresholdTime")}
+                      className="w-40"
+                    />
+                    {errors.lateThresholdTime && (
+                    <p className="text-sm text-destructive">
+                        {errors.lateThresholdTime.message}
+                    </p>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                        Karyawan yang absen masuk setelah waktu ini akan dianggap terlambat.
+                    </p>
+                </div>
+                
                 <div className="space-y-2">
                     <Label htmlFor="lateDeductionAmount">
                     Jumlah Potongan Keterlambatan (Rp)
@@ -180,3 +203,5 @@ export default function SettingsPage() {
     </Card>
   );
 }
+
+    

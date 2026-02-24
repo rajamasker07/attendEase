@@ -31,7 +31,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase, WithId } from "@/firebase";
-import type { Employee, AttendanceRecord, Payroll, Payslip, Sanction, Bonus, PayslipSanctionDetail, PayslipBonusDetail, AbsenceRecord, Savings, SavingsTransaction } from "@/types";
+import type { Employee, AttendanceRecord, Payroll, Payslip, Sanction, Bonus, PayslipSanctionDetail, PayslipBonusDetail, AbsenceRecord, Savings, SavingsTransaction, Setting } from "@/types";
 import { useRouter } from "next/navigation";
 import {
   collection,
@@ -176,9 +176,10 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
       const periodSanctions = sanctionsSnap.docs.map((d) => d.data() as Sanction);
       const periodBonuses = bonusesSnap.docs.map((d) => d.data() as Bonus);
       const periodAbsences = absencesSnap.docs.map((d) => d.data() as AbsenceRecord);
-      const settings = settingsSnap.exists() ? settingsSnap.data() : {};
+      const settings = settingsSnap.exists() ? settingsSnap.data() as Setting : {};
       const LATE_DEDUCTION_AMOUNT = settings?.lateDeductionAmount ?? 10000;
       const DEDUCT_UNPAID_ABSENCE = settings?.deductUnpaidAbsence ?? false;
+      const LATE_THRESHOLD_TIME = settings?.lateThresholdTime ?? "07:35";
 
       // Create Payroll document
       const newPayrollRef = doc(collection(firestore, "payrolls"));
@@ -196,8 +197,9 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
         let lateCount = 0;
         employeeAttendance.forEach((record) => {
           const clockInTime = parseISO(record.clockIn);
+          const [hours, minutes] = LATE_THRESHOLD_TIME.split(':').map(Number);
           const lateTime = new Date(clockInTime);
-          lateTime.setHours(7, 35, 0, 0);
+          lateTime.setHours(hours, minutes, 0, 0);
           if (isAfter(clockInTime, lateTime)) {
             lateCount++;
           }
@@ -686,3 +688,5 @@ export function StoreSavingsAlert({ isOpen, setIsOpen, onConfirm, payslip }: Sto
         </AlertDialog>
     );
 }
+
+    

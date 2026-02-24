@@ -27,7 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import type { Employee, AttendanceRecord, AbsenceRecord, Sanction, Holiday } from "@/types";
+import type { Employee, AttendanceRecord, AbsenceRecord, Sanction, Holiday, Setting } from "@/types";
 import { format, isSameDay, parseISO, subDays, isAfter, startOfDay, endOfDay } from "date-fns";
 import { id } from "date-fns/locale";
 import { Calendar as CalendarIcon, LogIn, LogOut, PlusCircle, UserX, Check } from "lucide-react";
@@ -37,7 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
-import { useCollection, useFirebase, WithId, addDocumentNonBlocking, setDocumentNonBlocking, useMemoFirebase } from "@/firebase";
+import { useCollection, useDoc, useFirebase, WithId, addDocumentNonBlocking, setDocumentNonBlocking, useMemoFirebase } from "@/firebase";
 import { collection, doc, query, where, orderBy, getDocs, getDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmployeeFormDialog, type EmployeeFormData } from "@/app/employees/employee-actions";
@@ -197,6 +197,9 @@ export default function DashboardPage() {
   
   const holidaysCollection = useMemoFirebase(() => firestore ? collection(firestore, "holidays") : null, [firestore]);
   const { data: holidays, isLoading: isLoadingHolidays } = useCollection<Holiday>(holidaysCollection);
+
+  const settingsDocRef = useMemoFirebase(() => (firestore ? doc(firestore, "settings", "payroll") : null), [firestore]);
+  const { data: settings, isLoading: isLoadingSettings } = useDoc<Setting>(settingsDocRef);
 
   const activeEmployees = useMemo(() => {
     return employees?.filter(e => e.status !== 'tidak aktif');
@@ -478,8 +481,10 @@ export default function DashboardPage() {
   const getStatus = (record: WithId<AttendanceRecord>) => {
     const clockInTime = parseISO(record.clockIn);
     
+    const lateThreshold = settings?.lateThresholdTime || "07:35";
+    const [hours, minutes] = lateThreshold.split(':').map(Number);
     const lateTime = new Date(clockInTime);
-    lateTime.setHours(7, 35, 0, 0); 
+    lateTime.setHours(hours, minutes, 0, 0); 
 
     if (record.clockOut) {
         return <Badge variant="secondary">Sudah Pulang</Badge>;
@@ -521,7 +526,7 @@ export default function DashboardPage() {
 
   }, [filteredHistoryAttendance, filteredHistoryAbsences]);
 
-  const isLoading = isUserLoading || isLoadingEmployees || isLoadingSelectedDate || isLoadingAbsences || isLoadingHistory || isLoadingHistoryAbsences || isLoadingHolidays;
+  const isLoading = isUserLoading || isLoadingEmployees || isLoadingSelectedDate || isLoadingAbsences || isLoadingHistory || isLoadingHistoryAbsences || isLoadingHolidays || isLoadingSettings;
   
   if (isLoading) {
     return (
@@ -756,8 +761,10 @@ export default function DashboardPage() {
                     const employee = employees?.find(e => e.id === record.employeeId);
                     if (record.type === 'attendance') {
                         const clockInTime = parseISO(record.clockIn);
+                        const lateThreshold = settings?.lateThresholdTime || "07:35";
+                        const [hours, minutes] = lateThreshold.split(':').map(Number);
                         const lateTime = new Date(clockInTime);
-                        lateTime.setHours(7, 35, 0, 0);
+                        lateTime.setHours(hours, minutes, 0, 0); 
                         const isRecordLate = isAfter(clockInTime, lateTime);
 
                         return (
@@ -855,8 +862,10 @@ export default function DashboardPage() {
                           const employee = employees?.find(e => e.id === record.employeeId);
                           if (record.type === 'attendance') {
                               const clockInTime = parseISO(record.clockIn);
+                              const lateThreshold = settings?.lateThresholdTime || "07:35";
+                              const [hours, minutes] = lateThreshold.split(':').map(Number);
                               const lateTime = new Date(clockInTime);
-                              lateTime.setHours(7, 35, 0, 0);
+                              lateTime.setHours(hours, minutes, 0, 0); 
                               const isRecordLate = isAfter(clockInTime, lateTime);
                               return (
                               <TableRow key={record.id} className={isRecordLate ? "bg-destructive/10" : ""}>
@@ -907,3 +916,5 @@ export default function DashboardPage() {
     </>
   );
 }
+
+    
