@@ -21,7 +21,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Wallet, ArrowDown, ArrowUp } from "lucide-react";
 import type { Employee, Savings, SavingsTransaction } from "@/types";
 import { useCollection, useFirebase, useMemoFirebase, WithId } from "@/firebase";
-import { collection, query, where, orderBy } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,13 +33,18 @@ function TransactionHistory({ employeeId }: { employeeId: string }) {
         firestore
             ? query(
                 collection(firestore, "savings-transactions"),
-                where("employeeId", "==", employeeId),
-                orderBy("date", "desc")
-            )
+                where("employeeId", "==", employeeId)
+              )
             : null
     , [firestore, employeeId]);
 
     const { data: transactions, isLoading } = useCollection<SavingsTransaction>(transactionsQuery);
+
+    const sortedTransactions = useMemo(() => {
+        if (!transactions) return [];
+        // Sort on the client-side to avoid composite index requirement
+        return [...transactions].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+    }, [transactions]);
 
     const formatCurrency = (amount: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
 
@@ -49,7 +54,7 @@ function TransactionHistory({ employeeId }: { employeeId: string }) {
 
     return (
         <div className="px-6 pb-6 pt-0">
-             {transactions && transactions.length > 0 ? (
+             {sortedTransactions && sortedTransactions.length > 0 ? (
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -60,7 +65,7 @@ function TransactionHistory({ employeeId }: { employeeId: string }) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {transactions.map(tx => (
+                        {sortedTransactions.map(tx => (
                             <TableRow key={tx.id}>
                                 <TableCell>{format(parseISO(tx.date), "d MMM yyyy, HH:mm", { locale: id })}</TableCell>
                                 <TableCell>
@@ -156,26 +161,28 @@ export default function SavingsPage() {
                                             <div className="text-muted-foreground text-xs">Saldo</div>
                                             <div className="font-semibold text-lg">{formatCurrency(savingsMap.get(employee.id)?.balance ?? 0)}</div>
                                         </div>
-                                        <Button asChild size="sm" variant="outline">
-                                            <div
-                                                role="button"
-                                                tabIndex={0}
-                                                onClick={(e) => {
+                                        <div
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleWithdrawClick(employee);
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
                                                     e.stopPropagation();
                                                     handleWithdrawClick(employee);
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' || e.key === ' ') {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        handleWithdrawClick(employee);
-                                                    }
-                                                }}
-                                            >
-                                                <Wallet className="mr-2 h-4 w-4" />
-                                                Tarik Tunai
-                                            </div>
-                                        </Button>
+                                                }
+                                            }}
+                                        >
+                                            <Button size="sm" variant="outline" asChild>
+                                                <div>
+                                                    <Wallet className="mr-2 h-4 w-4" />
+                                                    Tarik Tunai
+                                                </div>
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             </AccordionTrigger>
