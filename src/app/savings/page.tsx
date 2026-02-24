@@ -26,6 +26,15 @@ import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RecordWithdrawalDialog } from "./actions";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 
 function TransactionHistory({ employeeId }: { employeeId: string }) {
     const { firestore } = useFirebase();
@@ -94,6 +103,9 @@ export default function SavingsPage() {
   const { firestore } = useFirebase();
   const [selectedEmployee, setSelectedEmployee] = useState<WithId<Employee> | null>(null);
   const [isWithdrawalDialogOpen, setIsWithdrawalDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "aktif" | "tidak aktif">("aktif");
+
 
   const employeesCollection = useMemoFirebase(() => firestore ? collection(firestore, "employees") : null, [firestore]);
   const { data: employees, isLoading: isLoadingEmployees } = useCollection<Employee>(employeesCollection);
@@ -105,6 +117,23 @@ export default function SavingsPage() {
     if (!savings) return new Map<string, Savings>();
     return new Map(savings.map(s => [s.id, s]));
   }, [savings]);
+
+  const filteredEmployees = useMemo(() => {
+    if (!employees) return [];
+    
+    let filtered = [...employees];
+
+    if (statusFilter !== "all") {
+        filtered = filtered.filter(e => e.status === statusFilter);
+    }
+
+    if (searchTerm) {
+        filtered = filtered.filter(e => e.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    }
+
+    return filtered;
+
+  }, [employees, searchTerm, statusFilter]);
 
   const handleWithdrawClick = (employee: WithId<Employee>) => {
     setSelectedEmployee(employee);
@@ -124,6 +153,25 @@ export default function SavingsPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <div className="flex flex-col sm:flex-row items-center gap-2 pb-4">
+            <Input
+                placeholder="Cari nama karyawan..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full sm:max-w-sm"
+            />
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "all" | "aktif" | "tidak aktif")}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Filter status"/>
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Semua Status</SelectItem>
+                    <SelectItem value="aktif">Aktif</SelectItem>
+                    <SelectItem value="tidak aktif">Tidak Aktif</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+
         {isLoading ? (
             <div className="rounded-md border">
                 <Table>
@@ -147,7 +195,7 @@ export default function SavingsPage() {
             </div>
         ) : (
             <Accordion type="single" collapsible className="w-full space-y-2">
-                {employees?.filter(e => e.status === 'aktif').map(employee => (
+                {filteredEmployees.length > 0 ? filteredEmployees.map(employee => (
                     <Card key={employee.id} className="overflow-hidden">
                         <AccordionItem value={employee.id} className="border-none">
                             <AccordionTrigger className="p-4 hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/50">
@@ -191,10 +239,9 @@ export default function SavingsPage() {
                             </AccordionContent>
                         </AccordionItem>
                     </Card>
-                ))}
-                {employees?.filter(e => e.status === 'aktif').length === 0 && (
-                    <div className="text-center text-muted-foreground py-10">
-                        Tidak ada karyawan aktif.
+                )) : (
+                     <div className="text-center text-muted-foreground py-10">
+                        {employees && employees.length > 0 ? 'Tidak ada karyawan yang cocok dengan filter.' : 'Tidak ada karyawan ditemukan.'}
                     </div>
                 )}
             </Accordion>
