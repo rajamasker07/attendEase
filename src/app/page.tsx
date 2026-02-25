@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -98,12 +98,22 @@ function MarkAbsenceDialog({
   });
 
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const commandInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
         reset({ date: format(new Date(), "yyyy-MM-dd"), employeeId: '', status: undefined, notes: '' });
     }
   }, [isOpen, reset]);
+
+  useEffect(() => {
+    if (isPickerOpen) {
+      const timer = setTimeout(() => {
+        commandInputRef.current?.focus();
+      }, 100); // 100ms delay to ensure the element is rendered and ready.
+      return () => clearTimeout(timer);
+    }
+  }, [isPickerOpen]);
 
   const onSubmit: SubmitHandler<AbsenceFormData> = async (data) => {
     await onSave(data);
@@ -144,7 +154,7 @@ function MarkAbsenceDialog({
                           </PopoverTrigger>
                           <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                             <Command>
-                              <CommandInput placeholder="Cari karyawan..." />
+                              <CommandInput ref={commandInputRef} placeholder="Cari karyawan..." />
                               <CommandEmpty>Karyawan tidak ditemukan.</CommandEmpty>
                               <CommandList>
                                 <CommandGroup>
@@ -999,5 +1009,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    
