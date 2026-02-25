@@ -146,7 +146,7 @@ export function EmployeeFormDialog({
                 : "Tambahkan karyawan baru ke daftar Anda."}
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="max-h-[70vh] pr-6">
+          <ScrollArea className="max-h-[70vh] pr-6 overflow-y-auto">
             <div>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -419,7 +419,7 @@ export function EmployeeDetailDialog({
             Informasi lengkap untuk {employee.name}.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="max-h-[70vh] pr-4">
+        <ScrollArea className="max-h-[70vh] pr-4 overflow-y-auto">
           <div>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-3 items-center gap-4">
