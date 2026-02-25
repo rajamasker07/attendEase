@@ -2,60 +2,67 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Fungsi pembantu untuk mengecek apakah user sudah login (Admin)
     function isSignedIn() {
       return request.auth != null;
     }
 
+    // Koleksi Karyawan: Hanya Admin yang bisa baca dan tulis
     match /employees/{employeeId} {
-      allow read;
-      allow write: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
 
+    // Koleksi Kehadiran: Hanya Admin yang bisa baca dan tulis
     match /attendance/{attendanceRecordId} {
-      allow read;
-      allow write: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
 
+    // Koleksi Ketidakhadiran: Hanya Admin yang bisa baca dan tulis
     match /absences/{absenceId} {
-      allow read;
-      allow write: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
 
+    // Koleksi Sanksi: Hanya Admin yang bisa baca dan tulis
     match /sanctions/{sanctionId} {
-      allow read;
-      allow write: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
 
+    // Koleksi Bonus: Hanya Admin yang bisa baca dan tulis
     match /bonuses/{bonusId} {
       allow read, write: if isSignedIn();
     }
 
+    // Koleksi Pengaturan: Hanya Admin yang bisa baca dan tulis
     match /settings/{settingId} {
       allow read, write: if isSignedIn();
     }
 
+    // Koleksi Hari Libur: Hanya Admin yang bisa baca dan tulis
     match /holidays/{holidayId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
     
+    // Koleksi Tabungan: Hanya Admin yang bisa baca dan tulis
     match /savings/{employeeId} {
       allow read, write: if isSignedIn();
     }
 
+    // Koleksi Transaksi Tabungan: Hanya Admin yang bisa baca dan tulis
     match /savings-transactions/{transactionId} {
       allow read, write: if isSignedIn();
     }
 
+    // Koleksi Penggajian
     match /payrolls/{payrollId} {
-      // Allow payroll document to be public for payslip access
-      allow read;
+      // Dibuka publik untuk pembacaan agar halaman slip gaji bisa menampilkan periode gaji
+      allow read; 
+      // Hanya Admin yang bisa menulis/mengubah data penggajian
       allow write: if isSignedIn();
 
       match /payslips/{payslipId} {
-        // Allow anyone with the link to read.
+        // Dibuka publik untuk pembacaan agar karyawan bisa melihat slip lewat link rahasia
         allow read;
-        // Only signed-in users can manage payslips.
+        // Hanya Admin yang bisa mengelola slip gaji
         allow write, delete: if isSignedIn();
       }
     }
