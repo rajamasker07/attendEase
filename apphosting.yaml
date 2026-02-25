@@ -6,7 +6,7 @@ runtime: nodejs20
 runConfig:
   # minInstances: 1 memastikan aplikasi selalu siaga tanpa jeda pemuatan awal (cold start).
   # Catatan: Ini mungkin akan mulai memakan biaya kecil karena server berjalan 24/7.
-  minInstances: 1
+  minInstances: 0
   # maxInstances: 10 memungkinkan aplikasi bertumbuh jika banyak pengguna mengakses bersamaan.
-  maxInstances: 10
+  maxInstances: 1
   memoryPerInstanceMiB: 512
