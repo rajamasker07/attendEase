@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -30,7 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Employee, AttendanceRecord, AbsenceRecord, Sanction, Holiday, Setting } from "@/types";
 import { format, isSameDay, parseISO, subDays, isAfter, startOfDay, endOfDay } from "date-fns";
 import { id } from "date-fns/locale";
-import { Calendar as CalendarIcon, LogIn, LogOut, PlusCircle, UserX, Check, ChevronsUpDown } from "lucide-react";
+import { Calendar as CalendarIcon, LogIn, LogOut, PlusCircle, UserCheck, AlarmClock, Users, UserX, Check, ChevronsUpDown } from "lucide-react";
 import { Clock } from "@/components/clock";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -65,7 +64,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 
 
 const absenceSchema = z.object({
@@ -376,6 +375,37 @@ export default function DashboardPage() {
     );
   }, [selectedEmployeeId, selectedDateAbsences]);
 
+  const dailySummary = useMemo(() => {
+    const totalActiveEmployees = activeEmployees?.length ?? 0;
+    const presentEmployees = new Set(selectedDateAttendance?.map(a => a.employeeId) ?? []).size;
+    const absentEmployees = selectedDateAbsences?.length ?? 0;
+    
+    let lateEmployees = 0;
+    if (selectedDateAttendance && settings?.lateThresholdTime) {
+        const [lateHours, lateMinutes] = settings.lateThresholdTime.split(':').map(Number);
+        const uniqueLateEmployees = new Set<string>();
+        selectedDateAttendance.forEach(record => {
+            const clockInTime = parseISO(record.clockIn);
+            const lateTime = new Date(clockInTime);
+            lateTime.setHours(lateHours, lateMinutes, 0, 0);
+            if (isAfter(clockInTime, lateTime)) {
+                uniqueLateEmployees.add(record.employeeId);
+            }
+        });
+        lateEmployees = uniqueLateEmployees.size;
+    }
+    
+    const attendancePercentage = totalActiveEmployees > 0 ? (presentEmployees / totalActiveEmployees) * 100 : 0;
+
+    return {
+        totalActiveEmployees,
+        presentEmployees,
+        lateEmployees,
+        absentEmployees,
+        attendancePercentage,
+    }
+  }, [activeEmployees, selectedDateAttendance, selectedDateAbsences, settings]);
+
   useEffect(() => {
     if (currentEmployeeRecord) {
       setNotes(currentEmployeeRecord.notes || '');
@@ -590,6 +620,48 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
        <div className="space-y-6">
+         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Karyawan Hadir</CardTitle>
+                    <UserCheck className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <Skeleton className="h-7 w-20 mb-1" />
+                    <Skeleton className="h-2 w-full" />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Karyawan Terlambat</CardTitle>
+                    <AlarmClock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <Skeleton className="h-7 w-10 mb-1" />
+                    <Skeleton className="h-3 w-32" />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Karyawan Tidak Hadir</CardTitle>
+                    <UserX className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <Skeleton className="h-7 w-10 mb-1" />
+                    <Skeleton className="h-3 w-32" />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Karyawan Aktif</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <Skeleton className="h-7 w-10 mb-1" />
+                    <Skeleton className="h-3 w-40" />
+                </CardContent>
+            </Card>
+        </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <Card className="lg:col-span-2">
                 <CardHeader>
@@ -639,6 +711,49 @@ export default function DashboardPage() {
   return (
     <>
       <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Karyawan Hadir</CardTitle>
+                    <UserCheck className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{dailySummary.presentEmployees} / {dailySummary.totalActiveEmployees}</div>
+                    <Progress value={dailySummary.attendancePercentage} className="mt-2 h-2" />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Karyawan Terlambat</CardTitle>
+                    <AlarmClock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-destructive">{dailySummary.lateEmployees}</div>
+                    <p className="text-xs text-muted-foreground">karyawan datang terlambat hari ini</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Karyawan Tidak Hadir</CardTitle>
+                    <UserX className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{dailySummary.absentEmployees}</div>
+                        <p className="text-xs text-muted-foreground">karyawan tidak hadir hari ini</p>
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Karyawan Aktif</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{dailySummary.totalActiveEmployees}</div>
+                    <p className="text-xs text-muted-foreground">total karyawan yang terdaftar & aktif</p>
+                </CardContent>
+            </Card>
+        </div>
+
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
