@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -35,7 +35,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar";
 import { useCollection, useDoc, useFirebase, WithId, addDocumentNonBlocking, setDocumentNonBlocking, useMemoFirebase } from "@/firebase";
 import { collection, doc, query, where, orderBy, getDocs, getDoc } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -96,23 +95,11 @@ function MarkAbsenceDialog({
     resolver: zodResolver(absenceSchema),
   });
 
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const commandInputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     if (isOpen) {
         reset({ date: format(new Date(), "yyyy-MM-dd"), employeeId: '', status: undefined, notes: '' });
     }
   }, [isOpen, reset]);
-
-  useEffect(() => {
-    if (isPickerOpen) {
-      const timer = setTimeout(() => {
-        commandInputRef.current?.focus();
-      }, 100); // 100ms delay to ensure the element is rendered and ready.
-      return () => clearTimeout(timer);
-    }
-  }, [isPickerOpen]);
 
   const onSubmit: SubmitHandler<AbsenceFormData> = async (data) => {
     await onSave(data);
@@ -137,50 +124,18 @@ function MarkAbsenceDialog({
                       name="employeeId"
                       control={control}
                       render={({ field }) => (
-                        <Popover open={isPickerOpen} onOpenChange={setIsPickerOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              aria-expanded={isPickerOpen}
-                              className="w-full justify-between"
-                            >
-                              {field.value
-                                ? employees?.find((employee) => employee.id === field.value)?.name
-                                : "Pilih karyawan..."}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                            <Command>
-                              <CommandInput ref={commandInputRef} placeholder="Cari karyawan..." />
-                              <CommandEmpty>Karyawan tidak ditemukan.</CommandEmpty>
-                              <CommandList>
-                                <CommandGroup>
-                                  {employees?.map((employee) => (
-                                    <CommandItem
-                                      key={employee.id}
-                                      value={employee.name}
-                                      onSelect={(currentValue) => {
-                                        const selected = employees.find(e => e.name.toLowerCase() === currentValue.toLowerCase());
-                                        field.onChange(selected ? selected.id : "");
-                                        setIsPickerOpen(false);
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4",
-                                          field.value === employee.id ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      {employee.name}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger id="employeeId">
+                            <SelectValue placeholder="Pilih karyawan..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {employees?.map((employee) => (
+                              <SelectItem key={employee.id} value={employee.id}>
+                                {employee.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       )}
                     />
                     {errors.employeeId && <p className="text-destructive text-sm mt-1">{errors.employeeId.message}</p>}
