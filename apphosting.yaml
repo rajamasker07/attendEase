@@ -4,9 +4,9 @@
 runtime: nodejs20
 
 runConfig:
-  # minInstances: 1 memastikan aplikasi selalu siaga tanpa jeda pemuatan awal (cold start).
-  # Pastikan Anda menggunakan paket Blaze untuk menggunakan fitur ini.
-  minInstances: 1
+  # minInstances: 0 memastikan kompatibilitas dengan paket Spark (Gratis).
+  # Ubah ke 1 jika Anda sudah upgrade ke paket Blaze dan ingin menghilangkan cold-start.
+  minInstances: 0
   # maxInstances: 10 memungkinkan aplikasi bertumbuh jika banyak pengguna mengakses bersamaan.
   maxInstances: 10
   memoryPerInstanceMiB: 512

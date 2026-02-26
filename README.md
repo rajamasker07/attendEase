@@ -6,8 +6,7 @@ AttendEase adalah aplikasi web modern untuk mengelola kehadiran karyawan, sanksi
 - **Dasbor Real-time**: Statistik kehadiran harian dan grafik jam kerja.
 - **Manajemen Karyawan**: Data lengkap termasuk rekening bank/e-wallet.
 - **Sistem Absensi**: Pencatatan masuk, pulang, keterlambatan, dan ketidakhadiran.
-- **Penggajian Otomatis**: Perhitungan gaji bersih berdasarkan absensi, bonus, dan sanksi.
-- **Slip Gaji Digital**: Tautan slip gaji rahasia yang bisa dikirim ke karyawan.
+- **Penggajian Otomatis**: Perhitungan gaji bersih berdasarkan absensi, sanksi, dan bonus.
 - **Tabungan Karyawan**: Fitur simpan sisa gaji ke saldo tabungan dan tarik tunai.
 
 ## Panduan Persiapan Produksi
@@ -15,7 +14,8 @@ AttendEase adalah aplikasi web modern untuk mengelola kehadiran karyawan, sanksi
 ### 1. Konfigurasi Firebase Console
 Sebelum meluncurkan, pastikan hal berikut sudah diatur di [Firebase Console](https://console.firebase.google.com/):
 - **Authentication**: Aktifkan metode login "Email/Password".
-- **Firestore Database**: Pastikan database sudah dibuat dalam mode produksi. Aturan keamanan (rules) akan diterapkan otomatis saat deployment.
+- **Firestore Database**: Pastikan database sudah dibuat dalam mode produksi.
+- **Firebase Project Config**: Buka Project Settings, salin objek `firebaseConfig`, dan perbarui file `src/firebase/config.ts` di kode Anda dengan data tersebut.
 
 ### 2. Membuat Akun Admin Pertama
 Karena aplikasi tidak memiliki fitur pendaftaran publik:
@@ -30,12 +30,14 @@ Karena aplikasi tidak memiliki fitur pendaftaran publik:
 4. Pilih repositori proyek ini.
 5. Firebase akan mendeteksi konfigurasi Next.js dan mulai melakukan proses *build* serta deployment secara otomatis.
 
-### 4. Pengaturan Aplikasi
-Setelah berhasil login pertama kali:
-1. Buka menu **Pengaturan** di aplikasi.
-2. Atur "Batas Waktu Keterlambatan" (contoh: 07:35).
-3. Atur "Jumlah Potongan Keterlambatan" dan "Potongan Alpa".
-4. Tambahkan data **Hari Libur** untuk menghindari kesalahan pencatatan absensi.
+## Pemecahan Masalah (Troubleshooting)
+
+Jika Anda menemui galat **"Something went wrong creating your App Hosting rollout"**:
+
+1. **Paket Blaze**: Pastikan proyek Firebase Anda sudah di-upgrade ke paket **Blaze (Pay-as-you-go)**. Meskipun biayanya hampir selalu Rp 0 untuk penggunaan kecil, App Hosting memerlukan paket ini untuk bisa berjalan.
+2. **Izin Service Account**: Terkadang service account App Hosting belum memiliki izin yang cukup. Pastikan akun tersebut memiliki role `App Hosting Admin` dan `Cloud Build Editor` di Google Cloud Console.
+3. **Konfigurasi Firebase**: Pastikan file `src/firebase/config.ts` sudah berisi API Key dan Project ID milik proyek Firebase Anda yang sebenarnya, bukan ID proyek Studio.
+4. **Coba Lagi**: Terkadang layanan backend Firebase sedang sibuk. Tunggu 5-10 menit lalu klik "Retry" atau buat Rollout baru.
 
 ---
 Dikembangkan dengan Next.js, Tailwind CSS, dan Firebase.
