@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Employee": {
@@ -527,7 +528,7 @@
           "description": "Stores all disciplinary sanctions for all employees."
         }
       },
-       {
+      {
         "path": "/bonuses/{bonusId}",
         "definition": {
           "entityName": "Bonus",

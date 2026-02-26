@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -901,7 +902,11 @@ export default function DashboardPage() {
                           ))}
                       </ul>
                   ) : (
-                      <div className="text-center text-sm text-muted-foreground py-8">Tidak ada catatan untuk tanggal yang dipilih.</div>
+                      <div className="text-center text-sm text-muted-foreground py-8">
+                        {manualDate === format(new Date(), "yyyy-MM-dd") 
+                          ? "Belum ada karyawan yang absen hari ini." 
+                          : "Tidak ada catatan untuk tanggal yang dipilih."}
+                      </div>
                   )}
               </div>
             </CardContent>
@@ -968,8 +973,8 @@ export default function DashboardPage() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
-                      Tidak ada catatan untuk tanggal yang dipilih.
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground italic">
+                      Tidak ada catatan yang ditemukan untuk tanggal ini.
                     </TableCell>
                   </TableRow>
                 )}
