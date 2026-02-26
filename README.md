@@ -23,7 +23,8 @@ Karena aplikasi tidak memiliki fitur pendaftaran publik:
 2. Klik "Add user".
 3. Masukkan email dan password admin Anda. Gunakan kredensial ini untuk masuk ke aplikasi.
 
-### 3. Cara Deployment ke Firebase App Hosting
+### 3. Cara Deployment ke Firebase App Hosting (Wajib GitHub)
+Firebase App Hosting **mensyaratkan** koneksi ke GitHub untuk berfungsi:
 1. Pastikan kode Anda sudah di-push ke repositori GitHub.
 2. Di Firebase Console, cari menu **App Hosting**.
 3. Klik "Get started" dan hubungkan akun GitHub Anda.
@@ -36,7 +37,7 @@ Karena aplikasi tidak memiliki fitur pendaftaran publik:
 
 Jika Anda melihat pesan ini di Firebase Console, sistem sedang menunggu izin akses Google Cloud sinkron. Ikuti langkah ini:
 
-1. **Paket Blaze**: Pastikan proyek Anda sudah di-upgrade ke paket **Blaze (Pay-as-you-go)**. App Hosting memerlukan paket ini.
+1. **Paket Blaze**: Pastikan proyek Anda sudah di-upgrade ke paket **Blaze (Pay-as-you-go)**. App Hosting memerlukan paket ini untuk mengalokasikan sumber daya server.
 2. **Cek Izin di Google Cloud Console**:
    - Buka [Google Cloud Console IAM](https://console.cloud.google.com/iam-admin/iam).
    - Cari akun layanan yang namanya mengandung `app-hosting` atau `firebase-app-hosting`.
@@ -44,7 +45,7 @@ Jika Anda melihat pesan ini di Firebase Console, sistem sedang menunggu izin aks
      - `App Hosting Admin`
      - `Cloud Build Editor`
      - `Artifact Registry Writer`
-3. **Tunggu & Coba Lagi**: Izin Google Cloud kadang memakan waktu 5-10 menit untuk aktif sepenuhnya. Jika masih gagal, hapus koneksi App Hosting tersebut dan buat ulang (backend baru) setelah izin dipastikan benar.
+3. **Tunggu & Coba Lagi**: Izin Google Cloud kadang memakan waktu 5-10 menit untuk aktif sepenuhnya. Jika masih gagal setelah 15 menit, hapus koneksi App Hosting tersebut dan buat ulang (backend baru) setelah izin dipastikan benar.
 4. **Konfigurasi Firebase**: Pastikan file `src/firebase/config.ts` berisi data milik proyek Anda yang aktif, bukan ID proyek default.
 
 ---
