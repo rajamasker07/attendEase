@@ -46,7 +46,10 @@ Jika Anda melihat pesan ini setelah berhasil menyambungkan GitHub:
    - Buka [Google Cloud Console IAM](https://console.cloud.google.com/iam-admin/iam).
    - Cari akun layanan yang namanya mengandung `app-hosting`.
    - Pastikan akun tersebut memiliki peran: `App Hosting Admin`, `Cloud Build Editor`, dan `Artifact Registry Writer`.
-3. **Hapus & Ulangi**: Jika masih gagal setelah 15 menit, hapus koneksi App Hosting tersebut di Firebase Console dan buat ulang dari awal.
+3. **Langkah Hapus & Ulangi (Sangat Disarankan)**:
+   - Jika proses "Rollout" gagal terus, hapus konfigurasi Backend App Hosting tersebut di Firebase Console.
+   - Tunggu 2 menit.
+   - Buat ulang Backend App Hosting dari awal dan hubungkan kembali ke GitHub. Seringkali pembuatan ulang memicu perbaikan izin yang tersangkut.
 
 ---
 Dikembangkan dengan Next.js, Tailwind CSS, dan Firebase.
