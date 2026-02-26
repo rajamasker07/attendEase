@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -201,6 +201,16 @@ export default function DashboardPage() {
   const [isAbsenceFormOpen, setIsAbsenceFormOpen] = useState(false);
   const [isEmployeePickerOpen, setIsEmployeePickerOpen] = useState(false);
   
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEmployeePickerOpen) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 10);
+    }
+  }, [isEmployeePickerOpen]);
+
   // --- Firestore Queries ---
   const employeesCollection = useMemoFirebase(() => {
     if (!firestore || isUserLoading || !user) return null;
@@ -737,7 +747,7 @@ export default function DashboardPage() {
                       </PopoverTrigger>
                       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                         <Command>
-                          <CommandInput placeholder="Cari karyawan..." />
+                          <CommandInput placeholder="Cari karyawan..." ref={searchInputRef} />
                           <CommandEmpty>Karyawan tidak ditemukan.</CommandEmpty>
                           <CommandList>
                             <CommandGroup>
