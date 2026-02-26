@@ -32,12 +32,20 @@ Karena aplikasi tidak memiliki fitur pendaftaran publik:
 
 ## Pemecahan Masalah (Troubleshooting)
 
-Jika Anda menemui galat **"Something went wrong creating your App Hosting rollout"**:
+### Galat: "We are waiting for permissions to propagate" atau "Something went wrong creating your rollout"
 
-1. **Paket Blaze**: Pastikan proyek Firebase Anda sudah di-upgrade ke paket **Blaze (Pay-as-you-go)**. Meskipun biayanya hampir selalu Rp 0 untuk penggunaan kecil, App Hosting memerlukan paket ini untuk bisa berjalan.
-2. **Izin Service Account**: Terkadang service account App Hosting belum memiliki izin yang cukup. Pastikan akun tersebut memiliki role `App Hosting Admin` dan `Cloud Build Editor` di Google Cloud Console.
-3. **Konfigurasi Firebase**: Pastikan file `src/firebase/config.ts` sudah berisi API Key dan Project ID milik proyek Firebase Anda yang sebenarnya, bukan ID proyek Studio.
-4. **Coba Lagi**: Terkadang layanan backend Firebase sedang sibuk. Tunggu 5-10 menit lalu klik "Retry" atau buat Rollout baru.
+Jika Anda melihat pesan ini di Firebase Console, sistem sedang menunggu izin akses Google Cloud sinkron. Ikuti langkah ini:
+
+1. **Paket Blaze**: Pastikan proyek Anda sudah di-upgrade ke paket **Blaze (Pay-as-you-go)**. App Hosting memerlukan paket ini.
+2. **Cek Izin di Google Cloud Console**:
+   - Buka [Google Cloud Console IAM](https://console.cloud.google.com/iam-admin/iam).
+   - Cari akun layanan yang namanya mengandung `app-hosting` atau `firebase-app-hosting`.
+   - Pastikan akun tersebut memiliki peran:
+     - `App Hosting Admin`
+     - `Cloud Build Editor`
+     - `Artifact Registry Writer`
+3. **Tunggu & Coba Lagi**: Izin Google Cloud kadang memakan waktu 5-10 menit untuk aktif sepenuhnya. Jika masih gagal, hapus koneksi App Hosting tersebut dan buat ulang (backend baru) setelah izin dipastikan benar.
+4. **Konfigurasi Firebase**: Pastikan file `src/firebase/config.ts` berisi data milik proyek Anda yang aktif, bukan ID proyek default.
 
 ---
 Dikembangkan dengan Next.js, Tailwind CSS, dan Firebase.
