@@ -694,17 +694,28 @@ export async function finalizePayroll(firestore: Firestore, payrollId: string, p
     const payrollRef = doc(firestore, "payrolls", payrollId);
     
     await runTransaction(firestore, async (transaction) => {
-        // 1. Mark payroll as finalized
-        transaction.update(payrollRef, { status: "finalized" });
-
-        // 2. Mark all deducted loans as paid or update remaining balance
+        // 1. READ PHASE: Ambil semua data hutang yang akan dipotong
+        // Sesuai aturan Firestore, semua pembacaan (get) harus dilakukan sebelum penulisan (update/set)
+        const loanSnaps = new Map<string, any>();
         for (const payslip of payslips) {
             if (payslip.loanDetails && payslip.loanDetails.length > 0) {
                 for (const loanDetail of payslip.loanDetails) {
-                    const loanRef = doc(firestore, "loans", loanDetail.loanId);
-                    const loanSnap = await transaction.get(loanRef);
+                    if (!loanSnaps.has(loanDetail.loanId)) {
+                        const loanRef = doc(firestore, "loans", loanDetail.loanId);
+                        const snap = await transaction.get(loanRef);
+                        loanSnaps.set(loanDetail.loanId, snap);
+                    }
+                }
+            }
+        }
+
+        // 2. WRITE PHASE: Update data hutang dan status payroll
+        for (const payslip of payslips) {
+            if (payslip.loanDetails && payslip.loanDetails.length > 0) {
+                for (const loanDetail of payslip.loanDetails) {
+                    const loanSnap = loanSnaps.get(loanDetail.loanId);
                     
-                    if (loanSnap.exists()) {
+                    if (loanSnap && loanSnap.exists()) {
                         const loanData = loanSnap.data() as Loan;
                         const currentRemaining = loanData.remainingAmount ?? loanData.amount;
                         const newRemaining = Math.max(0, currentRemaining - loanDetail.amount);
@@ -716,7 +727,7 @@ export async function finalizePayroll(firestore: Firestore, payrollId: string, p
                           description: `Potongan dari Gaji Periode ${format(new Date(), 'yyyy-MM')}`
                         };
 
-                        transaction.update(loanRef, { 
+                        transaction.update(loanSnap.ref, { 
                           remainingAmount: newRemaining,
                           status: newRemaining <= 0 ? 'paid' : 'active', 
                           repaidAt: newRemaining <= 0 ? new Date().toISOString() : null,
@@ -727,6 +738,9 @@ export async function finalizePayroll(firestore: Firestore, payrollId: string, p
                 }
             }
         }
+
+        // Tandai payroll sebagai selesai
+        transaction.update(payrollRef, { status: "finalized" });
     });
 }
 
