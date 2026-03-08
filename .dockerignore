@@ -3,6 +3,8 @@ node_modules
 .git
 .github
 Dockerfile
-.dockerignore
 README.md
-*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

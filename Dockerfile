@@ -2,13 +2,12 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Salin package.json dan install dependensi
+# Salin package files
 COPY package.json package-lock.json* ./
 RUN npm install
 
-# Salin seluruh kode dan build aplikasi
+# Salin seluruh kode dan build
 COPY . .
-# Next.js mengabaikan pemeriksaan tipe saat build karena konfigurasi di next.config.ts
 RUN npm run build
 
 # Tahap 2: Runner
@@ -18,7 +17,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Salin file yang diperlukan dari tahap build
-# Standalone mode Next.js meminimalkan ukuran image
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static

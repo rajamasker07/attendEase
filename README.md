@@ -4,48 +4,55 @@ AttendEase adalah aplikasi web modern untuk mengelola kehadiran karyawan, sanksi
 
 ## Fitur Utama
 - **Dasbor Real-time**: Statistik kehadiran harian dan grafik jam kerja.
-- **Manajemen Karyawan**: Data lengkap termasuk rekening bank/e-wallet.
+- **Manajemen Karyawan**: Data lengkap termasuk limit pinjaman khusus.
 - **Sistem Absensi**: Pencatatan masuk, pulang, keterlambatan, dan ketidakhadiran.
-- **Penggajian Otomatis**: Perhitungan gaji bersih berdasarkan absensi, sanksi, dan bonus.
-- **Hutang & Kasbon**: Pencatatan pinjaman karyawan dengan limit otomatis dan pemotongan saat gajian.
-- **Tabungan Karyawan**: Fitur simpan sisa gaji ke saldo tabungan dan tarik tunai.
+- **Hutang & Kasbon**: Pelunasan otomatis lewat gaji (Payroll) atau pelunasan manual tunai.
+- **Tabungan Karyawan**: Simpan sisa gaji ke saldo tabungan dan tarik tunai.
+- **Laporan & Cetak**: Laporan kehadiran per periode dan slip gaji digital.
 
-## Panduan Persiapan Produksi
+## Persiapan Lokal (Development)
 
-### 1. Konfigurasi Firebase Console
-Sebelum meluncurkan, pastikan hal berikut sudah diatur di [Firebase Console](https://console.firebase.google.com/):
-- **Authentication**: Aktifkan metode login "Email/Password".
-- **Firestore Database**: Pastikan database sudah dibuat dalam mode produksi.
-- **Firebase Project Config**: Buka Project Settings, salin objek `firebaseConfig`, dan perbarui file `src/firebase/config.ts` di kode Anda.
+1. **Instalasi Dependensi**:
+   ```bash
+   npm install
+   ```
 
-### 2. Penggunaan Docker (Portabilitas)
-Anda dapat menjalankan aplikasi ini di server mana pun menggunakan Docker:
-```bash
-docker build -t attendease-app .
-docker run -p 3000:3000 attendease-app
-```
+2. **Konfigurasi Environment**:
+   Salin `.env.example` menjadi `.env.local` dan isi dengan konfigurasi Firebase Anda.
 
-### 3. Otomatisasi CI/CD
-File `.github/workflows/verify.yml` telah disertakan. Setiap kali Anda melakukan `push` ke branch `main`, GitHub akan otomatis mengecek kesalahan pengetikan (*Type Check*) dan memastikan aplikasi dapat di-*build* dengan sukses sebelum dideploy.
+3. **Jalankan Aplikasi**:
+   ```bash
+   npm run dev
+   ```
 
-### 4. Cara Deployment ke Firebase App Hosting (Wajib GitHub)
-Firebase App Hosting **mensyaratkan** koneksi ke GitHub untuk berfungsi:
-1. Pastikan kode Anda sudah di-push ke repositori GitHub.
-2. Di Firebase Console, cari menu **App Hosting**.
-3. Klik "Get started" dan hubungkan akun GitHub Anda.
-4. Pilih repositori proyek ini.
-5. Firebase akan mendeteksi konfigurasi Next.js dan mulai melakukan proses *build* serta deployment secara otomatis.
+## Penggunaan Docker (Portabilitas)
 
-## Pemecahan Masalah (Troubleshooting)
+Aplikasi ini sudah siap dijalankan di dalam kontainer:
 
-### Masalah: Tombol "Connect to GitHub" Tidak Bisa Diklik
-Jika tombol tersebut berwarna abu-abu atau tidak merespons:
-1. **Wajib Paket Blaze**: Firebase App Hosting tidak tersedia di paket Spark (Gratis). Anda harus meng-upgrade proyek ke paket **Blaze**. 
-2. **Cek Izin Akun**: Pastikan akun Google Anda memiliki peran **Owner** pada proyek tersebut.
+1. **Build Image**:
+   ```bash
+   docker build -t attendease-app .
+   ```
 
-### Galat: "We are waiting for permissions to propagate"
-1. **Tunggu 10 Menit**: Sistem Google Cloud memerlukan waktu untuk menyinkronkan izin akses.
-2. **Hapus & Ulangi**: Jika gagal terus, hapus konfigurasi Backend App Hosting di Firebase Console, tunggu 2 menit, lalu buat ulang dari awal. Seringkali ini akan memperbaiki izin yang tersangkut.
+2. **Jalankan Kontainer**:
+   ```bash
+   docker run -p 3000:3000 attendease-app
+   ```
+
+## Deployment ke Firebase App Hosting (Rekomendasi)
+
+Firebase App Hosting mensyaratkan koneksi ke GitHub:
+1. Push kode Anda ke repositori GitHub.
+2. Di Firebase Console, masuk ke menu **App Hosting**.
+3. Hubungkan repositori GitHub tersebut.
+4. Pilih branch `main` dan deploy.
+
+### Tips Pemecahan Masalah App Hosting:
+- Jika tombol "Connect to GitHub" tidak bisa diklik, pastikan proyek Anda sudah di-upgrade ke paket **Blaze**.
+- Jika terjadi error perizinan, hapus konfigurasi backend di Firebase Console, tunggu 2 menit, lalu buat ulang.
+
+## Keamanan Data
+Pastikan Anda memperbarui `firestore.rules` di Firebase Console sesuai dengan file `firestore.rules` yang ada di dalam proyek ini untuk melindungi data sensitif karyawan.
 
 ---
 Dikembangkan dengan Next.js, Tailwind CSS, dan Firebase.
