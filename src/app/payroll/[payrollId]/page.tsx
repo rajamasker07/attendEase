@@ -247,7 +247,7 @@ export default function PayrollDetailPage() {
                       <TableCell>{getStatusBadge(payslip.paymentStatus)}</TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button variant="outline" size="sm" onClick={() => handleViewDetails(payslip)}>Rincian</Button>
-                        {payslip.paymentStatus !== 'lunas' && payroll?.status === 'draft' && (
+                        {payslip.remainingAmount > 0 && payroll?.status === 'draft' && (
                            <>
                             <Button size="sm" onClick={() => handleRecordPayment(payslip)}>
                                 <Wallet className="mr-2 h-4 w-4"/>

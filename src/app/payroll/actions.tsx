@@ -289,7 +289,7 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
           netSalary,
           paidAmount: 0,
           remainingAmount: netSalary,
-          paymentStatus: 'belum dibayar',
+          paymentStatus: netSalary === 0 ? 'lunas' : 'belum dibayar',
         };
 
         const newPayslipRef = doc(collection(firestore, "payrolls", newPayrollRef.id, "payslips"));
@@ -323,49 +323,51 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Buat Penggajian Baru</DialogTitle>
-          <DialogDescription>
-            Pilih periode bulan dan tahun untuk membuat laporan penggajian.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-2 items-center gap-4">
-            <Label htmlFor="month">Bulan</Label>
-            <Select value={month} onValueChange={setMonth}>
-              <SelectTrigger id="month">
-                <SelectValue placeholder="Pilih bulan" />
-              </SelectTrigger>
-              <SelectContent>
-                {months.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <form onSubmit={(e) => { e.preventDefault(); handleCreatePayroll(); }}>
+          <DialogHeader>
+            <DialogTitle>Buat Penggajian Baru</DialogTitle>
+            <DialogDescription>
+              Pilih periode bulan dan tahun untuk membuat laporan penggajian.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 items-center gap-4">
+              <Label htmlFor="month">Bulan</Label>
+              <Select value={month} onValueChange={setMonth}>
+                <SelectTrigger id="month">
+                  <SelectValue placeholder="Pilih bulan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {months.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 items-center gap-4">
+              <Label htmlFor="year">Tahun</Label>
+              <Select value={year} onValueChange={setYear}>
+                <SelectTrigger id="year">
+                  <SelectValue placeholder="Pilih tahun" />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map((y) => (
+                    <SelectItem key={y} value={y.toString()}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="grid grid-cols-2 items-center gap-4">
-            <Label htmlFor="year">Tahun</Label>
-            <Select value={year} onValueChange={setYear}>
-              <SelectTrigger id="year">
-                <SelectValue placeholder="Pilih tahun" />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((y) => (
-                  <SelectItem key={y} value={y.toString()}>
-                    {y}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button onClick={handleCreatePayroll} disabled={isLoading}>
-            {isLoading ? "Memproses..." : "Buat Penggajian"}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Memproses..." : "Buat Penggajian"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -385,7 +387,7 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
     
     if (!payslip) return null;
     
-    const payslipUrl = `${window.location.origin}/payslip/${payrollId}/${payslip.id}`;
+    const payslipUrl = typeof window !== 'undefined' ? `${window.location.origin}/payslip/${payrollId}/${payslip.id}` : '';
 
     const handleCopyLink = () => {
         navigator.clipboard.writeText(payslipUrl);
@@ -516,16 +518,18 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
                         </Badge>
                     </div>
 
-                    <div className="space-y-2 pt-4">
-                        <Label htmlFor="payslip-link">Tautan Slip Gaji</Label>
-                        <div className="flex items-center space-x-2">
-                            <Input id="payslip-link" value={payslipUrl} readOnly />
-                            <Button type="button" size="sm" onClick={handleCopyLink}>
-                                <Copy className="mr-2 h-4 w-4" />
-                                {copied ? 'Disalin!' : 'Salin'}
-                            </Button>
-                        </div>
-                    </div>
+                    {payslipUrl && (
+                      <div className="space-y-2 pt-4">
+                          <Label htmlFor="payslip-link">Tautan Slip Gaji</Label>
+                          <div className="flex items-center space-x-2">
+                              <Input id="payslip-link" value={payslipUrl} readOnly />
+                              <Button type="button" size="sm" onClick={handleCopyLink}>
+                                  <Copy className="mr-2 h-4 w-4" />
+                                  {copied ? 'Disalin!' : 'Salin'}
+                              </Button>
+                          </div>
+                      </div>
+                    )}
                 </div>
                  <DialogFooter>
                     <Button variant="outline" onClick={() => setIsOpen(false)}>Tutup</Button>
