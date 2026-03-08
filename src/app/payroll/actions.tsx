@@ -56,7 +56,7 @@ import {
   getDaysInMonth,
 } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import { Copy, Wallet } from "lucide-react";
+import { Copy, Wallet, CheckCheck } from "lucide-react";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -290,7 +290,7 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
           netSalary,
           paidAmount: 0,
           remainingAmount: netSalary,
-          paymentStatus: netSalary <= 0 ? 'lunas' : 'belum dibayar',
+          paymentStatus: netSalary <= 0.01 ? 'lunas' : 'belum dibayar',
         };
 
         const newPayslipRef = doc(collection(firestore, "payrolls", newPayrollRef.id, "payslips"));
@@ -556,13 +556,13 @@ export function RecordPaymentDialog({ isOpen, setIsOpen, payslip, onSave }: Reco
   const { toast } = useToast();
   
   const resolver = zodResolver(paymentSchema.refine(
-    (data) => !payslip || data.amount <= payslip.remainingAmount, {
+    (data) => !payslip || data.amount <= payslip.remainingAmount + 0.01, {
       message: "Pembayaran tidak boleh melebihi sisa gaji.",
       path: ["amount"],
     }
   ));
   
-  const { control, handleSubmit, reset, formState: { errors } } = useForm<PaymentFormData>({
+  const { control, handleSubmit, reset, setValue, formState: { errors } } = useForm<PaymentFormData>({
     resolver,
     defaultValues: { amount: 0 },
   });
@@ -579,10 +579,14 @@ export function RecordPaymentDialog({ isOpen, setIsOpen, payslip, onSave }: Reco
     onSave(payslip.id, data.amount);
     toast({
       title: "Pembayaran Dicatat",
-      description: `Pembayaran for ${payslip.employeeName} telah dicatat.`,
+      description: `Pembayaran untuk ${payslip.employeeName} telah dicatat.`,
     });
     setIsOpen(false);
   };
+
+  const handleFillFull = () => {
+    setValue("amount", payslip.remainingAmount);
+  }
   
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -602,7 +606,19 @@ export function RecordPaymentDialog({ isOpen, setIsOpen, payslip, onSave }: Reco
                     <span className="font-medium">{formatCurrency(payslip.remainingAmount)}</span>
                 </div>
                 <div className="space-y-2 pt-2">
-                    <Label htmlFor="amount">Jumlah Pembayaran Baru</Label>
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="amount">Jumlah Pembayaran Baru</Label>
+                        <Button 
+                            type="button" 
+                            variant="link" 
+                            size="sm" 
+                            className="h-auto p-0 text-xs text-primary"
+                            onClick={handleFillFull}
+                        >
+                            <CheckCheck className="mr-1 h-3 w-3" />
+                            Bayar Semua
+                        </Button>
+                    </div>
                     <Controller
                         name="amount"
                         control={control}
