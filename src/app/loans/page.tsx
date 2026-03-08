@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -29,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { Loan, Employee, LoanPayment } from "@/types";
-import { PlusCircle, Edit, Trash2, CheckCircle, Calendar, ArrowRight, Wallet } from "lucide-react";
+import { PlusCircle, Edit, Trash2, CheckCircle, ArrowRight } from "lucide-react";
 import { LoanFormDialog, DeleteLoanAlert, RepayLoanAlert, type LoanFormData } from "./actions";
 import { useCollection, useFirebase, WithId, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, useMemoFirebase } from "@/firebase";
 import { collection, doc, query, orderBy, arrayUnion } from "firebase/firestore";
@@ -168,11 +167,9 @@ export default function LoansPage() {
     if (!firestore) return;
     if (selectedLoan) {
       const docRef = doc(firestore, "loans", selectedLoan.id);
-      // If basic info changes, we don't reset everything, just info.
-      // But if amount changes, it's tricky. For MVP, we assume amount edit only for corrections.
       setDocumentNonBlocking(docRef, { 
         ...loanData, 
-        remainingAmount: loanData.amount, // Reset remaining if initial amount is corrected
+        remainingAmount: loanData.amount, 
         status: selectedLoan.status 
       }, { merge: true });
     } else {
@@ -301,8 +298,8 @@ export default function LoansPage() {
                 paginatedLoans.map((loan) => (
                     <Card key={loan.id} className="overflow-hidden border-muted">
                         <AccordionItem value={loan.id} className="border-none">
-                            <AccordionTrigger className="p-4 hover:no-underline hover:bg-muted/30">
-                                <div className="flex w-full items-center justify-between text-left">
+                            <div className="flex items-center justify-between pr-4 group hover:bg-muted/30 transition-colors">
+                                <AccordionTrigger className="p-4 hover:no-underline flex-1 text-left">
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1 items-center">
                                         <div className="space-y-1">
                                             <p className="font-semibold leading-none">{employeeMap.get(loan.employeeId)?.name || 'Karyawan Dihapus'}</p>
@@ -330,34 +327,34 @@ export default function LoansPage() {
                                             </Badge>
                                         </div>
                                     </div>
-                                    <div className="flex items-center pr-2" onClick={(e) => e.stopPropagation()}>
-                                        {loan.status === 'active' ? (
-                                            <div className="flex space-x-1">
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button variant="ghost" size="icon" onClick={() => handleRepay(loan)} className="text-green-600 hover:text-green-700 hover:bg-green-50 h-8 w-8">
-                                                                <CheckCircle className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>Tandai Lunas Manual (Tunai)</TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(loan)} className="h-8 w-8">
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleDelete(loan)} className="h-8 w-8 text-destructive">
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        ) : (
-                                            <Button variant="ghost" size="icon" onClick={() => handleDelete(loan)} className="h-8 w-8 text-destructive opacity-50">
+                                </AccordionTrigger>
+                                <div className="flex items-center gap-1">
+                                    {loan.status === 'active' ? (
+                                        <>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleRepay(loan); }} className="text-green-600 hover:text-green-700 hover:bg-green-50 h-8 w-8">
+                                                            <CheckCircle className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Tandai Lunas Manual (Tunai)</TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEdit(loan); }} className="h-8 w-8">
+                                                <Edit className="h-4 w-4" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDelete(loan); }} className="h-8 w-8 text-destructive">
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
-                                        )}
-                                    </div>
+                                        </>
+                                    ) : (
+                                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDelete(loan); }} className="h-8 w-8 text-destructive opacity-50">
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    )}
                                 </div>
-                            </AccordionTrigger>
+                            </div>
                             <AccordionContent>
                                 <LoanPaymentHistory payments={loan.payments} />
                             </AccordionContent>

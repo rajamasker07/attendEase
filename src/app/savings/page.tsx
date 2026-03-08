@@ -235,42 +235,31 @@ export default function SavingsPage() {
                   {paginatedEmployees.length > 0 ? paginatedEmployees.map(employee => (
                       <Card key={employee.id} className="overflow-hidden">
                           <AccordionItem value={employee.id} className="border-none">
-                              <AccordionTrigger className="p-4 hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/50">
-                                  <div className="flex w-full items-center justify-between">
-                                      <div className="text-left">
-                                          <h3 className="font-semibold">{employee.name}</h3>
-                                          <p className="text-sm text-muted-foreground capitalize">{employee.position}</p>
-                                      </div>
-                                      <div className="flex items-center gap-4">
-                                          <div className="text-right">
+                              <div className="flex items-center justify-between pr-4 group hover:bg-muted/50 transition-colors">
+                                  <AccordionTrigger className="p-4 hover:no-underline flex-1">
+                                      <div className="flex w-full items-center justify-between">
+                                          <div className="text-left">
+                                              <h3 className="font-semibold">{employee.name}</h3>
+                                              <p className="text-sm text-muted-foreground capitalize">{employee.position}</p>
+                                          </div>
+                                          <div className="text-right mr-4">
                                               <div className="text-muted-foreground text-xs">Saldo</div>
                                               <div className="font-semibold text-lg">{formatCurrency(savingsMap.get(employee.id)?.balance ?? 0)}</div>
                                           </div>
-                                          <div
-                                              role="button"
-                                              tabIndex={0}
-                                              onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleWithdrawClick(employee);
-                                              }}
-                                              onKeyDown={(e) => {
-                                                  if (e.key === 'Enter' || e.key === ' ') {
-                                                      e.preventDefault();
-                                                      e.stopPropagation();
-                                                      handleWithdrawClick(employee);
-                                                  }
-                                              }}
-                                          >
-                                              <Button size="sm" variant="outline" asChild>
-                                                  <div>
-                                                      <Wallet className="mr-2 h-4 w-4" />
-                                                      Tarik Tunai
-                                                  </div>
-                                              </Button>
-                                          </div>
                                       </div>
-                                  </div>
-                              </AccordionTrigger>
+                                  </AccordionTrigger>
+                                  <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleWithdrawClick(employee);
+                                      }}
+                                  >
+                                      <Wallet className="mr-2 h-4 w-4" />
+                                      Tarik Tunai
+                                  </Button>
+                              </div>
                               <AccordionContent>
                                   <TransactionHistory employeeId={employee.id} />
                               </AccordionContent>
