@@ -231,13 +231,6 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
             type: b.type, date: b.date, amount: b.amount, description: b.description
         }));
 
-        // Loan deductions (Active loans only)
-        const employeeLoans = activeLoans.filter(l => l.employeeId === employee.id);
-        const loanDeduction = employeeLoans.reduce((total, l) => total + l.amount, 0);
-        const loanDetails: PayslipLoanDetail[] = employeeLoans.map(l => ({
-            loanId: l.id, amount: l.amount, description: l.description, date: l.date
-        }));
-
         // Unpaid absence deduction
         let unpaidAbsenceCount = 0;
         let unpaidAbsenceDeduction = 0;
@@ -248,8 +241,35 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
             unpaidAbsenceDeduction = Math.round(unpaidAbsenceCount * dailyWage);
         }
 
-        // Net salary calculation
-        const netSalary = (employee.salary || 0) + bonusTotal - lateDeduction - sanctionDeduction - unpaidAbsenceDeduction - loanDeduction;
+        // Calculate available balance for loans
+        const earnings = (employee.salary || 0) + bonusTotal;
+        const deductionsExcludingLoans = lateDeduction + sanctionDeduction + unpaidAbsenceDeduction;
+        
+        let availableForLoans = Math.max(0, earnings - deductionsExcludingLoans);
+        let actualLoanDeduction = 0;
+        const loanDetails: PayslipLoanDetail[] = [];
+
+        // Loan deductions (Process loans one by one until available balance is exhausted)
+        const employeeLoans = activeLoans.filter(l => l.employeeId === employee.id);
+        for (const loan of employeeLoans) {
+            if (availableForLoans <= 0) break;
+            const currentDebt = loan.remainingAmount ?? loan.amount;
+            const toDeduct = Math.min(currentDebt, availableForLoans);
+            
+            if (toDeduct > 0) {
+                loanDetails.push({
+                    loanId: loan.id,
+                    amount: toDeduct,
+                    description: loan.description,
+                    date: loan.date
+                });
+                actualLoanDeduction += toDeduct;
+                availableForLoans -= toDeduct;
+            }
+        }
+
+        // Final net salary calculation (Guaranteed >= 0)
+        const netSalary = Math.max(0, earnings - deductionsExcludingLoans - actualLoanDeduction);
 
         const newPayslipData: Payslip = {
           employeeId: employee.id,
@@ -264,7 +284,7 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
           sanctionCount,
           sanctionDeduction,
           sanctions: sanctionDetails,
-          loanDeduction,
+          loanDeduction: actualLoanDeduction,
           loanDetails,
           netSalary,
           paidAmount: 0,
@@ -651,16 +671,25 @@ export async function finalizePayroll(firestore: Firestore, payrollId: string, p
         // 1. Mark payroll as finalized
         transaction.update(payrollRef, { status: "finalized" });
 
-        // 2. Mark all deducted loans as paid
+        // 2. Mark all deducted loans as paid or update remaining balance
         for (const payslip of payslips) {
             if (payslip.loanDetails && payslip.loanDetails.length > 0) {
                 for (const loanDetail of payslip.loanDetails) {
                     const loanRef = doc(firestore, "loans", loanDetail.loanId);
-                    transaction.update(loanRef, { 
-                      status: 'paid', 
-                      repaidAt: new Date().toISOString(),
-                      payslipId: payslip.id 
-                    });
+                    const loanSnap = await transaction.get(loanRef);
+                    
+                    if (loanSnap.exists()) {
+                        const loanData = loanSnap.data() as Loan;
+                        const currentRemaining = loanData.remainingAmount ?? loanData.amount;
+                        const newRemaining = Math.max(0, currentRemaining - loanDetail.amount);
+                        
+                        transaction.update(loanRef, { 
+                          remainingAmount: newRemaining,
+                          status: newRemaining <= 0 ? 'paid' : 'active', 
+                          repaidAt: new Date().toISOString(),
+                          payslipId: payslip.id 
+                        });
+                    }
                 }
             }
         }

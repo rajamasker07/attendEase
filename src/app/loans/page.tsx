@@ -72,7 +72,8 @@ export default function LoansPage() {
     const map = new Map<string, number>();
     loans?.filter(l => l.status === 'active').forEach(loan => {
         const current = map.get(loan.employeeId) || 0;
-        map.set(loan.employeeId, current + loan.amount);
+        const remaining = loan.remainingAmount ?? loan.amount;
+        map.set(loan.employeeId, current + remaining);
     });
     return map;
   }, [loans]);
@@ -130,11 +131,21 @@ export default function LoansPage() {
     if (!firestore) return;
     if (selectedLoan) {
       const docRef = doc(firestore, "loans", selectedLoan.id);
-      setDocumentNonBlocking(docRef, { ...loanData, status: selectedLoan.status }, { merge: true });
+      // If amount changes, reset remainingAmount to the new amount
+      const updatedData = { 
+        ...loanData, 
+        remainingAmount: loanData.amount,
+        status: selectedLoan.status 
+      };
+      setDocumentNonBlocking(docRef, updatedData, { merge: true });
     } else {
       const newId = doc(collection(firestore, "loans")).id;
       const docRef = doc(firestore, "loans", newId);
-      setDocumentNonBlocking(docRef, { ...loanData, status: 'active' }, {});
+      setDocumentNonBlocking(docRef, { 
+        ...loanData, 
+        remainingAmount: loanData.amount,
+        status: 'active' 
+      }, {});
     }
   };
   
@@ -150,6 +161,7 @@ export default function LoansPage() {
         const docRef = doc(firestore, "loans", selectedLoan.id);
         updateDocumentNonBlocking(docRef, { 
           status: 'paid',
+          remainingAmount: 0,
           repaidAt: new Date().toISOString()
         });
     }
@@ -171,17 +183,17 @@ export default function LoansPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
             <CardHeader className="pb-2">
-                <CardDescription>Total Pinjaman Aktif</CardDescription>
+                <CardDescription>Total Sisa Pinjaman Aktif</CardDescription>
                 <CardTitle className="text-2xl font-bold text-destructive">
-                    {formatCurrency(loans?.filter(l => l.status === 'active').reduce((acc, l) => acc + l.amount, 0) || 0)}
+                    {formatCurrency(loans?.filter(l => l.status === 'active').reduce((acc, l) => acc + (l.remainingAmount ?? l.amount), 0) || 0)}
                 </CardTitle>
             </CardHeader>
         </Card>
         <Card>
             <CardHeader className="pb-2">
-                <CardDescription>Pinjaman Terbayar</CardDescription>
-                <CardTitle className="text-2xl font-bold text-green-600">
-                    {formatCurrency(loans?.filter(l => l.status === 'paid').reduce((acc, l) => acc + l.amount, 0) || 0)}
+                <CardDescription>Total Pinjaman Dibuat</CardDescription>
+                <CardTitle className="text-2xl font-bold text-primary">
+                    {formatCurrency(loans?.reduce((acc, l) => acc + l.amount, 0) || 0)}
                 </CardTitle>
             </CardHeader>
         </Card>
@@ -199,7 +211,7 @@ export default function LoansPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Daftar Kasbon Karyawan</CardTitle>
-            <CardDescription>Pinjaman ini akan dipotong otomatis saat gajian atau bisa dibayar manual sebelumnya.</CardDescription>
+            <CardDescription>Pinjaman ini akan dipotong otomatis saat gajian hingga lunas.</CardDescription>
           </div>
           <Button onClick={handleAdd}>
             <PlusCircle className="mr-2 h-4 w-4" /> Tambah Pinjaman
@@ -230,7 +242,7 @@ export default function LoansPage() {
                   </SelectTrigger>
                   <SelectContent>
                       <SelectItem value="all">Semua Status</SelectItem>
-                      <SelectItem value="active">Aktif (Hutang)</SelectItem>
+                      <SelectItem value="active">Aktif (Berjalan)</SelectItem>
                       <SelectItem value="paid">Sudah Lunas</SelectItem>
                   </SelectContent>
               </Select>
@@ -242,9 +254,10 @@ export default function LoansPage() {
                   <TableHead>Karyawan</TableHead>
                   <TableHead>Tanggal Pinjam</TableHead>
                   <TableHead>Keterangan</TableHead>
-                  <TableHead>Jumlah</TableHead>
+                  <TableHead>Pinjaman Awal</TableHead>
+                  <TableHead>Sisa Saldo</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Pelunasan</TableHead>
+                  <TableHead>Pelunasan Terakhir</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
@@ -257,10 +270,11 @@ export default function LoansPage() {
                       </TableCell>
                       <TableCell>{format(parseISO(loan.date), "d MMM yyyy", { locale: id })}</TableCell>
                       <TableCell>{loan.description}</TableCell>
-                      <TableCell className="font-semibold">{formatCurrency(loan.amount)}</TableCell>
+                      <TableCell className="text-muted-foreground">{formatCurrency(loan.amount)}</TableCell>
+                      <TableCell className="font-bold">{formatCurrency(loan.remainingAmount ?? loan.amount)}</TableCell>
                       <TableCell>
                         <Badge variant={loan.status === 'active' ? 'destructive' : 'default'}>
-                          {loan.status === 'active' ? 'Belum Bayar' : 'Lunas'}
+                          {loan.status === 'active' ? 'Belum Lunas' : 'Lunas'}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -281,7 +295,7 @@ export default function LoansPage() {
                                                 <CheckCircle className="h-4 w-4" />
                                             </Button>
                                         </TooltipTrigger>
-                                        <TooltipContent>Tandai Lunas Manual</TooltipContent>
+                                        <TooltipContent>Tandai Lunas Manual (Tunai)</TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
                                 
@@ -302,7 +316,7 @@ export default function LoansPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">Tidak ada data pinjaman.</TableCell>
+                    <TableCell colSpan={8} className="h-24 text-center">Tidak ada data pinjaman.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -338,7 +352,7 @@ export default function LoansPage() {
         isOpen={isRepayAlertOpen}
         setIsOpen={setIsRepayAlertOpen}
         onConfirm={confirmRepay}
-        amount={selectedLoan?.amount || 0}
+        amount={selectedLoan?.remainingAmount ?? selectedLoan?.amount ?? 0}
         employeeName={selectedLoan ? employeeMap.get(selectedLoan.employeeId)?.name || '' : ''}
       />
     </div>

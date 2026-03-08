@@ -98,7 +98,11 @@
         },
         "amount": {
           "type": "number",
-          "description": "The amount of the loan."
+          "description": "The original amount of the loan."
+        },
+        "remainingAmount": {
+          "type": "number",
+          "description": "The current unpaid balance of the loan."
         },
         "description": {
           "type": "string",
@@ -116,7 +120,7 @@
         },
         "payslipId": {
           "type": "string",
-          "description": "Reference to the payslip where this loan was deducted."
+          "description": "Reference to the latest payslip where this loan was partially or fully deducted."
         }
       },
       "required": ["employeeId", "date", "amount", "status"]

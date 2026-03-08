@@ -33,7 +33,8 @@ export interface AbsenceRecord {
 export interface Loan {
   employeeId: string;
   date: string; // YYYY-MM-DD
-  amount: number;
+  amount: number; // Original amount
+  remainingAmount?: number; // Current unpaid balance
   description: string;
   status: 'active' | 'paid';
   repaidAt?: string; // ISO String - When the loan was settled
@@ -77,7 +78,7 @@ export interface PayslipBonusDetail {
 
 export interface PayslipLoanDetail {
   loanId: string;
-  amount: number;
+  amount: number; // Amount deducted in this specific payslip
   description: string;
   date: string;
 }
