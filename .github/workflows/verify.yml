@@ -1,0 +1,39 @@
+name: Quality & Security Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Check for Type Errors
+      run: npm run typecheck
+
+    - name: Lint Code
+      run: npm run lint
+
+    - name: Build Application
+      run: npm run build
+      env:
+        # Dummy values untuk proses build di CI
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: "ci-test"
+        NEXT_PUBLIC_FIREBASE_APP_ID: "1:123:web:123"
+        NEXT_PUBLIC_FIREBASE_API_KEY: "fake-key"
+        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "ci-test.firebaseapp.com"
+        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "123"

@@ -7,6 +7,7 @@ AttendEase adalah aplikasi web modern untuk mengelola kehadiran karyawan, sanksi
 - **Manajemen Karyawan**: Data lengkap termasuk rekening bank/e-wallet.
 - **Sistem Absensi**: Pencatatan masuk, pulang, keterlambatan, dan ketidakhadiran.
 - **Penggajian Otomatis**: Perhitungan gaji bersih berdasarkan absensi, sanksi, dan bonus.
+- **Hutang & Kasbon**: Pencatatan pinjaman karyawan dengan limit otomatis dan pemotongan saat gajian.
 - **Tabungan Karyawan**: Fitur simpan sisa gaji ke saldo tabungan dan tarik tunai.
 
 ## Panduan Persiapan Produksi
@@ -15,15 +16,19 @@ AttendEase adalah aplikasi web modern untuk mengelola kehadiran karyawan, sanksi
 Sebelum meluncurkan, pastikan hal berikut sudah diatur di [Firebase Console](https://console.firebase.google.com/):
 - **Authentication**: Aktifkan metode login "Email/Password".
 - **Firestore Database**: Pastikan database sudah dibuat dalam mode produksi.
-- **Firebase Project Config**: Buka Project Settings, salin objek `firebaseConfig`, dan perbarui file `src/firebase/config.ts` di kode Anda dengan data tersebut.
+- **Firebase Project Config**: Buka Project Settings, salin objek `firebaseConfig`, dan perbarui file `src/firebase/config.ts` di kode Anda.
 
-### 2. Membuat Akun Admin Pertama
-Karena aplikasi tidak memiliki fitur pendaftaran publik:
-1. Buka Firebase Console > Authentication > Users.
-2. Klik "Add user".
-3. Masukkan email dan password admin Anda. Gunakan kredensial ini untuk masuk ke aplikasi.
+### 2. Penggunaan Docker (Portabilitas)
+Anda dapat menjalankan aplikasi ini di server mana pun menggunakan Docker:
+```bash
+docker build -t attendease-app .
+docker run -p 3000:3000 attendease-app
+```
 
-### 3. Cara Deployment ke Firebase App Hosting (Wajib GitHub)
+### 3. Otomatisasi CI/CD
+File `.github/workflows/verify.yml` telah disertakan. Setiap kali Anda melakukan `push` ke branch `main`, GitHub akan otomatis mengecek kesalahan pengetikan (*Type Check*) dan memastikan aplikasi dapat di-*build* dengan sukses sebelum dideploy.
+
+### 4. Cara Deployment ke Firebase App Hosting (Wajib GitHub)
 Firebase App Hosting **mensyaratkan** koneksi ke GitHub untuk berfungsi:
 1. Pastikan kode Anda sudah di-push ke repositori GitHub.
 2. Di Firebase Console, cari menu **App Hosting**.
@@ -35,21 +40,12 @@ Firebase App Hosting **mensyaratkan** koneksi ke GitHub untuk berfungsi:
 
 ### Masalah: Tombol "Connect to GitHub" Tidak Bisa Diklik
 Jika tombol tersebut berwarna abu-abu atau tidak merespons:
-1. **Wajib Paket Blaze**: Firebase App Hosting tidak tersedia di paket Spark (Gratis). Anda harus meng-upgrade proyek ke paket **Blaze**. Anda tetap akan mendapatkan kuota gratis yang besar, namun kartu kredit/debit diperlukan sebagai syarat layanan cloud.
+1. **Wajib Paket Blaze**: Firebase App Hosting tidak tersedia di paket Spark (Gratis). Anda harus meng-upgrade proyek ke paket **Blaze**. 
 2. **Cek Izin Akun**: Pastikan akun Google Anda memiliki peran **Owner** pada proyek tersebut.
-3. **Refresh & Incognito**: Coba buka Firebase Console di jendela penyamaran (Incognito) untuk memastikan tidak ada cache atau extension browser yang menghalangi.
 
-### Galat: "We are waiting for permissions to propagate" atau "Something went wrong creating your rollout"
-Jika Anda melihat pesan ini setelah berhasil menyambungkan GitHub:
-1. **Tunggu 10 Menit**: Sistem Google Cloud memerlukan waktu untuk menyinkronkan izin akses akun layanan baru.
-2. **Cek Izin di Google Cloud Console**:
-   - Buka [Google Cloud Console IAM](https://console.cloud.google.com/iam-admin/iam).
-   - Cari akun layanan yang namanya mengandung `app-hosting`.
-   - Pastikan akun tersebut memiliki peran: `App Hosting Admin`, `Cloud Build Editor`, dan `Artifact Registry Writer`.
-3. **Langkah Hapus & Ulangi (Sangat Disarankan)**:
-   - Jika proses "Rollout" gagal terus, hapus konfigurasi Backend App Hosting tersebut di Firebase Console.
-   - Tunggu 2 menit.
-   - Buat ulang Backend App Hosting dari awal dan hubungkan kembali ke GitHub. Seringkali pembuatan ulang memicu perbaikan izin yang tersangkut.
+### Galat: "We are waiting for permissions to propagate"
+1. **Tunggu 10 Menit**: Sistem Google Cloud memerlukan waktu untuk menyinkronkan izin akses.
+2. **Hapus & Ulangi**: Jika gagal terus, hapus konfigurasi Backend App Hosting di Firebase Console, tunggu 2 menit, lalu buat ulang dari awal. Seringkali ini akan memperbaiki izin yang tersangkut.
 
 ---
 Dikembangkan dengan Next.js, Tailwind CSS, dan Firebase.
