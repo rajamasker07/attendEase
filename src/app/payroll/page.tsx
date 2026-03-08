@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -25,7 +26,7 @@ import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { CreatePayrollDialog, DeletePayrollAlert } from "./actions";
-import Link from "next/link";
+import Link from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function PayrollPage() {
@@ -62,7 +63,6 @@ export default function PayrollPage() {
         setSelectedPayroll(null);
       } catch (error) {
         console.error("Error deleting payroll:", error);
-        // Optionally show an error toast
       }
     }
   };
@@ -124,10 +124,10 @@ export default function PayrollPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <Button asChild variant="outline" size="sm">
-                          <Link href={`/payroll/${payroll.id}`}>
+                          <a href={`/payroll/${payroll.id}`} className="flex items-center">
                             <FileText className="mr-2 h-4 w-4" />
                             Lihat Detail
-                          </Link>
+                          </a>
                         </Button>
                         <Button variant="ghost" size="icon" className="ml-2" onClick={() => handleDeleteClick(payroll)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
@@ -154,6 +154,7 @@ export default function PayrollPage() {
         setIsOpen={setIsAlertOpen}
         onConfirm={confirmDelete}
         payrollPeriod={selectedPayroll ? format(parseISO(selectedPayroll.period), "MMMM yyyy", { locale: id }) : ''}
+        isFinalized={selectedPayroll?.status === 'finalized'}
       />
     </>
   );

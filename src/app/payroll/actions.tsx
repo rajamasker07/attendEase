@@ -290,7 +290,7 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
           netSalary,
           paidAmount: 0,
           remainingAmount: netSalary,
-          paymentStatus: netSalary === 0 ? 'lunas' : 'belum dibayar',
+          paymentStatus: netSalary <= 0 ? 'lunas' : 'belum dibayar',
         };
 
         const newPayslipRef = doc(collection(firestore, "payrolls", newPayrollRef.id, "payslips"));
@@ -633,9 +633,10 @@ interface DeletePayrollAlertProps {
     setIsOpen: (isOpen: boolean) => void;
     onConfirm: () => void;
     payrollPeriod?: string;
+    isFinalized?: boolean;
 }
 
-export function DeletePayrollAlert({ isOpen, setIsOpen, onConfirm, payrollPeriod }: DeletePayrollAlertProps) {
+export function DeletePayrollAlert({ isOpen, setIsOpen, onConfirm, payrollPeriod, isFinalized }: DeletePayrollAlertProps) {
     const { toast } = useToast();
     
     const handleConfirm = () => {
@@ -654,8 +655,12 @@ export function DeletePayrollAlert({ isOpen, setIsOpen, onConfirm, payrollPeriod
                 <AlertDialogHeader>
                     <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
                     <AlertDialogDescription>
+                        {isFinalized ? (
+                            <span className="text-destructive font-bold block mb-2 underline">PERINGATAN: Penggajian ini sudah SELESAI (Finalized).</span>
+                        ) : null}
                         Tindakan ini tidak dapat dibatalkan. Ini akan menghapus riwayat penggajian untuk
                         <strong> periode {payrollPeriod}</strong> dan semua data slip gaji terkait secara permanen.
+                        {isFinalized ? " Hutang yang sudah terlanjur terpotong tidak akan otomatis kembali." : ""}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
