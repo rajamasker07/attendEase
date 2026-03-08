@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -28,18 +27,25 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Loan, Employee } from "@/types";
-import { PlusCircle, Edit, Trash2, Wallet } from "lucide-react";
-import { LoanFormDialog, DeleteLoanAlert, type LoanFormData } from "./actions";
-import { useCollection, useFirebase, WithId, setDocumentNonBlocking, deleteDocumentNonBlocking, useMemoFirebase } from "@/firebase";
+import { PlusCircle, Edit, Trash2, CheckCircle } from "lucide-react";
+import { LoanFormDialog, DeleteLoanAlert, RepayLoanAlert, type LoanFormData } from "./actions";
+import { useCollection, useFirebase, WithId, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, useMemoFirebase } from "@/firebase";
 import { collection, doc, query, orderBy } from "firebase/firestore";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function LoansPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [isRepayAlertOpen, setIsRepayAlertOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<WithId<Loan> | null>(null);
   
   const [searchTerm, setSearchTerm] = useState("");
@@ -115,6 +121,11 @@ export default function LoansPage() {
     setIsAlertOpen(true);
   };
 
+  const handleRepay = (loan: WithId<Loan>) => {
+    setSelectedLoan(loan);
+    setIsRepayAlertOpen(true);
+  };
+
   const handleSave = (loanData: LoanFormData) => {
     if (!firestore) return;
     if (selectedLoan) {
@@ -131,6 +142,13 @@ export default function LoansPage() {
     if (selectedLoan && firestore) {
       const docRef = doc(firestore, "loans", selectedLoan.id);
       deleteDocumentNonBlocking(docRef);
+    }
+  }
+
+  const confirmRepay = () => {
+    if (selectedLoan && firestore) {
+        const docRef = doc(firestore, "loans", selectedLoan.id);
+        updateDocumentNonBlocking(docRef, { status: 'paid' });
     }
   }
 
@@ -178,7 +196,7 @@ export default function LoansPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Daftar Kasbon Karyawan</CardTitle>
-            <CardDescription>Pinjaman ini akan dipotong otomatis saat gajian.</CardDescription>
+            <CardDescription>Pinjaman ini akan dipotong otomatis saat gajian atau bisa dibayar manual sebelumnya.</CardDescription>
           </div>
           <Button onClick={handleAdd}>
             <PlusCircle className="mr-2 h-4 w-4" /> Tambah Pinjaman
@@ -243,14 +261,25 @@ export default function LoansPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         {loan.status === 'active' && (
-                            <>
+                            <div className="flex justify-end space-x-1">
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" onClick={() => handleRepay(loan)} className="text-green-600 hover:text-green-700 hover:bg-green-50">
+                                                <CheckCircle className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Tandai Lunas Manual</TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                
                                 <Button variant="ghost" size="icon" onClick={() => handleEdit(loan)}>
                                     <Edit className="h-4 w-4" />
                                 </Button>
                                 <Button variant="ghost" size="icon" onClick={() => handleDelete(loan)}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
-                            </>
+                            </div>
                         )}
                       </TableCell>
                     </TableRow>
@@ -287,7 +316,14 @@ export default function LoansPage() {
         isOpen={isAlertOpen}
         setIsOpen={setIsAlertOpen}
         onConfirm={confirmDelete}
-        employeeName={selectedLoan ? employeeMap.get(selectedLoan.employeeId)?.name : ''}
+      />
+
+      <RepayLoanAlert
+        isOpen={isRepayAlertOpen}
+        setIsOpen={setIsRepayAlertOpen}
+        onConfirm={confirmRepay}
+        amount={selectedLoan?.amount || 0}
+        employeeName={selectedLoan ? employeeMap.get(selectedLoan.employeeId)?.name || '' : ''}
       />
     </div>
   );

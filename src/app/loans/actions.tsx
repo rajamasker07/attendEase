@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -207,7 +206,7 @@ export function LoanFormDialog({
   );
 }
 
-export function DeleteLoanAlert({ isOpen, setIsOpen, onConfirm, employeeName }: { isOpen: boolean; setIsOpen: (o: boolean) => void; onConfirm: () => void; employeeName?: string }) {
+export function DeleteLoanAlert({ isOpen, setIsOpen, onConfirm }: { isOpen: boolean; setIsOpen: (o: boolean) => void; onConfirm: () => void }) {
     const { toast } = useToast();
     const handleConfirm = () => {
         onConfirm();
@@ -219,11 +218,40 @@ export function DeleteLoanAlert({ isOpen, setIsOpen, onConfirm, employeeName }: 
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Hapus data pinjaman?</AlertDialogTitle>
-                    <AlertDialogDescription>Tindakan ini tidak dapat dibatalkan.</AlertDialogDescription>
+                    <AlertDialogDescription>Tindakan ini tidak dapat dibatalkan. Catatan pinjaman akan dihapus permanen.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Batal</AlertDialogCancel>
                     <AlertDialogAction onClick={handleConfirm} className="bg-destructive hover:bg-destructive/90">Hapus</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+}
+
+export function RepayLoanAlert({ isOpen, setIsOpen, onConfirm, amount, employeeName }: { isOpen: boolean; setIsOpen: (o: boolean) => void; onConfirm: () => void; amount: number; employeeName: string }) {
+    const { toast } = useToast();
+    const handleConfirm = () => {
+        onConfirm();
+        setIsOpen(false);
+        toast({ title: "Pelunasan Dicatat", description: `Hutang ${employeeName} telah ditandai lunas.` });
+    }
+    const formatCurrency = (val: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(val);
+
+    return (
+        <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Konfirmasi Pelunasan Manual</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Apakah Anda yakin ingin menandai pinjaman sebesar <strong>{formatCurrency(amount)}</strong> untuk <strong>{employeeName}</strong> sebagai <strong>LUNAS</strong>?
+                        <br/><br/>
+                        Gunakan fitur ini jika karyawan membayar hutangnya secara tunai atau transfer di luar sistem penggajian. Pinjaman ini tidak akan dipotong lagi saat gajian nanti.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirm}>Tandai Lunas</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
