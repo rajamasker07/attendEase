@@ -1,3 +1,4 @@
+
 export interface PaymentAccount {
   provider: string;
   accountNumber: string;
@@ -10,6 +11,7 @@ export interface Employee {
   joinDate: string; // YYYY-MM-DD
   phone: string;
   salary: number;
+  loanLimit?: number; // Optional loan limit, defaults to base salary
   status: 'aktif' | 'tidak aktif';
   paymentAccounts?: PaymentAccount[];
 }
@@ -26,6 +28,15 @@ export interface AbsenceRecord {
   date: string; // YYYY-MM-DD
   status: 'sakit' | 'izin' | 'alpa';
   notes?: string;
+}
+
+export interface Loan {
+  employeeId: string;
+  date: string; // YYYY-MM-DD
+  amount: number;
+  description: string;
+  status: 'active' | 'paid';
+  payslipId?: string; // which payslip paid this loan
 }
 
 export interface Sanction {
@@ -63,6 +74,13 @@ export interface PayslipBonusDetail {
   description?: string;
 }
 
+export interface PayslipLoanDetail {
+  loanId: string;
+  amount: number;
+  description: string;
+  date: string;
+}
+
 export interface Payslip {
   employeeId: string;
   employeeName: string;
@@ -76,6 +94,8 @@ export interface Payslip {
   sanctionCount: number;
   sanctionDeduction: number;
   sanctions: PayslipSanctionDetail[];
+  loanDeduction?: number;
+  loanDetails?: PayslipLoanDetail[];
   netSalary: number;
   paidAmount: number;
   remainingAmount: number;

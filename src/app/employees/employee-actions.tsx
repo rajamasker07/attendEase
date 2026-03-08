@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -55,6 +56,7 @@ const employeeSchema = z.object({
   joinDate: z.string().min(1, "Tanggal masuk harus diisi."),
   phone: z.string().min(10, "Nomor HP minimal 10 digit.").regex(/^\+?[0-9\s-]{10,}$/, "Format nomor HP tidak valid."),
   salary: z.coerce.number().min(0, "Gaji tidak boleh negatif."),
+  loanLimit: z.coerce.number().min(0, "Limit pinjaman tidak boleh negatif.").optional(),
   status: z.enum(['aktif', 'tidak aktif']).default('aktif'),
   paymentAccounts: z.array(paymentAccountSchema).optional(),
 });
@@ -88,6 +90,7 @@ export function EmployeeFormDialog({
       position: "", 
       phone: "", 
       salary: 0, 
+      loanLimit: 0,
       joinDate: "", 
       status: "aktif",
       paymentAccounts: [],
@@ -107,6 +110,7 @@ export function EmployeeFormDialog({
         joinDate: employee.joinDate || format(new Date(), "yyyy-MM-dd"),
         phone: employee.phone || "",
         salary: employee.salary || 0,
+        loanLimit: employee.loanLimit || employee.salary || 0,
         status: employee.status || "aktif",
         paymentAccounts: employee.paymentAccounts || [],
       });
@@ -116,6 +120,7 @@ export function EmployeeFormDialog({
         position: "", 
         phone: "", 
         salary: 0, 
+        loanLimit: 0,
         joinDate: format(new Date(), "yyyy-MM-dd"), 
         status: "aktif",
         paymentAccounts: [],
@@ -203,7 +208,7 @@ export function EmployeeFormDialog({
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="salary" className="text-right">
-                    Gaji
+                    Gaji Pokok
                   </Label>
                   <div className="col-span-3">
                     <Controller
@@ -219,6 +224,27 @@ export function EmployeeFormDialog({
                       )}
                     />
                     {errors.salary && <p className="text-destructive text-sm mt-1">{errors.salary.message}</p>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="loanLimit" className="text-right">
+                    Limit Hutang
+                  </Label>
+                  <div className="col-span-3">
+                    <Controller
+                      name="loanLimit"
+                      control={control}
+                      render={({ field }) => (
+                        <CurrencyInput
+                          id="loanLimit"
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          onBlur={field.onBlur}
+                          placeholder="Default: Gaji Pokok"
+                        />
+                      )}
+                    />
+                    <p className="text-[10px] text-muted-foreground mt-1">Kosongkan jika ingin mengikuti gaji pokok.</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -443,8 +469,12 @@ export function EmployeeDetailDialog({
                 <div className="col-span-2">{employee.phone || '-'}</div>
               </div>
               <div className="grid grid-cols-3 items-center gap-4">
-                <Label className="text-right text-muted-foreground">Gaji</Label>
+                <Label className="text-right text-muted-foreground">Gaji Pokok</Label>
                 <div className="col-span-2">{typeof employee.salary === 'number' ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(employee.salary) : '-'}</div>
+              </div>
+              <div className="grid grid-cols-3 items-center gap-4">
+                <Label className="text-right text-muted-foreground">Limit Hutang</Label>
+                <div className="col-span-2">{typeof employee.loanLimit === 'number' ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(employee.loanLimit) : (typeof employee.salary === 'number' ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(employee.salary) : '-')}</div>
               </div>
               <div className="grid grid-cols-3 items-center gap-4">
                 <Label className="text-right text-muted-foreground">Status</Label>

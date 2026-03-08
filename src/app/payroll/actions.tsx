@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -31,7 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase, WithId } from "@/firebase";
-import type { Employee, AttendanceRecord, Payroll, Payslip, Sanction, Bonus, PayslipSanctionDetail, PayslipBonusDetail, AbsenceRecord, Savings, SavingsTransaction, Setting } from "@/types";
+import type { Employee, AttendanceRecord, Payroll, Payslip, Sanction, Bonus, PayslipSanctionDetail, PayslipBonusDetail, AbsenceRecord, Savings, SavingsTransaction, Setting, Loan, PayslipLoanDetail } from "@/types";
 import { useRouter } from "next/navigation";
 import {
   collection,
@@ -43,6 +44,7 @@ import {
   getDoc,
   runTransaction,
   Firestore,
+  writeBatch,
 } from "firebase/firestore";
 import {
   format,
@@ -156,6 +158,10 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
         where("date", ">=", startDateString),
         where("date", "<=", endDateString)
       );
+      const loansQuery = query(
+        collection(firestore, "loans"),
+        where("status", "==", "active")
+      );
       const settingsRef = doc(firestore, "settings", "payroll");
 
       const [
@@ -163,12 +169,14 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
           sanctionsSnap, 
           bonusesSnap, 
           absencesSnap, 
+          loansSnap,
           settingsSnap
       ] = await Promise.all([
           getDocs(attendanceQuery),
           getDocs(sanctionsQuery),
           getDocs(bonusesQuery),
           getDocs(absencesQuery),
+          getDocs(loansQuery),
           getDoc(settingsRef)
       ]);
       
@@ -176,7 +184,9 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
       const periodSanctions = sanctionsSnap.docs.map((d) => d.data() as Sanction);
       const periodBonuses = bonusesSnap.docs.map((d) => d.data() as Bonus);
       const periodAbsences = absencesSnap.docs.map((d) => d.data() as AbsenceRecord);
+      const activeLoans = loansSnap.docs.map(d => ({ ...d.data() as Loan, id: d.id }));
       const settings = settingsSnap.exists() ? settingsSnap.data() as Setting : {};
+      
       const LATE_DEDUCTION_AMOUNT = settings?.lateDeductionAmount ?? 10000;
       const DEDUCT_UNPAID_ABSENCE = settings?.deductUnpaidAbsence ?? false;
       const LATE_THRESHOLD_TIME = settings?.lateThresholdTime ?? "07:35";
@@ -221,6 +231,13 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
             type: b.type, date: b.date, amount: b.amount, description: b.description
         }));
 
+        // Loan deductions (Active loans only)
+        const employeeLoans = activeLoans.filter(l => l.employeeId === employee.id);
+        const loanDeduction = employeeLoans.reduce((total, l) => total + l.amount, 0);
+        const loanDetails: PayslipLoanDetail[] = employeeLoans.map(l => ({
+            loanId: l.id, amount: l.amount, description: l.description, date: l.date
+        }));
+
         // Unpaid absence deduction
         let unpaidAbsenceCount = 0;
         let unpaidAbsenceDeduction = 0;
@@ -232,7 +249,7 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
         }
 
         // Net salary calculation
-        const netSalary = (employee.salary || 0) + bonusTotal - lateDeduction - sanctionDeduction - unpaidAbsenceDeduction;
+        const netSalary = (employee.salary || 0) + bonusTotal - lateDeduction - sanctionDeduction - unpaidAbsenceDeduction - loanDeduction;
 
         const newPayslipData: Payslip = {
           employeeId: employee.id,
@@ -247,6 +264,8 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
           sanctionCount,
           sanctionDeduction,
           sanctions: sanctionDetails,
+          loanDeduction,
+          loanDetails,
           netSalary,
           paidAmount: 0,
           remainingAmount: netSalary,
@@ -354,7 +373,7 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
         setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
     }
 
-    const totalDeductions = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction;
+    const totalDeductions = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction + (payslip.loanDeduction || 0);
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -416,6 +435,25 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
                       </div>
                     )}
                     
+                    {(payslip.loanDeduction || 0) > 0 && (
+                      <div>
+                        <div className="flex justify-between items-center">
+                            <p className="text-muted-foreground">Potongan Pinjaman/Kasbon</p>
+                            <span className="font-medium text-destructive">
+                                - {formatCurrency(payslip.loanDeduction || 0)}
+                            </span>
+                        </div>
+                        <div className="pl-2 mt-1 text-xs text-muted-foreground space-y-1">
+                            {payslip.loanDetails?.map((l, index) => (
+                                <div key={index} className="flex justify-between items-center">
+                                    <span className="pr-2">- {l.description} ({format(parseISO(l.date), "d MMM", { locale: localeId })})</span>
+                                    <span>{formatCurrency(l.amount)}</span>
+                                </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
                     {payslip.sanctionDeduction > 0 && (
                       <div>
                         <div className="flex justify-between items-center">
@@ -606,6 +644,25 @@ export function DeletePayrollAlert({ isOpen, setIsOpen, onConfirm, payrollPeriod
     );
 }
 
+export async function finalizePayroll(firestore: Firestore, payrollId: string, payslips: WithId<Payslip>[]) {
+    const payrollRef = doc(firestore, "payrolls", payrollId);
+    
+    await runTransaction(firestore, async (transaction) => {
+        // 1. Mark payroll as finalized
+        transaction.update(payrollRef, { status: "finalized" });
+
+        // 2. Mark all deducted loans as paid
+        for (const payslip of payslips) {
+            if (payslip.loanDetails && payslip.loanDetails.length > 0) {
+                for (const loanDetail of payslip.loanDetails) {
+                    const loanRef = doc(firestore, "loans", loanDetail.loanId);
+                    transaction.update(loanRef, { status: 'paid', payslipId: payslip.id });
+                }
+            }
+        }
+    });
+}
+
 export async function storeRemainingSavings(
   firestore: Firestore,
   payslip: WithId<Payslip>,
@@ -688,5 +745,3 @@ export function StoreSavingsAlert({ isOpen, setIsOpen, onConfirm, payslip }: Sto
         </AlertDialog>
     );
 }
-
-    

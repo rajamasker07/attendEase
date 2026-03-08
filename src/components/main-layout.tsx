@@ -1,3 +1,4 @@
+
 "use client"
 import {
   SidebarProvider,
@@ -11,7 +12,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Home, Users, BookText, DollarSign, AlertTriangle, Settings, LogOut, CalendarDays, Star, Wallet } from "lucide-react"
+import { Home, Users, BookText, DollarSign, AlertTriangle, Settings, LogOut, CalendarDays, Star, Wallet, HandCoins } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -37,6 +38,8 @@ function PageHeader() {
     title = "Laporan Kehadiran";
   } else if (pathname.startsWith("/payroll")) {
     title = "Penggajian";
+  } else if (pathname.startsWith("/loans")) {
+    title = "Hutang & Kasbon";
   } else if (pathname.startsWith("/sanctions")) {
     title = "Manajemen Sanksi";
   } else if (pathname.startsWith("/bonuses")) {
@@ -136,6 +139,14 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 <SidebarMenuButton isActive={pathname.startsWith("/payroll")} tooltip="Penggajian">
                   <DollarSign />
                   <span className="group-data-[state=collapsed]:hidden">Penggajian</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/loans">
+                <SidebarMenuButton isActive={pathname.startsWith("/loans")} tooltip="Kasbon">
+                  <HandCoins />
+                  <span className="group-data-[state=collapsed]:hidden">Hutang & Kasbon</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>

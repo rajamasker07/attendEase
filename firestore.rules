@@ -23,6 +23,11 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
+    // Koleksi Hutang/Pinjaman: Hanya Admin yang bisa baca dan tulis
+    match /loans/{loanId} {
+      allow read, write: if isSignedIn();
+    }
+
     // Koleksi Sanksi: Hanya Admin yang bisa baca dan tulis
     match /sanctions/{sanctionId} {
       allow read, write: if isSignedIn();

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams } from "next/navigation";
@@ -26,7 +27,7 @@ function PayslipPageContent({
       minimumFractionDigits: 0,
     }).format(amount);
 
-  const totalDeductions = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction;
+  const totalDeductions = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction + (payslip.loanDeduction || 0);
   const totalIncome = payslip.baseSalary + payslip.bonusTotal;
 
   return (
@@ -102,6 +103,24 @@ function PayslipPageContent({
               <p className="font-medium text-destructive">
                 - {formatCurrency(payslip.lateDeduction)}
               </p>
+            </div>
+          )}
+          {(payslip.loanDeduction || 0) > 0 && (
+            <div className="border-t py-2">
+              <div className="flex justify-between">
+                <p>Potongan Pinjaman/Kasbon</p>
+                <p className="font-medium text-destructive">
+                  - {formatCurrency(payslip.loanDeduction || 0)}
+                </p>
+              </div>
+              <div className="pl-4 mt-1 space-y-1 text-sm text-muted-foreground">
+                {payslip.loanDetails?.map((l, index) => (
+                  <div key={index} className="flex justify-between">
+                    <span className="pr-4">- {l.description} ({format(parseISO(l.date), "d MMM yyyy", { locale: id })})</span>
+                    <span>{formatCurrency(l.amount)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           {payslip.sanctionDeduction > 0 && (

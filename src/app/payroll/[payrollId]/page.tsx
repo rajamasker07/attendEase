@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -27,7 +28,7 @@ import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PayslipDetailDialog, RecordPaymentDialog, StoreSavingsAlert, storeRemainingSavings } from "../actions";
+import { PayslipDetailDialog, RecordPaymentDialog, StoreSavingsAlert, storeRemainingSavings, finalizePayroll } from "../actions";
 import { useToast } from "@/hooks/use-toast";
 
 export default function PayrollDetailPage() {
@@ -107,13 +108,17 @@ export default function PayrollDetailPage() {
     setDocumentNonBlocking(docRef, updateData, { merge: true });
   };
   
-  const handleFinalize = () => {
-    if (!payrollDocRef) return;
-    setDocumentNonBlocking(payrollDocRef, { status: "finalized" }, { merge: true });
-    toast({
-        title: "Penggajian Diselesaikan",
-        description: `Periode penggajian ${payroll ? format(parseISO(payroll.period), "MMMM yyyy", { locale: id }) : ''} telah diselesaikan.`,
-    });
+  const handleFinalize = async () => {
+    if (!firestore || !payrollId || !payslips) return;
+    try {
+        await finalizePayroll(firestore, payrollId, payslips);
+        toast({
+            title: "Penggajian Diselesaikan",
+            description: `Periode penggajian ${payroll ? format(parseISO(payroll.period), "MMMM yyyy", { locale: id }) : ''} telah diselesaikan dan hutang telah ditandai lunas.`,
+        });
+    } catch (e: any) {
+        toast({ title: "Gagal Finalisasi", description: e.message, variant: "destructive" });
+    }
   }
 
   const totals = useMemo(() => {
@@ -121,7 +126,7 @@ export default function PayrollDetailPage() {
     return payslips.reduce((acc, p) => ({
         base: acc.base + p.baseSalary,
         bonus: acc.bonus + p.bonusTotal,
-        deduction: acc.deduction + p.lateDeduction + p.sanctionDeduction + p.unpaidAbsenceDeduction,
+        deduction: acc.deduction + p.lateDeduction + p.sanctionDeduction + p.unpaidAbsenceDeduction + (p.loanDeduction || 0),
         net: acc.net + p.netSalary,
         paid: acc.paid + p.paidAmount,
         remaining: acc.remaining + p.remainingAmount,

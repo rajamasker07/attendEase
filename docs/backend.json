@@ -34,6 +34,10 @@
           "type": "number",
           "description": "The employee's monthly salary."
         },
+        "loanLimit": {
+          "type": "number",
+          "description": "The maximum amount of debt the employee can have. Defaults to their monthly salary if not set."
+        },
         "status": {
           "type": "string",
           "description": "The employment status of the employee.",
@@ -77,6 +81,40 @@
         "salary",
         "status"
       ]
+    },
+    "Loan": {
+      "title": "Loan",
+      "description": "Represents a salary advance or loan taken by an employee.",
+      "type": "object",
+      "properties": {
+        "employeeId": {
+          "type": "string",
+          "description": "Reference to the Employee."
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "The date the loan was taken."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount of the loan."
+        },
+        "description": {
+          "type": "string",
+          "description": "Reason or description for the loan."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "paid"],
+          "description": "The current status of the loan."
+        },
+        "payslipId": {
+          "type": "string",
+          "description": "Reference to the payslip where this loan was deducted."
+        }
+      },
+      "required": ["employeeId", "date", "amount", "status"]
     },
     "AttendanceRecord": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -269,6 +307,23 @@
               "date",
               "deduction"
             ]
+          }
+        },
+        "loanDeduction": {
+          "type": "number",
+          "description": "Total amount of loans deducted from this payslip."
+        },
+        "loanDetails": {
+          "type": "array",
+          "description": "Details of loans deducted.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "loanId": { "type": "string" },
+              "amount": { "type": "number" },
+              "description": { "type": "string" },
+              "date": { "type": "string", "format": "date" }
+            }
           }
         },
         "netSalary": {
@@ -516,6 +571,16 @@
             "$ref": "#/backend/entities/AbsenceRecord"
           },
           "description": "Stores all employee absence records."
+        }
+      },
+      {
+        "path": "/loans/{loanId}",
+        "definition": {
+          "entityName": "Loan",
+          "schema": {
+            "$ref": "#/backend/entities/Loan"
+          },
+          "description": "Stores all salary advances/loans for employees."
         }
       },
       {
