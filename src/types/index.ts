@@ -36,6 +36,7 @@ export interface Loan {
   amount: number;
   description: string;
   status: 'active' | 'paid';
+  repaidAt?: string; // ISO String - When the loan was settled
   payslipId?: string; // which payslip paid this loan
 }
 

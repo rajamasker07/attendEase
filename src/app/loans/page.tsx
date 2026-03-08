@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -27,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Loan, Employee } from "@/types";
-import { PlusCircle, Edit, Trash2, CheckCircle } from "lucide-react";
+import { PlusCircle, Edit, Trash2, CheckCircle, Calendar } from "lucide-react";
 import { LoanFormDialog, DeleteLoanAlert, RepayLoanAlert, type LoanFormData } from "./actions";
 import { useCollection, useFirebase, WithId, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, useMemoFirebase } from "@/firebase";
 import { collection, doc, query, orderBy } from "firebase/firestore";
@@ -67,7 +68,6 @@ export default function LoansPage() {
     return new Map(employees.map(e => [e.id, e]));
   }, [employees]);
 
-  // Calculate current active debt per employee for limit checks
   const currentActiveLoans = useMemo(() => {
     const map = new Map<string, number>();
     loans?.filter(l => l.status === 'active').forEach(loan => {
@@ -148,7 +148,10 @@ export default function LoansPage() {
   const confirmRepay = () => {
     if (selectedLoan && firestore) {
         const docRef = doc(firestore, "loans", selectedLoan.id);
-        updateDocumentNonBlocking(docRef, { status: 'paid' });
+        updateDocumentNonBlocking(docRef, { 
+          status: 'paid',
+          repaidAt: new Date().toISOString()
+        });
     }
   }
 
@@ -237,10 +240,11 @@ export default function LoansPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Karyawan</TableHead>
-                  <TableHead>Tanggal</TableHead>
+                  <TableHead>Tanggal Pinjam</TableHead>
                   <TableHead>Keterangan</TableHead>
                   <TableHead>Jumlah</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Pelunasan</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
@@ -259,8 +263,16 @@ export default function LoansPage() {
                           {loan.status === 'active' ? 'Belum Bayar' : 'Lunas'}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        {loan.repaidAt ? (
+                          <div className="flex items-center text-xs text-muted-foreground">
+                            <Calendar className="mr-1 h-3 w-3" />
+                            {format(parseISO(loan.repaidAt), "d MMM yyyy", { locale: id })}
+                          </div>
+                        ) : '-'}
+                      </TableCell>
                       <TableCell className="text-right">
-                        {loan.status === 'active' && (
+                        {loan.status === 'active' ? (
                             <div className="flex justify-end space-x-1">
                                 <TooltipProvider>
                                     <Tooltip>
@@ -280,13 +292,17 @@ export default function LoansPage() {
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
                             </div>
+                        ) : (
+                           <Button variant="ghost" size="icon" onClick={() => handleDelete(loan)}>
+                                <Trash2 className="h-4 w-4 text-destructive opacity-50" />
+                            </Button>
                         )}
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">Tidak ada data pinjaman.</TableCell>
+                    <TableCell colSpan={7} className="h-24 text-center">Tidak ada data pinjaman.</TableCell>
                   </TableRow>
                 )}
               </TableBody>

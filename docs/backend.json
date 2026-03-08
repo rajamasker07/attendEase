@@ -109,6 +109,11 @@
           "enum": ["active", "paid"],
           "description": "The current status of the loan."
         },
+        "repaidAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the loan was settled."
+        },
         "payslipId": {
           "type": "string",
           "description": "Reference to the payslip where this loan was deducted."

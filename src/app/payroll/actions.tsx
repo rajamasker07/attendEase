@@ -656,7 +656,11 @@ export async function finalizePayroll(firestore: Firestore, payrollId: string, p
             if (payslip.loanDetails && payslip.loanDetails.length > 0) {
                 for (const loanDetail of payslip.loanDetails) {
                     const loanRef = doc(firestore, "loans", loanDetail.loanId);
-                    transaction.update(loanRef, { status: 'paid', payslipId: payslip.id });
+                    transaction.update(loanRef, { 
+                      status: 'paid', 
+                      repaidAt: new Date().toISOString(),
+                      payslipId: payslip.id 
+                    });
                 }
             }
         }
