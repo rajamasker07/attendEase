@@ -116,11 +116,20 @@
         "repaidAt": {
           "type": "string",
           "format": "date-time",
-          "description": "The timestamp when the loan was settled."
+          "description": "The timestamp when the loan was fully settled."
         },
-        "payslipId": {
-          "type": "string",
-          "description": "Reference to the latest payslip where this loan was partially or fully deducted."
+        "payments": {
+          "type": "array",
+          "description": "History of payments/deductions for this loan.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": { "type": "string", "format": "date-time" },
+              "amount": { "type": "number" },
+              "method": { "type": "string", "enum": ["payroll", "manual"] },
+              "description": { "type": "string" }
+            }
+          }
         }
       },
       "required": ["employeeId", "date", "amount", "status"]

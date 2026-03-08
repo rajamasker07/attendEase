@@ -32,7 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useFirebase, WithId } from "@/firebase";
-import type { Employee, AttendanceRecord, Payroll, Payslip, Sanction, Bonus, PayslipSanctionDetail, PayslipBonusDetail, AbsenceRecord, Savings, SavingsTransaction, Setting, Loan, PayslipLoanDetail } from "@/types";
+import type { Employee, AttendanceRecord, Payroll, Payslip, Sanction, Bonus, PayslipSanctionDetail, PayslipBonusDetail, AbsenceRecord, Savings, SavingsTransaction, Setting, Loan, PayslipLoanDetail, LoanPayment } from "@/types";
 import { useRouter } from "next/navigation";
 import {
   collection,
@@ -45,6 +45,7 @@ import {
   runTransaction,
   Firestore,
   writeBatch,
+  arrayUnion,
 } from "firebase/firestore";
 import {
   format,
@@ -578,7 +579,7 @@ export function RecordPaymentDialog({ isOpen, setIsOpen, payslip, onSave }: Reco
     onSave(payslip.id, data.amount);
     toast({
       title: "Pembayaran Dicatat",
-      description: `Pembayaran untuk ${payslip.employeeName} telah dicatat.`,
+      description: `Pembayaran for ${payslip.employeeName} telah dicatat.`,
     });
     setIsOpen(false);
   };
@@ -687,11 +688,19 @@ export async function finalizePayroll(firestore: Firestore, payrollId: string, p
                         const currentRemaining = loanData.remainingAmount ?? loanData.amount;
                         const newRemaining = Math.max(0, currentRemaining - loanDetail.amount);
                         
+                        const paymentRecord: LoanPayment = {
+                          date: new Date().toISOString(),
+                          amount: loanDetail.amount,
+                          method: 'payroll',
+                          description: `Potongan dari Gaji Periode ${format(new Date(), 'yyyy-MM')}`
+                        };
+
                         transaction.update(loanRef, { 
                           remainingAmount: newRemaining,
                           status: newRemaining <= 0 ? 'paid' : 'active', 
-                          repaidAt: new Date().toISOString(),
-                          payslipId: payslip.id 
+                          repaidAt: newRemaining <= 0 ? new Date().toISOString() : null,
+                          payslipId: payslip.id,
+                          payments: arrayUnion(paymentRecord)
                         });
                     }
                 }

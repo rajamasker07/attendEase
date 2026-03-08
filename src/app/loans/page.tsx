@@ -27,11 +27,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Loan, Employee } from "@/types";
-import { PlusCircle, Edit, Trash2, CheckCircle, Calendar } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import type { Loan, Employee, LoanPayment } from "@/types";
+import { PlusCircle, Edit, Trash2, CheckCircle, Calendar, ArrowRight, Wallet } from "lucide-react";
 import { LoanFormDialog, DeleteLoanAlert, RepayLoanAlert, type LoanFormData } from "./actions";
 import { useCollection, useFirebase, WithId, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, useMemoFirebase } from "@/firebase";
-import { collection, doc, query, orderBy } from "firebase/firestore";
+import { collection, doc, query, orderBy, arrayUnion } from "firebase/firestore";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,6 +43,42 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+
+function LoanPaymentHistory({ payments }: { payments?: LoanPayment[] }) {
+    const formatCurrency = (amount: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
+
+    if (!payments || payments.length === 0) {
+        return <p className="text-xs text-muted-foreground p-4 italic">Belum ada riwayat pembayaran untuk pinjaman ini.</p>;
+    }
+
+    return (
+        <div className="p-4 bg-muted/30 rounded-md mt-2">
+            <h4 className="text-xs font-bold uppercase mb-2 text-muted-foreground tracking-wider">Riwayat Pelunasan Detail</h4>
+            <Table>
+                <TableHeader>
+                    <TableRow className="hover:bg-transparent border-none">
+                        <TableHead className="h-8 text-[10px]">Tanggal</TableHead>
+                        <TableHead className="h-8 text-[10px]">Metode</TableHead>
+                        <TableHead className="h-8 text-[10px]">Keterangan</TableHead>
+                        <TableHead className="h-8 text-[10px] text-right">Jumlah</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {payments.map((p, i) => (
+                        <TableRow key={i} className="hover:bg-transparent border-muted/50">
+                            <TableCell className="py-2 text-xs">{format(parseISO(p.date), "d MMM yyyy", { locale: id })}</TableCell>
+                            <TableCell className="py-2 text-xs">
+                                <Badge variant="outline" className="text-[10px] h-5 capitalize">{p.method === 'payroll' ? 'Potong Gaji' : 'Tunai/Manual'}</Badge>
+                            </TableCell>
+                            <TableCell className="py-2 text-xs">{p.description}</TableCell>
+                            <TableCell className="py-2 text-xs text-right font-medium text-green-600">{formatCurrency(p.amount)}</TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
+    );
+}
 
 export default function LoansPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -131,20 +168,21 @@ export default function LoansPage() {
     if (!firestore) return;
     if (selectedLoan) {
       const docRef = doc(firestore, "loans", selectedLoan.id);
-      // If amount changes, reset remainingAmount to the new amount
-      const updatedData = { 
+      // If basic info changes, we don't reset everything, just info.
+      // But if amount changes, it's tricky. For MVP, we assume amount edit only for corrections.
+      setDocumentNonBlocking(docRef, { 
         ...loanData, 
-        remainingAmount: loanData.amount,
+        remainingAmount: loanData.amount, // Reset remaining if initial amount is corrected
         status: selectedLoan.status 
-      };
-      setDocumentNonBlocking(docRef, updatedData, { merge: true });
+      }, { merge: true });
     } else {
       const newId = doc(collection(firestore, "loans")).id;
       const docRef = doc(firestore, "loans", newId);
       setDocumentNonBlocking(docRef, { 
         ...loanData, 
         remainingAmount: loanData.amount,
-        status: 'active' 
+        status: 'active',
+        payments: []
       }, {});
     }
   };
@@ -159,10 +197,20 @@ export default function LoansPage() {
   const confirmRepay = () => {
     if (selectedLoan && firestore) {
         const docRef = doc(firestore, "loans", selectedLoan.id);
+        const amountToPay = selectedLoan.remainingAmount ?? selectedLoan.amount;
+        
+        const paymentRecord: LoanPayment = {
+            date: new Date().toISOString(),
+            amount: amountToPay,
+            method: 'manual',
+            description: 'Pelunasan manual (Tunai/Transfer)'
+        };
+
         updateDocumentNonBlocking(docRef, { 
           status: 'paid',
           remainingAmount: 0,
-          repaidAt: new Date().toISOString()
+          repaidAt: new Date().toISOString(),
+          payments: arrayUnion(paymentRecord)
         });
     }
   }
@@ -211,7 +259,7 @@ export default function LoansPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Daftar Kasbon Karyawan</CardTitle>
-            <CardDescription>Pinjaman ini akan dipotong otomatis saat gajian hingga lunas.</CardDescription>
+            <CardDescription>Klik baris untuk melihat rincian pembayaran parsial.</CardDescription>
           </div>
           <Button onClick={handleAdd}>
             <PlusCircle className="mr-2 h-4 w-4" /> Tambah Pinjaman
@@ -247,81 +295,79 @@ export default function LoansPage() {
                   </SelectContent>
               </Select>
           </div>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Karyawan</TableHead>
-                  <TableHead>Tanggal Pinjam</TableHead>
-                  <TableHead>Keterangan</TableHead>
-                  <TableHead>Pinjaman Awal</TableHead>
-                  <TableHead>Sisa Saldo</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Pelunasan Terakhir</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedLoans.length > 0 ? (
-                  paginatedLoans.map((loan) => (
-                    <TableRow key={loan.id}>
-                      <TableCell className="font-medium">
-                        {employeeMap.get(loan.employeeId)?.name || 'Karyawan Dihapus'}
-                      </TableCell>
-                      <TableCell>{format(parseISO(loan.date), "d MMM yyyy", { locale: id })}</TableCell>
-                      <TableCell>{loan.description}</TableCell>
-                      <TableCell className="text-muted-foreground">{formatCurrency(loan.amount)}</TableCell>
-                      <TableCell className="font-bold">{formatCurrency(loan.remainingAmount ?? loan.amount)}</TableCell>
-                      <TableCell>
-                        <Badge variant={loan.status === 'active' ? 'destructive' : 'default'}>
-                          {loan.status === 'active' ? 'Belum Lunas' : 'Lunas'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {loan.repaidAt ? (
-                          <div className="flex items-center text-xs text-muted-foreground">
-                            <Calendar className="mr-1 h-3 w-3" />
-                            {format(parseISO(loan.repaidAt), "d MMM yyyy", { locale: id })}
-                          </div>
-                        ) : '-'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {loan.status === 'active' ? (
-                            <div className="flex justify-end space-x-1">
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button variant="ghost" size="icon" onClick={() => handleRepay(loan)} className="text-green-600 hover:text-green-700 hover:bg-green-50">
-                                                <CheckCircle className="h-4 w-4" />
+
+          <Accordion type="single" collapsible className="w-full space-y-2">
+            {paginatedLoans.length > 0 ? (
+                paginatedLoans.map((loan) => (
+                    <Card key={loan.id} className="overflow-hidden border-muted">
+                        <AccordionItem value={loan.id} className="border-none">
+                            <AccordionTrigger className="p-4 hover:no-underline hover:bg-muted/30">
+                                <div className="flex w-full items-center justify-between text-left">
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1 items-center">
+                                        <div className="space-y-1">
+                                            <p className="font-semibold leading-none">{employeeMap.get(loan.employeeId)?.name || 'Karyawan Dihapus'}</p>
+                                            <p className="text-xs text-muted-foreground">{format(parseISO(loan.date), "d MMM yyyy", { locale: id })}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm line-clamp-1">{loan.description}</p>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center text-xs text-muted-foreground">
+                                                <span>{formatCurrency(loan.amount)}</span>
+                                                <ArrowRight className="h-3 w-3 mx-1" />
+                                                <span className="font-bold text-foreground">{formatCurrency(loan.remainingAmount ?? loan.amount)}</span>
+                                            </div>
+                                            <div className="w-24 mt-1 bg-muted rounded-full h-1.5 overflow-hidden">
+                                                <div 
+                                                    className="bg-primary h-full transition-all" 
+                                                    style={{ width: `${Math.min(100, (1 - ((loan.remainingAmount ?? loan.amount) / loan.amount)) * 100)}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <Badge variant={loan.status === 'active' ? 'destructive' : 'default'} className="h-5 text-[10px]">
+                                                {loan.status === 'active' ? 'Belum Lunas' : 'Lunas'}
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center pr-2" onClick={(e) => e.stopPropagation()}>
+                                        {loan.status === 'active' ? (
+                                            <div className="flex space-x-1">
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button variant="ghost" size="icon" onClick={() => handleRepay(loan)} className="text-green-600 hover:text-green-700 hover:bg-green-50 h-8 w-8">
+                                                                <CheckCircle className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>Tandai Lunas Manual (Tunai)</TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(loan)} className="h-8 w-8">
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleDelete(loan)} className="h-8 w-8 text-destructive">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <Button variant="ghost" size="icon" onClick={() => handleDelete(loan)} className="h-8 w-8 text-destructive opacity-50">
+                                                <Trash2 className="h-4 w-4" />
                                             </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Tandai Lunas Manual (Tunai)</TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                                
-                                <Button variant="ghost" size="icon" onClick={() => handleEdit(loan)}>
-                                    <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" onClick={() => handleDelete(loan)}>
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                            </div>
-                        ) : (
-                           <Button variant="ghost" size="icon" onClick={() => handleDelete(loan)}>
-                                <Trash2 className="h-4 w-4 text-destructive opacity-50" />
-                            </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center">Tidak ada data pinjaman.</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <LoanPaymentHistory payments={loan.payments} />
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Card>
+                ))
+            ) : (
+                <div className="text-center py-10 border rounded-lg border-dashed text-muted-foreground">Tidak ada data pinjaman.</div>
+            )}
+          </Accordion>
         </CardContent>
         <CardFooter className="flex items-center justify-between">
             <div className="text-sm text-muted-foreground">Menampilkan {paginatedLoans.length} dari {filteredLoans.length} data.</div>

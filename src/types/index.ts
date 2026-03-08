@@ -30,6 +30,13 @@ export interface AbsenceRecord {
   notes?: string;
 }
 
+export interface LoanPayment {
+  date: string; // ISO String
+  amount: number;
+  method: 'payroll' | 'manual';
+  description: string;
+}
+
 export interface Loan {
   employeeId: string;
   date: string; // YYYY-MM-DD
@@ -37,8 +44,9 @@ export interface Loan {
   remainingAmount?: number; // Current unpaid balance
   description: string;
   status: 'active' | 'paid';
-  repaidAt?: string; // ISO String - When the loan was settled
-  payslipId?: string; // which payslip paid this loan
+  repaidAt?: string; // ISO String - When the loan was fully settled
+  payslipId?: string; // latest payslip that paid this loan
+  payments?: LoanPayment[]; // Payment history
 }
 
 export interface Sanction {
