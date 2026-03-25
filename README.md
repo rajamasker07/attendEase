@@ -1,4 +1,4 @@
-# AttendEase - Sistem Manajemen Absensi & Penggajian
+># AttendEase - Sistem Manajemen Absensi & Penggajian
 
 AttendEase adalah aplikasi web modern untuk mengelola kehadiran karyawan, sanksi, bonus, tabungan, dan penggajian secara otomatis.
 
