@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { FirebaseClientProvider } from '@/firebase';
 import { ConditionalLayout } from '@/components/conditional-layout';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: 'AttendEase',
@@ -26,6 +27,7 @@ export default function RootLayout({
           <ConditionalLayout>{children}</ConditionalLayout>
           <Toaster />
         </FirebaseClientProvider>
+        <Analytics />
       </body>
     </html>
   );
