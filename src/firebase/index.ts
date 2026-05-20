@@ -10,6 +10,9 @@ export function initializeFirebase() {
   if (!getApps().length) {
     // We explicitly pass the config object to initializeApp to ensure
     // the correct Firebase project is used, especially in development environments.
+    if (process.env.NODE_ENV === 'production') {
+      console.log(`[PROD] Firebase diinisialisasi untuk project: ${firebaseConfig.projectId}`);
+    }
     const firebaseApp = initializeApp(firebaseConfig);
     return getSdks(firebaseApp);
   }
