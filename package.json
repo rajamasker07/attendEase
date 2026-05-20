@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 9002",
+    "dev:emulator": "firebase emulators:exec --only auth,firestore \"next dev --turbopack -p 9002\"",
+    "emulator": "firebase emulators:start --only auth,firestore",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",

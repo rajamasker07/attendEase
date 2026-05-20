@@ -215,7 +215,7 @@ export default function PayrollDetailPage() {
                 <TableRow>
                   <TableHead>Nama Karyawan</TableHead>
                   <TableHead>Gaji Bersih</TableHead>
-                  <TableHead>Telah Dibayar</TableHead>
+                  <TableHead>Total Potongan</TableHead>
                   <TableHead>Sisa Gaji</TableHead>
                   <TableHead>Status Pembayaran</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
@@ -234,7 +234,9 @@ export default function PayrollDetailPage() {
                     </TableRow>
                   ))
                 ) : payslips && payslips.length > 0 ? (
-                  payslips.map((payslip) => (
+                  payslips.map((payslip) => {
+                    const totalDeduction = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction + (payslip.loanDeduction || 0);
+                    return (
                     <TableRow key={payslip.id}>
                       <TableCell className="font-medium">
                           <button onClick={() => handleViewDetails(payslip)} className="hover:underline">
@@ -242,7 +244,7 @@ export default function PayrollDetailPage() {
                           </button>
                       </TableCell>
                       <TableCell className="font-semibold">{formatCurrency(payslip.netSalary)}</TableCell>
-                      <TableCell className="text-green-600">{formatCurrency(payslip.paidAmount)}</TableCell>
+                      <TableCell className="text-destructive">{formatCurrency(totalDeduction)}</TableCell>
                       <TableCell className="text-destructive">{formatCurrency(payslip.remainingAmount)}</TableCell>
                       <TableCell>{getStatusBadge(payslip.paymentStatus)}</TableCell>
                       <TableCell className="text-right space-x-2">
@@ -261,7 +263,8 @@ export default function PayrollDetailPage() {
                         )}
                       </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 ) : (
                   <TableRow>
                     <TableCell colSpan={6} className="h-24 text-center">

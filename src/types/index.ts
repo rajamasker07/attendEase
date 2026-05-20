@@ -47,6 +47,11 @@ export interface Loan {
   repaidAt?: string; // ISO String - When the loan was fully settled
   payslipId?: string; // latest payslip that paid this loan
   payments?: LoanPayment[]; // Payment history
+  // Kredit fields (optional - backward compatible with existing kasbon data)
+  type?: 'kasbon' | 'kredit'; // defaults to 'kasbon' behavior if absent
+  installmentAmount?: number;  // Fixed monthly deduction (kredit only)
+  totalInstallments?: number;  // Agreed tenor in months (kredit only)
+  paidInstallments?: number;   // Number of installments already paid (kredit only)
 }
 
 export interface Sanction {
