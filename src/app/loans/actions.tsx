@@ -537,3 +537,106 @@ export function RepayLoanAlert({
     </AlertDialog>
   );
 }
+
+export function SkipInstallmentAlert({
+  isOpen,
+  setIsOpen,
+  onConfirm,
+  employeeName,
+  loanDescription,
+  skipMonth,
+}: {
+  isOpen: boolean;
+  setIsOpen: (o: boolean) => void;
+  onConfirm: () => void;
+  employeeName: string;
+  loanDescription: string;
+  skipMonth: string;
+}) {
+  const { toast } = useToast();
+  const handleConfirm = () => {
+    onConfirm();
+    setIsOpen(false);
+    toast({
+      title: "Cicilan Di-skip",
+      description: `Cicilan kredit "${loanDescription}" untuk ${employeeName} dilewatkan bulan ${skipMonth}.`,
+    });
+  };
+
+  return (
+    <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Skip Pemotongan Cicilan?</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-3">
+              <p>
+                Cicilan kredit <strong>&quot;{loanDescription}&quot;</strong> untuk{" "}
+                <strong>{employeeName}</strong> akan <strong>dilewatkan (tidak dipotong)</strong> pada periode gajian{" "}
+                <strong>{skipMonth}</strong>.
+              </p>
+              <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs space-y-1">
+                <p className="font-semibold text-amber-800 dark:text-amber-400">⚠ Dampak:</p>
+                <ul className="list-disc pl-4 text-amber-700 dark:text-amber-400 space-y-0.5">
+                  <li>Cicilan tidak akan dipotong dari gaji bulan ini</li>
+                  <li>Tenor tidak berubah — kredit akan lunas lebih lambat 1 bulan</li>
+                  <li>Skip hanya berlaku untuk bulan ini, bulan depan otomatis kembali normal</li>
+                </ul>
+              </div>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Batal</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirm} className="!bg-amber-600 hover:!bg-amber-700 !text-white">
+            Ya, Skip Bulan Ini
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+export function CancelSkipAlert({
+  isOpen,
+  setIsOpen,
+  onConfirm,
+  employeeName,
+  loanDescription,
+}: {
+  isOpen: boolean;
+  setIsOpen: (o: boolean) => void;
+  onConfirm: () => void;
+  employeeName: string;
+  loanDescription: string;
+}) {
+  const { toast } = useToast();
+  const handleConfirm = () => {
+    onConfirm();
+    setIsOpen(false);
+    toast({
+      title: "Skip Dibatalkan",
+      description: `Cicilan kredit "${loanDescription}" untuk ${employeeName} akan kembali dipotong bulan ini.`,
+    });
+  };
+
+  return (
+    <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Batalkan Skip Cicilan?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Cicilan kredit <strong>&quot;{loanDescription}&quot;</strong> untuk{" "}
+            <strong>{employeeName}</strong> akan <strong>kembali dipotong</strong> pada gajian bulan ini seperti biasa.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Batal</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirm}>
+            Ya, Batalkan Skip
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}

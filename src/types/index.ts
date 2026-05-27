@@ -52,6 +52,7 @@ export interface Loan {
   installmentAmount?: number;  // Fixed monthly deduction (kredit only)
   totalInstallments?: number;  // Agreed tenor in months (kredit only)
   paidInstallments?: number;   // Number of installments already paid (kredit only)
+  skipPeriod?: string;         // Format "YYYY-MM" — skip deduction for this payroll period (kredit only)
 }
 
 export interface Sanction {

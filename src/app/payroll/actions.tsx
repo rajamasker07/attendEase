@@ -260,6 +260,10 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
             const isKredit = loan.type === 'kredit';
 
             if (isKredit) {
+                // Check if this kredit is marked to skip this period
+                if (loan.skipPeriod === payrollPeriod) {
+                    continue; // Skip deduction — employee requested relief this month
+                }
                 // Kredit — Opsi B: only deduct if the full installment can be covered
                 const installment = Math.min(loan.installmentAmount ?? currentDebt, currentDebt);
                 if (availableForLoans < installment) {

@@ -28,8 +28,8 @@ import {
 } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { Loan, Employee, LoanPayment } from "@/types";
-import { PlusCircle, Edit, Trash2, CheckCircle, ArrowRight, CalendarClock } from "lucide-react";
-import { LoanFormDialog, DeleteLoanAlert, RepayLoanAlert, type LoanFormData } from "./actions";
+import { PlusCircle, Edit, Trash2, CheckCircle, ArrowRight, CalendarClock, SkipForward, Undo } from "lucide-react";
+import { LoanFormDialog, DeleteLoanAlert, RepayLoanAlert, SkipInstallmentAlert, CancelSkipAlert, type LoanFormData } from "./actions";
 import { useCollection, useFirebase, WithId, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, useMemoFirebase } from "@/firebase";
 import { collection, doc, query, orderBy, arrayUnion } from "firebase/firestore";
 import { format, parseISO } from "date-fns";
@@ -136,7 +136,12 @@ export default function LoansPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [isRepayAlertOpen, setIsRepayAlertOpen] = useState(false);
+  const [isSkipAlertOpen, setIsSkipAlertOpen] = useState(false);
+  const [isCancelSkipAlertOpen, setIsCancelSkipAlertOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<WithId<Loan> | null>(null);
+
+  const currentPeriod = format(new Date(), "yyyy-MM");
+  const currentMonthLabel = format(new Date(), "MMMM yyyy", { locale: id });
 
   const [searchTerm, setSearchTerm] = useState("");
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
@@ -244,6 +249,34 @@ export default function LoansPage() {
   const handleRepay = (loan: WithId<Loan>) => {
     setSelectedLoan(loan);
     setIsRepayAlertOpen(true);
+  };
+
+  const handleSkip = (loan: WithId<Loan>) => {
+    setSelectedLoan(loan);
+    setIsSkipAlertOpen(true);
+  };
+
+  const handleCancelSkip = (loan: WithId<Loan>) => {
+    setSelectedLoan(loan);
+    setIsCancelSkipAlertOpen(true);
+  };
+
+  const confirmSkip = () => {
+    if (selectedLoan && firestore) {
+      const docRef = doc(firestore, "loans", selectedLoan.id);
+      updateDocumentNonBlocking(docRef, {
+        skipPeriod: currentPeriod,
+      });
+    }
+  };
+
+  const confirmCancelSkip = () => {
+    if (selectedLoan && firestore) {
+      const docRef = doc(firestore, "loans", selectedLoan.id);
+      updateDocumentNonBlocking(docRef, {
+        skipPeriod: "",
+      });
+    }
   };
 
   const handleSave = (loanData: LoanFormData) => {
@@ -549,12 +582,65 @@ export default function LoansPage() {
                                   Kredit
                                 </Badge>
                               )}
+                              {isKredit && loan.status === "active" && loan.skipPeriod === currentPeriod && (
+                                <Badge
+                                  variant="outline"
+                                  className="h-5 text-[10px] border-amber-400 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
+                                >
+                                  ⏭ Di-skip {currentMonthLabel}
+                                </Badge>
+                              )}
                             </div>
                           </div>
                         </AccordionTrigger>
                         <div className="flex items-center gap-1">
                           {loan.status === "active" ? (
                             <>
+                              {/* Skip / Cancel Skip button — only for kredit */}
+                              {isKredit && loan.skipPeriod !== currentPeriod && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleSkip(loan);
+                                        }}
+                                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 h-8 w-8"
+                                      >
+                                        <SkipForward className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Skip Pemotongan Bulan Ini
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                              {isKredit && loan.skipPeriod === currentPeriod && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleCancelSkip(loan);
+                                        }}
+                                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 h-8 w-8"
+                                      >
+                                        <Undo className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Batalkan Skip
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -687,6 +773,31 @@ export default function LoansPage() {
             ? employeeMap.get(selectedLoan.employeeId)?.name || ""
             : ""
         }
+      />
+
+      <SkipInstallmentAlert
+        isOpen={isSkipAlertOpen}
+        setIsOpen={setIsSkipAlertOpen}
+        onConfirm={confirmSkip}
+        employeeName={
+          selectedLoan
+            ? employeeMap.get(selectedLoan.employeeId)?.name || ""
+            : ""
+        }
+        loanDescription={selectedLoan?.description || ""}
+        skipMonth={currentMonthLabel}
+      />
+
+      <CancelSkipAlert
+        isOpen={isCancelSkipAlertOpen}
+        setIsOpen={setIsCancelSkipAlertOpen}
+        onConfirm={confirmCancelSkip}
+        employeeName={
+          selectedLoan
+            ? employeeMap.get(selectedLoan.employeeId)?.name || ""
+            : ""
+        }
+        loanDescription={selectedLoan?.description || ""}
       />
     </div>
   );
