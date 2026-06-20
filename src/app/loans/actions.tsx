@@ -640,3 +640,244 @@ export function CancelSkipAlert({
     </AlertDialog>
   );
 }
+
+// --- Manual Kredit Payment Dialog ---
+
+const manualKreditPaymentSchema = z.object({
+  amount: z.coerce.number().min(1, "Jumlah pembayaran harus lebih dari 0."),
+  description: z.string().optional(),
+});
+type ManualKreditPaymentFormData = z.infer<typeof manualKreditPaymentSchema>;
+
+interface ManualKreditPaymentDialogProps {
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
+  loan: WithId<Loan> | null;
+  employeeName: string;
+  onSave: (loanId: string, amount: number, description: string) => void;
+}
+
+export function ManualKreditPaymentDialog({
+  isOpen,
+  setIsOpen,
+  loan,
+  employeeName,
+  onSave,
+}: ManualKreditPaymentDialogProps) {
+  const { toast } = useToast();
+
+  const remainingAmount = loan ? (loan.remainingAmount ?? loan.amount) : 0;
+  const installmentAmount = loan?.installmentAmount ?? 0;
+  const paidInstallments = loan?.paidInstallments ?? 0;
+  const totalInstallments = loan?.totalInstallments ?? 0;
+
+  const resolver = zodResolver(
+    manualKreditPaymentSchema.refine(
+      (data) => data.amount <= remainingAmount + 0.01,
+      {
+        message: "Pembayaran tidak boleh melebihi sisa hutang.",
+        path: ["amount"],
+      }
+    )
+  );
+
+  const {
+    control,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    register,
+    formState: { errors },
+  } = useForm<ManualKreditPaymentFormData>({
+    resolver,
+    defaultValues: { amount: 0, description: "" },
+  });
+
+  const watchedAmount = watch("amount") || 0;
+
+  // How many full installments does this payment cover?
+  const installmentsCovered =
+    installmentAmount > 0 ? Math.floor(watchedAmount / installmentAmount) : 0;
+  const newPaidInstallments = Math.min(
+    paidInstallments + installmentsCovered,
+    totalInstallments
+  );
+  const newRemaining = Math.max(0, remainingAmount - watchedAmount);
+  const willBeFullyPaid =
+    newRemaining <= 0 || newPaidInstallments >= totalInstallments;
+
+  useEffect(() => {
+    if (isOpen) {
+      reset({ amount: installmentAmount, description: "" });
+    }
+  }, [isOpen, reset, installmentAmount]);
+
+  if (!loan) return null;
+
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(val);
+
+  const onSubmit: SubmitHandler<ManualKreditPaymentFormData> = (data) => {
+    const desc =
+      data.description?.trim() ||
+      `Pembayaran manual kredit (Tunai/Transfer)`;
+    onSave(loan.id, data.amount, desc);
+    toast({
+      title: "Pembayaran Dicatat",
+      description: `Pembayaran ${formatCurrency(data.amount)} untuk kredit "${loan.description}" (${employeeName}) berhasil dicatat.`,
+    });
+    setIsOpen(false);
+  };
+
+  const handleFillOneInstallment = () => {
+    const amount = Math.min(installmentAmount, remainingAmount);
+    setValue("amount", amount);
+  };
+
+  const handleFillAll = () => {
+    setValue("amount", remainingAmount);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Bayar Cicilan Manual</DialogTitle>
+          <DialogDescription>
+            Catat pembayaran manual untuk kredit &quot;{loan.description}&quot; — {employeeName}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="space-y-4 py-4 text-sm">
+            {/* Loan info summary */}
+            <div className="rounded-md bg-muted/50 p-3 space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Sisa Hutang</span>
+                <span className="font-semibold text-destructive">
+                  {formatCurrency(remainingAmount)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Cicilan/Bulan</span>
+                <span className="font-medium">
+                  {formatCurrency(installmentAmount)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Progress Tenor</span>
+                <span className="font-medium">
+                  {paidInstallments} / {totalInstallments} cicilan
+                </span>
+              </div>
+            </div>
+
+            {/* Payment amount */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="kredit-payment-amount">Jumlah Pembayaran</Label>
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs text-primary"
+                    onClick={handleFillOneInstallment}
+                  >
+                    1 Cicilan
+                  </Button>
+                  <span className="text-xs text-muted-foreground">|</span>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs text-primary"
+                    onClick={handleFillAll}
+                  >
+                    Lunasi Semua
+                  </Button>
+                </div>
+              </div>
+              <Controller
+                name="amount"
+                control={control}
+                render={({ field }) => (
+                  <CurrencyInput
+                    id="kredit-payment-amount"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="0"
+                  />
+                )}
+              />
+              {errors.amount && (
+                <p className="text-sm text-destructive">
+                  {errors.amount.message}
+                </p>
+              )}
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="kredit-payment-desc">Catatan (opsional)</Label>
+              <Textarea
+                id="kredit-payment-desc"
+                {...register("description")}
+                placeholder="Contoh: Bayar tunai di kantor"
+                className="h-16"
+              />
+            </div>
+
+            {/* Payment preview */}
+            {watchedAmount > 0 && (
+              <div className="rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 p-3 text-xs space-y-1.5">
+                <p className="font-semibold text-blue-800 dark:text-blue-400">
+                  Pratinjau Pembayaran:
+                </p>
+                {installmentsCovered > 0 && (
+                  <p className="text-blue-700 dark:text-blue-400">
+                    Setara dengan{" "}
+                    <strong>{installmentsCovered} cicilan</strong>
+                    {watchedAmount % installmentAmount > 0 && (
+                      <span>
+                        {" "}+ sisa{" "}
+                        {formatCurrency(watchedAmount % installmentAmount)}
+                      </span>
+                    )}
+                  </p>
+                )}
+                <p className="text-blue-700 dark:text-blue-400">
+                  Sisa hutang setelah bayar:{" "}
+                  <strong>{formatCurrency(newRemaining)}</strong>
+                </p>
+                <p className="text-blue-700 dark:text-blue-400">
+                  Progress tenor:{" "}
+                  <strong>
+                    {newPaidInstallments} / {totalInstallments}
+                  </strong>{" "}
+                  cicilan
+                </p>
+                {willBeFullyPaid && (
+                  <p className="font-bold text-green-700 dark:text-green-400 mt-1">
+                    ✓ Kredit akan ditandai LUNAS
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={() => setIsOpen(false)}>
+              Batal
+            </Button>
+            <Button type="submit">Simpan Pembayaran</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
