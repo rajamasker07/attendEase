@@ -28,8 +28,8 @@ import {
 } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { Loan, Employee, LoanPayment } from "@/types";
-import { PlusCircle, Edit, Trash2, CheckCircle, ArrowRight, CalendarClock, SkipForward, Undo } from "lucide-react";
-import { LoanFormDialog, DeleteLoanAlert, RepayLoanAlert, SkipInstallmentAlert, CancelSkipAlert, type LoanFormData } from "./actions";
+import { PlusCircle, Edit, Trash2, CheckCircle, ArrowRight, CalendarClock, SkipForward, Undo, Banknote } from "lucide-react";
+import { LoanFormDialog, DeleteLoanAlert, RepayLoanAlert, SkipInstallmentAlert, CancelSkipAlert, ManualKreditPaymentDialog, type LoanFormData } from "./actions";
 import { useCollection, useFirebase, WithId, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, useMemoFirebase } from "@/firebase";
 import { collection, doc, query, orderBy, arrayUnion } from "firebase/firestore";
 import { format, parseISO } from "date-fns";
@@ -138,6 +138,7 @@ export default function LoansPage() {
   const [isRepayAlertOpen, setIsRepayAlertOpen] = useState(false);
   const [isSkipAlertOpen, setIsSkipAlertOpen] = useState(false);
   const [isCancelSkipAlertOpen, setIsCancelSkipAlertOpen] = useState(false);
+  const [isManualKreditPaymentOpen, setIsManualKreditPaymentOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<WithId<Loan> | null>(null);
 
   const currentPeriod = format(new Date(), "yyyy-MM");
@@ -258,6 +259,11 @@ export default function LoansPage() {
     setIsSkipAlertOpen(true);
   };
 
+  const handleManualKreditPayment = (loan: WithId<Loan>) => {
+    setSelectedLoan(loan);
+    setIsManualKreditPaymentOpen(true);
+  };
+
   const handleCancelSkip = (loan: WithId<Loan>) => {
     setSelectedLoan(loan);
     setIsCancelSkipAlertOpen(true);
@@ -348,6 +354,41 @@ export default function LoansPage() {
           : {}),
       });
     }
+  };
+
+  const confirmManualKreditPayment = (loanId: string, amount: number, description: string) => {
+    if (!firestore) return;
+    const loan = loans?.find(l => l.id === loanId);
+    if (!loan) return;
+
+    const docRef = doc(firestore, "loans", loanId);
+    const currentRemaining = loan.remainingAmount ?? loan.amount;
+    const newRemaining = Math.max(0, currentRemaining - amount);
+    const installmentAmt = loan.installmentAmount ?? 0;
+    const installmentsCovered = installmentAmt > 0 ? Math.floor(amount / installmentAmt) : 0;
+    const currentPaidInstallments = loan.paidInstallments ?? 0;
+    const totalInst = loan.totalInstallments ?? 0;
+    const newPaidInstallments = Math.min(currentPaidInstallments + installmentsCovered, totalInst);
+    const isFullyPaid = newRemaining <= 0 || newPaidInstallments >= totalInst;
+
+    const paymentRecord: LoanPayment = {
+      date: new Date().toISOString(),
+      amount,
+      method: "manual",
+      description,
+    };
+
+    updateDocumentNonBlocking(docRef, {
+      remainingAmount: newRemaining,
+      paidInstallments: newPaidInstallments,
+      payments: arrayUnion(paymentRecord),
+      ...(isFullyPaid
+        ? {
+            status: "paid",
+            repaidAt: new Date().toISOString(),
+          }
+        : {}),
+    });
   };
 
   const formatCurrency = (amount: number) =>
@@ -599,6 +640,29 @@ export default function LoansPage() {
                           {loan.status === "active" ? (
                             <>
                               {/* Skip / Cancel Skip button — only for kredit */}
+                              {/* Manual kredit payment button — only for kredit */}
+                              {isKredit && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleManualKreditPayment(loan);
+                                        }}
+                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-8 w-8"
+                                      >
+                                        <Banknote className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Bayar Cicilan Manual
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
                               {isKredit && loan.skipPeriod !== currentPeriod && (
                                 <TooltipProvider>
                                   <Tooltip>
@@ -800,6 +864,18 @@ export default function LoansPage() {
             : ""
         }
         loanDescription={selectedLoan?.description || ""}
+      />
+
+      <ManualKreditPaymentDialog
+        isOpen={isManualKreditPaymentOpen}
+        setIsOpen={setIsManualKreditPaymentOpen}
+        loan={selectedLoan}
+        employeeName={
+          selectedLoan
+            ? employeeMap.get(selectedLoan.employeeId)?.name || ""
+            : ""
+        }
+        onSave={confirmManualKreditPayment}
       />
     </div>
   );
