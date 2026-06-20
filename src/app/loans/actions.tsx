@@ -102,7 +102,7 @@ export function LoanFormDialog({
   const selectedEmployeeId = watch("employeeId");
   const selectedEmployee = employees?.find((e) => e.id === selectedEmployeeId);
   const activeLoans = currentActiveLoans.get(selectedEmployeeId || "") || { kasbon: 0, kreditInstallments: 0, activeKreditCount: 0 };
-  const baseSalary = selectedEmployee?.salary ?? 0;
+  const baseSalary = selectedEmployee?.loanLimit ?? selectedEmployee?.salary ?? 0;
   const remainingLimit = baseSalary - activeLoans.kreditInstallments - activeLoans.kasbon;
 
   // Auto-calculate tenor from amount / installmentAmount

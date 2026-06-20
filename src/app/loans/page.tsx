@@ -181,7 +181,9 @@ export default function LoansPage() {
       .forEach((loan) => {
         const current = map.get(loan.employeeId) || { kasbon: 0, kreditInstallments: 0, activeKreditCount: 0 };
         if (loan.type === "kredit") {
-          current.kreditInstallments += (loan.installmentAmount ?? 0);
+          if (loan.skipPeriod !== currentPeriod) {
+            current.kreditInstallments += (loan.installmentAmount ?? 0);
+          }
           current.activeKreditCount += 1;
         } else {
           current.kasbon += (loan.remainingAmount ?? loan.amount);

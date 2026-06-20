@@ -186,7 +186,7 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
       const periodBonuses = bonusesSnap.docs.map((d) => d.data() as Bonus);
       const periodAbsences = absencesSnap.docs.map((d) => d.data() as AbsenceRecord);
       const activeLoans = loansSnap.docs.map(d => ({ ...d.data() as Loan, id: d.id }));
-      const settings = settingsSnap.exists() ? settingsSnap.data() as Setting : {};
+      const settings = (settingsSnap.exists() ? settingsSnap.data() : {}) as Partial<Setting>;
       
       const LATE_DEDUCTION_AMOUNT = settings?.lateDeductionAmount ?? 10000;
       const DEDUCT_UNPAID_ABSENCE = settings?.deductUnpaidAbsence ?? false;
@@ -760,14 +760,16 @@ export async function finalizePayroll(firestore: Firestore, payrollId: string, p
                           description: `Potongan dari Gaji Periode ${format(new Date(), 'yyyy-MM')}`
                         };
 
+                        const currentPaidInstallments = (loanData.paidInstallments ?? 0) + 1;
+
                         // For kredit: increment paidInstallments; mark paid when all done
                         const kreditUpdates = isKredit ? {
-                            paidInstallments: (loanData.paidInstallments ?? 0) + 1,
+                            paidInstallments: currentPaidInstallments,
                         } : {};
 
                         // Determine if loan is fully paid
                         const isFullyPaid = isKredit
-                            ? (kreditUpdates.paidInstallments >= (loanData.totalInstallments ?? Infinity))
+                            ? (currentPaidInstallments >= (loanData.totalInstallments ?? Infinity))
                             : newRemaining <= 0;
 
                         transaction.update(loanSnap.ref, { 
