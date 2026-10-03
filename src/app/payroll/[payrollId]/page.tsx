@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CheckCircle, Printer, Wallet, PiggyBank } from "lucide-react";
+import { ArrowLeft, CheckCircle, Printer, Wallet, PiggyBank, RotateCcw } from "lucide-react";
 import { useCollection, useDoc, useFirebase, useMemoFirebase, WithId, setDocumentNonBlocking } from "@/firebase";
 import { collection, doc, Firestore } from "firebase/firestore";
 import type { Payroll, Payslip } from "@/types";
@@ -28,7 +28,7 @@ import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PayslipDetailDialog, RecordPaymentDialog, StoreSavingsAlert, storeRemainingSavings, finalizePayroll } from "../actions";
+import { PayslipDetailDialog, RecordPaymentDialog, StoreSavingsAlert, storeRemainingSavings, finalizePayroll, unfinalizePayroll, UnfinalizePayrollAlert } from "../actions";
 import { useToast } from "@/hooks/use-toast";
 
 export default function PayrollDetailPage() {
@@ -40,6 +40,7 @@ export default function PayrollDetailPage() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isStoreSavingsAlertOpen, setIsStoreSavingsAlertOpen] = useState(false);
+  const [isUnfinalizeAlertOpen, setIsUnfinalizeAlertOpen] = useState(false);
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
 
@@ -121,6 +122,19 @@ export default function PayrollDetailPage() {
     }
   }
 
+  const handleUnfinalize = async () => {
+    if (!firestore || !payrollId || !payslips || !payroll) return;
+    try {
+        await unfinalizePayroll(firestore, payrollId, payroll.period, payslips);
+        toast({
+            title: "Finalisasi Dibatalkan",
+            description: `Periode penggajian ${format(parseISO(payroll.period), "MMMM yyyy", { locale: id })} telah dikembalikan ke status Draf dan potongan hutang telah dikembalikan.`,
+        });
+    } catch (e: any) {
+        toast({ title: "Gagal Membatalkan Finalisasi", description: e.message, variant: "destructive" });
+    }
+  }
+
   const totals = useMemo(() => {
     if (!payslips) return { base: 0, bonus: 0, deduction: 0, net: 0, paid: 0, remaining: 0 };
     return payslips.reduce((acc, p) => ({
@@ -173,6 +187,16 @@ export default function PayrollDetailPage() {
                     <Button onClick={handleFinalize}>
                         <CheckCircle className="mr-2 h-4 w-4"/>
                         Finalisasi
+                    </Button>
+                )}
+                {payroll?.status === "finalized" && (
+                    <Button 
+                        variant="outline" 
+                        className="text-amber-600 border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                        onClick={() => setIsUnfinalizeAlertOpen(true)}
+                    >
+                        <RotateCcw className="mr-2 h-4 w-4"/>
+                        Batalkan Finalisasi
                     </Button>
                 )}
                  <Button asChild variant="outline">
@@ -295,6 +319,12 @@ export default function PayrollDetailPage() {
         setIsOpen={setIsStoreSavingsAlertOpen}
         onConfirm={handleConfirmStoreSavings}
         payslip={selectedPayslip}
+      />
+      <UnfinalizePayrollAlert
+        isOpen={isUnfinalizeAlertOpen}
+        setIsOpen={setIsUnfinalizeAlertOpen}
+        onConfirm={handleUnfinalize}
+        payrollPeriod={payroll ? format(parseISO(payroll.period), "MMMM yyyy", { locale: id }) : ''}
       />
     </div>
   );

@@ -702,13 +702,63 @@ export function DeletePayrollAlert({ isOpen, setIsOpen, onConfirm, payrollPeriod
                         ) : null}
                         Tindakan ini tidak dapat dibatalkan. Ini akan menghapus riwayat penggajian untuk
                         <strong> periode {payrollPeriod}</strong> dan semua data slip gaji terkait secara permanen.
-                        {isFinalized ? " Hutang yang sudah terlanjur terpotong tidak akan otomatis kembali." : ""}
+                        {isFinalized ? " Hutang yang sudah terlanjur terpotong tidak akan otomatis kembali. Disarankan untuk membatalkan finalisasi terlebih dahulu jika ingin mengembalikan saldo hutang." : ""}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Batal</AlertDialogCancel>
                     <AlertDialogAction onClick={handleConfirm} className="bg-destructive hover:bg-destructive/90">
                       Hapus
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+}
+
+interface UnfinalizePayrollAlertProps {
+    isOpen: boolean;
+    setIsOpen: (isOpen: boolean) => void;
+    onConfirm: () => void;
+    payrollPeriod?: string;
+}
+
+export function UnfinalizePayrollAlert({ isOpen, setIsOpen, onConfirm, payrollPeriod }: UnfinalizePayrollAlertProps) {
+    const handleConfirm = () => {
+        onConfirm();
+        setIsOpen(false);
+    };
+
+    return (
+        <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Batalkan Finalisasi Penggajian?</AlertDialogTitle>
+                    <AlertDialogDescription asChild>
+                        <div className="space-y-3 text-sm text-muted-foreground">
+                            <p>
+                                Penggajian untuk <strong>periode {payrollPeriod}</strong> akan dikembalikan ke status <strong>Draf</strong>.
+                            </p>
+                            <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs space-y-1">
+                                <p className="font-semibold text-amber-800 dark:text-amber-400">⚠ Dampak Pembatalan:</p>
+                                <ul className="list-disc pl-4 text-amber-700 dark:text-amber-400 space-y-0.5">
+                                    <li>Saldo pinjaman/kasbon yang terpotong pada periode ini akan dikembalikan ke akun karyawan.</li>
+                                    <li>Status pinjaman yang sebelumnya lunas akan diaktifkan kembali.</li>
+                                    <li>Jumlah cicilan kredit terbayar akan dikurangi 1.</li>
+                                    <li>Riwayat potongan gaji pada pinjaman akan dihapus.</li>
+                                    <li>Anda dapat kembali mengedit, mencatat ulang pembayaran, atau menghapus draf penggajian ini.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogAction 
+                        onClick={handleConfirm}
+                        className="bg-amber-600 hover:bg-amber-700 text-white"
+                    >
+                        Ya, Batalkan Finalisasi
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
@@ -787,6 +837,95 @@ export async function finalizePayroll(firestore: Firestore, payrollId: string, p
 
         // Tandai payroll sebagai selesai
         transaction.update(payrollRef, { status: "finalized" });
+    });
+}
+
+export async function unfinalizePayroll(
+    firestore: Firestore,
+    payrollId: string,
+    payrollPeriod: string,
+    payslips: WithId<Payslip>[]
+) {
+    const payrollRef = doc(firestore, "payrolls", payrollId);
+
+    await runTransaction(firestore, async (transaction) => {
+        // Validasi: pastikan data payroll ada dan statusnya finalized
+        const payrollSnap = await transaction.get(payrollRef);
+        if (!payrollSnap.exists()) {
+            throw new Error("Data penggajian tidak ditemukan.");
+        }
+        if (payrollSnap.data().status !== "finalized") {
+            throw new Error("Penggajian ini belum difinalisasi atau sudah berstatus draf.");
+        }
+
+        // 1. READ PHASE: Ambil semua data hutang yang pernah dipotong di payslips
+        const loanSnaps = new Map<string, any>();
+        for (const payslip of payslips) {
+            if (payslip.loanDetails && payslip.loanDetails.length > 0) {
+                for (const loanDetail of payslip.loanDetails) {
+                    if (!loanSnaps.has(loanDetail.loanId)) {
+                        const loanRef = doc(firestore, "loans", loanDetail.loanId);
+                        const snap = await transaction.get(loanRef);
+                        loanSnaps.set(loanDetail.loanId, snap);
+                    }
+                }
+            }
+        }
+
+        // 2. WRITE PHASE: Kembalikan data hutang dan update status payroll
+        for (const payslip of payslips) {
+            if (payslip.loanDetails && payslip.loanDetails.length > 0) {
+                for (const loanDetail of payslip.loanDetails) {
+                    const loanSnap = loanSnaps.get(loanDetail.loanId);
+
+                    if (loanSnap && loanSnap.exists()) {
+                        const loanData = loanSnap.data() as Loan;
+                        const isKredit = loanData.type === 'kredit';
+
+                        // Kembalikan sisa saldo hutang (maksimal sebesar jumlah pinjaman awal)
+                        const currentRemaining = loanData.remainingAmount ?? 0;
+                        const restoredRemaining = Math.min(loanData.amount, currentRemaining + loanDetail.amount);
+
+                        // Kembalikan counter cicilan kredit jika ada
+                        const currentPaidInstallments = loanData.paidInstallments ?? 0;
+                        const restoredPaidInstallments = Math.max(0, currentPaidInstallments - 1);
+
+                        // Bersihkan riwayat pembayaran: buang 1 transaksi 'payroll' yang bersangkutan dari array payments
+                        const existingPayments = loanData.payments ?? [];
+                        const periodStr = payrollPeriod ? format(parseISO(payrollPeriod), 'yyyy-MM') : '';
+                        
+                        let removed = false;
+                        const updatedPayments = [...existingPayments].reverse().filter((p) => {
+                            if (!removed && p.method === 'payroll') {
+                                const descMatch = periodStr ? (p.description && p.description.includes(periodStr)) : true;
+                                const amountMatch = p.amount === loanDetail.amount;
+                                if (descMatch && amountMatch) {
+                                    removed = true;
+                                    return false; // buang transaksi ini
+                                }
+                            }
+                            return true;
+                        }).reverse();
+
+                        const kreditUpdates = isKredit ? {
+                            paidInstallments: restoredPaidInstallments,
+                        } : {};
+
+                        transaction.update(loanSnap.ref, {
+                            remainingAmount: restoredRemaining,
+                            status: 'active',
+                            repaidAt: null,
+                            payslipId: null,
+                            payments: updatedPayments,
+                            ...kreditUpdates,
+                        });
+                    }
+                }
+            }
+        }
+
+        // Kembalikan status payroll ke draft
+        transaction.update(payrollRef, { status: "draft" });
     });
 }
 
