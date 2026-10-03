@@ -21,8 +21,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, CheckCircle, Printer, Wallet, PiggyBank, RotateCcw, Loader2 } from "lucide-react";
-import { useCollection, useDoc, useFirebase, useMemoFirebase, WithId, setDocumentNonBlocking } from "@/firebase";
-import { collection, doc, Firestore } from "firebase/firestore";
+import { useCollection, useDoc, useFirebase, useMemoFirebase, type WithId, setDocumentNonBlocking } from "@/firebase";
+import { collection, doc } from "firebase/firestore";
 import type { Payroll, Payslip } from "@/types";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
@@ -43,6 +43,7 @@ export default function PayrollDetailPage() {
   const [isUnfinalizeAlertOpen, setIsUnfinalizeAlertOpen] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [isUnfinalizing, setIsUnfinalizing] = useState(false);
+  const [isStoringSavings, setIsStoringSavings] = useState(false);
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
 
@@ -75,8 +76,10 @@ export default function PayrollDetailPage() {
   
   const handleConfirmStoreSavings = async () => {
     if (!firestore || !selectedPayslip || !payroll) return;
+    setIsStoringSavings(true);
     try {
         await storeRemainingSavings(firestore, selectedPayslip, payrollId, payroll.period);
+        setIsStoreSavingsAlertOpen(false);
         toast({
             title: "Berhasil",
             description: `Sisa gaji ${selectedPayslip.employeeName} telah disimpan ke tabungan.`
@@ -87,9 +90,10 @@ export default function PayrollDetailPage() {
             description: e.message || "Terjadi kesalahan saat menyimpan sisa gaji.",
             variant: "destructive"
         });
+    } finally {
+        setIsStoringSavings(false);
     }
-  }
-
+  };
 
   const handleSavePayment = (payslipId: string, amount: number) => {
     if (!firestore || !payslips) return;
@@ -98,8 +102,9 @@ export default function PayrollDetailPage() {
     
     const docRef = doc(firestore, "payrolls", payrollId, "payslips", payslipId);
     
-    const newPaidAmount = payslipToUpdate.paidAmount + amount;
-    const newRemainingAmount = payslipToUpdate.netSalary - newPaidAmount;
+    const newPaidAmount = Math.round((payslipToUpdate.paidAmount + amount) * 100) / 100;
+    const rawRemaining = payslipToUpdate.netSalary - newPaidAmount;
+    const newRemainingAmount = rawRemaining <= 0.01 ? 0 : Math.round(rawRemaining * 100) / 100;
     const newStatus: Payslip['paymentStatus'] = newRemainingAmount <= 0.01 ? 'lunas' : 'sebagian';
     
     const updateData = {
@@ -125,7 +130,7 @@ export default function PayrollDetailPage() {
     } finally {
         setIsFinalizing(false);
     }
-  }
+  };
 
   const handleUnfinalize = async () => {
     if (!firestore || !payrollId || !payslips || !payroll) return;
@@ -142,11 +147,11 @@ export default function PayrollDetailPage() {
     } finally {
         setIsUnfinalizing(false);
     }
-  }
+  };
 
   const totals = useMemo(() => {
     if (!payslips) return { base: 0, bonus: 0, deduction: 0, net: 0, paid: 0, remaining: 0 };
-    return payslips.reduce((acc, p) => ({
+    const res = payslips.reduce((acc, p) => ({
         base: acc.base + p.baseSalary,
         bonus: acc.bonus + p.bonusTotal,
         deduction: acc.deduction + p.lateDeduction + p.sanctionDeduction + p.unpaidAbsenceDeduction + (p.loanDeduction || 0),
@@ -154,6 +159,15 @@ export default function PayrollDetailPage() {
         paid: acc.paid + p.paidAmount,
         remaining: acc.remaining + p.remainingAmount,
     }), { base: 0, bonus: 0, deduction: 0, net: 0, paid: 0, remaining: 0 });
+
+    return {
+        base: Math.round(res.base * 100) / 100,
+        bonus: Math.round(res.bonus * 100) / 100,
+        deduction: Math.round(res.deduction * 100) / 100,
+        net: Math.round(res.net * 100) / 100,
+        paid: Math.round(res.paid * 100) / 100,
+        remaining: Math.round(res.remaining * 100) / 100,
+    };
   }, [payslips]);
 
   const isLoading = isLoadingPayroll || isLoadingPayslips;
@@ -283,7 +297,7 @@ export default function PayrollDetailPage() {
                       <TableCell>{getStatusBadge(payslip.paymentStatus)}</TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button variant="outline" size="sm" onClick={() => handleViewDetails(payslip)}>Rincian</Button>
-                        {payslip.remainingAmount > 0 && payroll?.status === 'draft' && (
+                        {payslip.paymentStatus !== 'lunas' && payslip.remainingAmount > 0.01 && payroll?.status === 'draft' && (
                            <>
                             <Button size="sm" onClick={() => handleRecordPayment(payslip)}>
                                 <Wallet className="mr-2 h-4 w-4"/>
@@ -329,6 +343,7 @@ export default function PayrollDetailPage() {
         setIsOpen={setIsStoreSavingsAlertOpen}
         onConfirm={handleConfirmStoreSavings}
         payslip={selectedPayslip}
+        isLoading={isStoringSavings}
       />
       <UnfinalizePayrollAlert
         isOpen={isUnfinalizeAlertOpen}
