@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CheckCircle, Printer, Wallet, PiggyBank, RotateCcw } from "lucide-react";
+import { ArrowLeft, CheckCircle, Printer, Wallet, PiggyBank, RotateCcw, Loader2 } from "lucide-react";
 import { useCollection, useDoc, useFirebase, useMemoFirebase, WithId, setDocumentNonBlocking } from "@/firebase";
 import { collection, doc, Firestore } from "firebase/firestore";
 import type { Payroll, Payslip } from "@/types";
@@ -41,6 +41,8 @@ export default function PayrollDetailPage() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isStoreSavingsAlertOpen, setIsStoreSavingsAlertOpen] = useState(false);
   const [isUnfinalizeAlertOpen, setIsUnfinalizeAlertOpen] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [isUnfinalizing, setIsUnfinalizing] = useState(false);
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
 
@@ -111,27 +113,34 @@ export default function PayrollDetailPage() {
   
   const handleFinalize = async () => {
     if (!firestore || !payrollId || !payslips) return;
+    setIsFinalizing(true);
     try {
-        await finalizePayroll(firestore, payrollId, payslips);
+        await finalizePayroll(firestore, payrollId, payslips, payroll?.period);
         toast({
             title: "Penggajian Diselesaikan",
             description: `Periode penggajian ${payroll ? format(parseISO(payroll.period), "MMMM yyyy", { locale: id }) : ''} telah diselesaikan dan hutang telah ditandai lunas.`,
         });
     } catch (e: any) {
         toast({ title: "Gagal Finalisasi", description: e.message, variant: "destructive" });
+    } finally {
+        setIsFinalizing(false);
     }
   }
 
   const handleUnfinalize = async () => {
     if (!firestore || !payrollId || !payslips || !payroll) return;
+    setIsUnfinalizing(true);
     try {
         await unfinalizePayroll(firestore, payrollId, payroll.period, payslips);
+        setIsUnfinalizeAlertOpen(false);
         toast({
             title: "Finalisasi Dibatalkan",
             description: `Periode penggajian ${format(parseISO(payroll.period), "MMMM yyyy", { locale: id })} telah dikembalikan ke status Draf dan potongan hutang telah dikembalikan.`,
         });
     } catch (e: any) {
         toast({ title: "Gagal Membatalkan Finalisasi", description: e.message, variant: "destructive" });
+    } finally {
+        setIsUnfinalizing(false);
     }
   }
 
@@ -184,8 +193,8 @@ export default function PayrollDetailPage() {
             </div>
              <div className="flex items-center gap-2 flex-shrink-0">
                 {payroll?.status === "draft" && (
-                    <Button onClick={handleFinalize}>
-                        <CheckCircle className="mr-2 h-4 w-4"/>
+                    <Button onClick={handleFinalize} disabled={isFinalizing}>
+                        {isFinalizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle className="mr-2 h-4 w-4"/>}
                         Finalisasi
                     </Button>
                 )}
@@ -194,8 +203,9 @@ export default function PayrollDetailPage() {
                         variant="outline" 
                         className="text-amber-600 border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30"
                         onClick={() => setIsUnfinalizeAlertOpen(true)}
+                        disabled={isUnfinalizing}
                     >
-                        <RotateCcw className="mr-2 h-4 w-4"/>
+                        {isUnfinalizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RotateCcw className="mr-2 h-4 w-4"/>}
                         Batalkan Finalisasi
                     </Button>
                 )}
@@ -325,6 +335,7 @@ export default function PayrollDetailPage() {
         setIsOpen={setIsUnfinalizeAlertOpen}
         onConfirm={handleUnfinalize}
         payrollPeriod={payroll ? format(parseISO(payroll.period), "MMMM yyyy", { locale: id }) : ''}
+        isLoading={isUnfinalizing}
       />
     </div>
   );

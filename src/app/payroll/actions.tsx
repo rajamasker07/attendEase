@@ -56,7 +56,7 @@ import {
   getDaysInMonth,
 } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import { Copy, Wallet, CheckCheck } from "lucide-react";
+import { Copy, Wallet, CheckCheck, Loader2 } from "lucide-react";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -721,16 +721,16 @@ interface UnfinalizePayrollAlertProps {
     setIsOpen: (isOpen: boolean) => void;
     onConfirm: () => void;
     payrollPeriod?: string;
+    isLoading?: boolean;
 }
 
-export function UnfinalizePayrollAlert({ isOpen, setIsOpen, onConfirm, payrollPeriod }: UnfinalizePayrollAlertProps) {
+export function UnfinalizePayrollAlert({ isOpen, setIsOpen, onConfirm, payrollPeriod, isLoading }: UnfinalizePayrollAlertProps) {
     const handleConfirm = () => {
         onConfirm();
-        setIsOpen(false);
     };
 
     return (
-        <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+        <AlertDialog open={isOpen} onOpenChange={isLoading ? undefined : setIsOpen}>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Batalkan Finalisasi Penggajian?</AlertDialogTitle>
@@ -753,12 +753,20 @@ export function UnfinalizePayrollAlert({ isOpen, setIsOpen, onConfirm, payrollPe
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogCancel disabled={isLoading}>Batal</AlertDialogCancel>
                     <AlertDialogAction 
                         onClick={handleConfirm}
+                        disabled={isLoading}
                         className="bg-amber-600 hover:bg-amber-700 text-white"
                     >
-                        Ya, Batalkan Finalisasi
+                        {isLoading ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Memproses...
+                            </>
+                        ) : (
+                            "Ya, Batalkan Finalisasi"
+                        )}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
@@ -766,7 +774,12 @@ export function UnfinalizePayrollAlert({ isOpen, setIsOpen, onConfirm, payrollPe
     );
 }
 
-export async function finalizePayroll(firestore: Firestore, payrollId: string, payslips: WithId<Payslip>[]) {
+export async function finalizePayroll(
+    firestore: Firestore, 
+    payrollId: string, 
+    payslips: WithId<Payslip>[],
+    payrollPeriod?: string
+) {
     // Validasi: pastikan semua slip gaji sudah lunas
     const unpaidPayslips = payslips.filter(p => p.paymentStatus !== 'lunas');
     if (unpaidPayslips.length > 0) {
@@ -774,6 +787,7 @@ export async function finalizePayroll(firestore: Firestore, payrollId: string, p
     }
 
     const payrollRef = doc(firestore, "payrolls", payrollId);
+    const periodLabel = payrollPeriod ? payrollPeriod.slice(0, 7) : format(new Date(), 'yyyy-MM');
     
     await runTransaction(firestore, async (transaction) => {
         // 1. READ PHASE: Ambil semua data hutang yang akan dipotong
@@ -807,7 +821,7 @@ export async function finalizePayroll(firestore: Firestore, payrollId: string, p
                           date: new Date().toISOString(),
                           amount: loanDetail.amount,
                           method: 'payroll',
-                          description: `Potongan dari Gaji Periode ${format(new Date(), 'yyyy-MM')}`
+                          description: `Potongan dari Gaji Periode ${periodLabel}`
                         };
 
                         const currentPaidInstallments = (loanData.paidInstallments ?? 0) + 1;
@@ -858,69 +872,87 @@ export async function unfinalizePayroll(
             throw new Error("Penggajian ini belum difinalisasi atau sudah berstatus draf.");
         }
 
-        // 1. READ PHASE: Ambil semua data hutang yang pernah dipotong di payslips
-        const loanSnaps = new Map<string, any>();
+        // Kumpulkan total pemotongan dan frekuensi pemotongan per loanId dari seluruh payslips
+        const loanDeductionMap = new Map<string, { totalAmount: number; count: number }>();
         for (const payslip of payslips) {
             if (payslip.loanDetails && payslip.loanDetails.length > 0) {
                 for (const loanDetail of payslip.loanDetails) {
-                    if (!loanSnaps.has(loanDetail.loanId)) {
-                        const loanRef = doc(firestore, "loans", loanDetail.loanId);
-                        const snap = await transaction.get(loanRef);
-                        loanSnaps.set(loanDetail.loanId, snap);
-                    }
+                    const existing = loanDeductionMap.get(loanDetail.loanId) || { totalAmount: 0, count: 0 };
+                    loanDeductionMap.set(loanDetail.loanId, {
+                        totalAmount: existing.totalAmount + loanDetail.amount,
+                        count: existing.count + 1,
+                    });
                 }
             }
         }
 
-        // 2. WRITE PHASE: Kembalikan data hutang dan update status payroll
-        for (const payslip of payslips) {
-            if (payslip.loanDetails && payslip.loanDetails.length > 0) {
-                for (const loanDetail of payslip.loanDetails) {
-                    const loanSnap = loanSnaps.get(loanDetail.loanId);
+        // 1. READ PHASE: Ambil snapshot setiap dokumen pinjaman unik yang bersangkutan
+        const loanSnaps = new Map<string, any>();
+        for (const loanId of loanDeductionMap.keys()) {
+            const loanRef = doc(firestore, "loans", loanId);
+            const snap = await transaction.get(loanRef);
+            loanSnaps.set(loanId, snap);
+        }
 
-                    if (loanSnap && loanSnap.exists()) {
-                        const loanData = loanSnap.data() as Loan;
-                        const isKredit = loanData.type === 'kredit';
+        // 2. WRITE PHASE: Kembalikan saldo, status, cicilan, dan bersihkan riwayat payments per loanId
+        const periodStr = payrollPeriod ? payrollPeriod.slice(0, 7) : '';
 
-                        // Kembalikan sisa saldo hutang (maksimal sebesar jumlah pinjaman awal)
-                        const currentRemaining = loanData.remainingAmount ?? 0;
-                        const restoredRemaining = Math.min(loanData.amount, currentRemaining + loanDetail.amount);
+        for (const [loanId, { totalAmount, count }] of loanDeductionMap.entries()) {
+            const loanSnap = loanSnaps.get(loanId);
 
-                        // Kembalikan counter cicilan kredit jika ada
-                        const currentPaidInstallments = loanData.paidInstallments ?? 0;
-                        const restoredPaidInstallments = Math.max(0, currentPaidInstallments - 1);
+            if (loanSnap && loanSnap.exists()) {
+                const loanData = loanSnap.data() as Loan;
+                const isKredit = loanData.type === 'kredit';
 
-                        // Bersihkan riwayat pembayaran: buang 1 transaksi 'payroll' yang bersangkutan dari array payments
-                        const existingPayments = loanData.payments ?? [];
-                        const periodStr = payrollPeriod ? format(parseISO(payrollPeriod), 'yyyy-MM') : '';
-                        
-                        let removed = false;
-                        const updatedPayments = [...existingPayments].reverse().filter((p) => {
-                            if (!removed && p.method === 'payroll') {
-                                const descMatch = periodStr ? (p.description && p.description.includes(periodStr)) : true;
-                                const amountMatch = p.amount === loanDetail.amount;
-                                if (descMatch && amountMatch) {
-                                    removed = true;
-                                    return false; // buang transaksi ini
-                                }
-                            }
-                            return true;
-                        }).reverse();
+                // Kembalikan sisa saldo hutang (dibatasi agar tidak melebihi plafon pinjaman awal)
+                const currentRemaining = loanData.remainingAmount ?? 0;
+                const restoredRemaining = Math.min(loanData.amount, currentRemaining + totalAmount);
 
-                        const kreditUpdates = isKredit ? {
-                            paidInstallments: restoredPaidInstallments,
-                        } : {};
+                // Kembalikan counter cicilan kredit jika ada
+                const currentPaidInstallments = loanData.paidInstallments ?? 0;
+                const restoredPaidInstallments = Math.max(0, currentPaidInstallments - count);
 
-                        transaction.update(loanSnap.ref, {
-                            remainingAmount: restoredRemaining,
-                            status: 'active',
-                            repaidAt: null,
-                            payslipId: null,
-                            payments: updatedPayments,
-                            ...kreditUpdates,
-                        });
+                // Bersihkan riwayat pembayaran: buang entri 'payroll' terkait periode ini
+                const existingPayments = loanData.payments ?? [];
+                let removedCount = 0;
+
+                // Urutkan dari belakang (paling baru) untuk menghapus transaksi pemotongan gaji periode ini
+                let updatedPayments = [...existingPayments].reverse().filter((p) => {
+                    if (removedCount < count && p.method === 'payroll') {
+                        const descMatch = periodStr ? (p.description && p.description.includes(periodStr)) : true;
+                        if (descMatch) {
+                            removedCount++;
+                            return false;
+                        }
                     }
+                    return true;
+                }).reverse();
+
+                // Jika deskripsi tidak memuat periodStr (misal dibuat dengan timestamp beda bulan),
+                // fallback buang pembayaran payroll terakhir sebanyak selisih yang belum terhapus
+                if (removedCount < count) {
+                    let remainingToRemove = count - removedCount;
+                    updatedPayments = [...updatedPayments].reverse().filter((p) => {
+                        if (remainingToRemove > 0 && p.method === 'payroll') {
+                            remainingToRemove--;
+                            return false;
+                        }
+                        return true;
+                    }).reverse();
                 }
+
+                const kreditUpdates = isKredit ? {
+                    paidInstallments: restoredPaidInstallments,
+                } : {};
+
+                transaction.update(loanSnap.ref, {
+                    remainingAmount: restoredRemaining,
+                    status: 'active',
+                    repaidAt: null,
+                    payslipId: null,
+                    payments: updatedPayments,
+                    ...kreditUpdates,
+                });
             }
         }
 
