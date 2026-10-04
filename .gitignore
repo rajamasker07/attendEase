@@ -35,3 +35,4 @@ next-env.d.ts
 # firebase emulator data
 /.firebase-emulator-data/
 *-debug.log
+firebase-export-*/

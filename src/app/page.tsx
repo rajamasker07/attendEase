@@ -44,17 +44,37 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock3,
-  Sparkles
+  Sparkles,
+  Pencil,
+  Trash2
 } from "lucide-react";
 import { Clock } from "@/components/clock";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useCollection, useDoc, useFirebase, WithId, addDocumentNonBlocking, setDocumentNonBlocking, useMemoFirebase } from "@/firebase";
-import { collection, doc, query, where, orderBy, getDocs, getDoc } from "firebase/firestore";
+import {
+  useCollection,
+  useDoc,
+  useFirebase,
+  WithId,
+  addDocumentNonBlocking,
+  setDocumentNonBlocking,
+  updateDocumentNonBlocking,
+  deleteDocumentNonBlocking,
+  useMemoFirebase,
+} from "@/firebase";
+import { collection, doc, query, where, orderBy, getDocs, getDoc, deleteField } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmployeeFormDialog, type EmployeeFormData } from "@/app/employees/employee-actions";
+import {
+  EditAttendanceDialog,
+  EditAbsenceDialog,
+  DeleteLogItemAlert,
+  type AttendanceEditData,
+  type AbsenceEditData,
+  type ItemToDelete,
+} from "@/app/attendance-actions";
 import { useForm, SubmitHandler, Controller } from "react-hook-form";
 import * as z from "zod";
 import {
@@ -216,6 +236,16 @@ export default function DashboardPage() {
   const [isEmployeeFormOpen, setIsEmployeeFormOpen] = useState(false);
   const [isAbsenceFormOpen, setIsAbsenceFormOpen] = useState(false);
   const [isEmployeePickerOpen, setIsEmployeePickerOpen] = useState(false);
+
+  // States for Edit & Delete Attendance / Absence
+  const [editAttendanceRecord, setEditAttendanceRecord] = useState<WithId<AttendanceRecord> | null>(null);
+  const [isEditAttendanceOpen, setIsEditAttendanceOpen] = useState(false);
+  const [editAbsenceRecord, setEditAbsenceRecord] = useState<WithId<AbsenceRecord> | null>(null);
+  const [isEditAbsenceOpen, setIsEditAbsenceOpen] = useState(false);
+
+  const [itemToDelete, setItemToDelete] = useState<ItemToDelete | null>(null);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -687,7 +717,144 @@ export default function DashboardPage() {
         case 'izin': return <Badge variant="secondary" className="bg-blue-100 text-blue-800">Izin</Badge>;
         case 'alpa': return <Badge variant="destructive">Alpa</Badge>;
     }
-  }
+  };
+
+  const handleOpenEdit = (
+    record:
+      | (WithId<AttendanceRecord> & { type: "attendance" })
+      | (WithId<AbsenceRecord> & { type: "absence" })
+  ) => {
+    if (record.type === "attendance") {
+      setEditAttendanceRecord(record);
+      setIsEditAttendanceOpen(true);
+    } else {
+      setEditAbsenceRecord(record);
+      setIsEditAbsenceOpen(true);
+    }
+  };
+
+  const handleOpenDelete = (
+    record:
+      | (WithId<AttendanceRecord> & { type: "attendance" })
+      | (WithId<AbsenceRecord> & { type: "absence" })
+  ) => {
+    const employee = employees?.find((e) => e.id === record.employeeId);
+    const employeeName = employee?.name || "Karyawan";
+
+    if (record.type === "attendance") {
+      const clockInDate = parseISO(record.clockIn);
+      const dateStr = format(clockInDate, "dd MMMM yyyy", { locale: id });
+      const details = `Masuk: ${format(clockInDate, "p")}${
+        record.clockOut ? ` • Pulang: ${format(parseISO(record.clockOut), "p")}` : ""
+      }`;
+      setItemToDelete({
+        id: record.id,
+        type: "attendance",
+        employeeName,
+        date: dateStr,
+        details,
+      });
+    } else {
+      const dateObj = parseISO(record.date);
+      const dateStr = format(dateObj, "dd MMMM yyyy", { locale: id });
+      const details = `Status: ${record.status.toUpperCase()}${
+        record.notes ? ` • ${record.notes}` : ""
+      }`;
+      setItemToDelete({
+        id: record.id,
+        type: "absence",
+        employeeName,
+        date: dateStr,
+        details,
+      });
+    }
+    setIsDeleteAlertOpen(true);
+  };
+
+  const handleSaveEditAttendance = (id: string, data: AttendanceEditData) => {
+    if (!firestore) return;
+    try {
+      const docRef = doc(firestore, "attendance", id);
+      const updatePayload: Record<string, unknown> = {
+        employeeId: data.employeeId,
+        clockIn: data.clockIn,
+        notes: data.notes || "",
+      };
+      if (data.clockOut) {
+        updatePayload.clockOut = data.clockOut;
+      } else {
+        updatePayload.clockOut = deleteField();
+      }
+      updateDocumentNonBlocking(docRef, updatePayload);
+      toast({
+        title: "Berhasil Diperbarui",
+        description: "Data absensi berhasil diperbarui.",
+      });
+      setIsEditAttendanceOpen(false);
+      setEditAttendanceRecord(null);
+    } catch (error) {
+      console.error("Gagal memperbarui absensi:", error);
+      toast({
+        title: "Gagal Memperbarui",
+        description: "Terjadi kesalahan saat memperbarui data absensi.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSaveEditAbsence = (id: string, data: AbsenceEditData) => {
+    if (!firestore) return;
+    try {
+      const docRef = doc(firestore, "absences", id);
+      const updatePayload: Record<string, unknown> = {
+        employeeId: data.employeeId,
+        date: data.date,
+        status: data.status,
+        notes: data.notes || "",
+      };
+      updateDocumentNonBlocking(docRef, updatePayload);
+      toast({
+        title: "Berhasil Diperbarui",
+        description: "Data ketidakhadiran berhasil diperbarui.",
+      });
+      setIsEditAbsenceOpen(false);
+      setEditAbsenceRecord(null);
+    } catch (error) {
+      console.error("Gagal memperbarui ketidakhadiran:", error);
+      toast({
+        title: "Gagal Memperbarui",
+        description: "Terjadi kesalahan saat memperbarui data ketidakhadiran.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleConfirmDelete = () => {
+    if (!firestore || !itemToDelete) return;
+    setIsDeleting(true);
+    try {
+      const collectionName =
+        itemToDelete.type === "attendance" ? "attendance" : "absences";
+      deleteDocumentNonBlocking(doc(firestore, collectionName, itemToDelete.id));
+      toast({
+        title: "Berhasil Dihapus",
+        description: `Data ${
+          itemToDelete.type === "attendance" ? "absensi" : "ketidakhadiran"
+        } ${itemToDelete.employeeName} berhasil dihapus.`,
+      });
+      setIsDeleteAlertOpen(false);
+      setItemToDelete(null);
+    } catch (error) {
+      console.error("Gagal menghapus data:", error);
+      toast({
+        title: "Gagal Menghapus",
+        description: "Terjadi kesalahan saat menghapus data. Silakan coba lagi.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
   
   const dailyLogItems = useMemo(() => {
     if (!selectedDateAttendance && !selectedDateAbsences) return [];
@@ -1179,19 +1346,46 @@ export default function DashboardPage() {
                   {isLoading ? (
                     <div className="text-center text-sm text-muted-foreground py-8">Memuat aktivitas...</div>
                   ) : dailyLogItems.length > 0 ? (
-                      <ul className="space-y-3">
+                      <ul className="space-y-1">
                           {dailyLogItems.map((record) => (
-                              <li key={record.id} className="flex items-center justify-between text-sm">
-                                  <div className="font-medium">{getEmployeeName(record.employeeId)}</div>
-                                  {record.type === 'attendance' ? (
-                                    <div className="text-muted-foreground">
-                                        {record.clockOut ? `Masuk: ${format(parseISO(record.clockIn), 'p')} - Pulang: ${format(parseISO(record.clockOut), 'p')}` : `Masuk: ${format(parseISO(record.clockIn), 'p')}`}
-                                    </div>
-                                  ) : (
-                                    <div className="text-muted-foreground">
-                                        {getAbsenceStatusBadge(record.status)}
-                                    </div>
-                                  )}
+                              <li
+                                key={record.id}
+                                className="flex items-center justify-between text-sm gap-2 p-1.5 rounded-md hover:bg-muted/40 transition-colors"
+                              >
+                                  <div className="min-w-0 flex-1">
+                                    <div className="font-medium truncate">{getEmployeeName(record.employeeId)}</div>
+                                    {record.type === 'attendance' ? (
+                                      <div className="text-xs text-muted-foreground">
+                                          {record.clockOut ? `Masuk: ${format(parseISO(record.clockIn), 'p')} - Pulang: ${format(parseISO(record.clockOut), 'p')}` : `Masuk: ${format(parseISO(record.clockIn), 'p')}`}
+                                      </div>
+                                    ) : (
+                                      <div className="text-xs text-muted-foreground">
+                                          {getAbsenceStatusBadge(record.status)}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                      onClick={() => handleOpenEdit(record)}
+                                      title="Edit Data"
+                                    >
+                                      <Pencil className="h-3.5 w-3.5" />
+                                      <span className="sr-only">Edit</span>
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                      onClick={() => handleOpenDelete(record)}
+                                      title="Hapus Data"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                      <span className="sr-only">Hapus</span>
+                                    </Button>
+                                  </div>
                               </li>
                           ))}
                       </ul>
@@ -1221,12 +1415,13 @@ export default function DashboardPage() {
                   <TableHead>Pulang</TableHead>
                   <TableHead>Catatan</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right w-[90px]">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">Memuat log...</TableCell>
+                    <TableCell colSpan={7} className="h-24 text-center">Memuat log...</TableCell>
                   </TableRow>
                 ) : dailyLogItems.length > 0 ? (
                   dailyLogItems.map((record) => {
@@ -1249,6 +1444,30 @@ export default function DashboardPage() {
                             <TableCell>
                               {getStatus(record)}
                             </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                  onClick={() => handleOpenEdit(record)}
+                                  title="Edit Data"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                  <span className="sr-only">Edit</span>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  onClick={() => handleOpenDelete(record)}
+                                  title="Hapus Data"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  <span className="sr-only">Hapus</span>
+                                </Button>
+                              </div>
+                            </TableCell>
                           </TableRow>
                         );
                     } else { // type is 'absence'
@@ -1261,13 +1480,37 @@ export default function DashboardPage() {
                             <TableCell>
                               {getAbsenceStatusBadge(record.status)}
                             </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                  onClick={() => handleOpenEdit(record)}
+                                  title="Edit Data"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                  <span className="sr-only">Edit</span>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  onClick={() => handleOpenDelete(record)}
+                                  title="Hapus Data"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  <span className="sr-only">Hapus</span>
+                                </Button>
+                              </div>
+                            </TableCell>
                           </TableRow>
                         );
                     }
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground italic">
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground italic">
                       Tidak ada catatan yang ditemukan untuk tanggal ini.
                     </TableCell>
                   </TableRow>
@@ -1320,12 +1563,13 @@ export default function DashboardPage() {
                       <TableHead>Pulang</TableHead>
                       <TableHead>Catatan</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="text-right w-[90px]">Aksi</TableHead>
                       </TableRow>
                   </TableHeader>
                   <TableBody>
                       {isLoadingHistory || isLoadingHistoryAbsences ? (
                         <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">
+                            <TableCell colSpan={7} className="h-24 text-center">
                             Memuat riwayat...
                             </TableCell>
                         </TableRow>
@@ -1347,6 +1591,30 @@ export default function DashboardPage() {
                                   <TableCell>{record.clockOut ? format(parseISO(record.clockOut), "p") : " - "}</TableCell>
                                   <TableCell>{record.notes || "-"}</TableCell>
                                   <TableCell>{getStatus(record)}</TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex items-center justify-end gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                        onClick={() => handleOpenEdit(record)}
+                                        title="Edit Data"
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                        <span className="sr-only">Edit</span>
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                        onClick={() => handleOpenDelete(record)}
+                                        title="Hapus Data"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                        <span className="sr-only">Hapus</span>
+                                      </Button>
+                                    </div>
+                                  </TableCell>
                               </TableRow>
                               );
                           } else { // type is 'absence'
@@ -1357,13 +1625,37 @@ export default function DashboardPage() {
                                     <TableCell colSpan={2} className="text-center">-</TableCell>
                                     <TableCell>{record.notes || "-"}</TableCell>
                                     <TableCell>{getAbsenceStatusBadge(record.status)}</TableCell>
+                                    <TableCell className="text-right">
+                                      <div className="flex items-center justify-end gap-1">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                          onClick={() => handleOpenEdit(record)}
+                                          title="Edit Data"
+                                        >
+                                          <Pencil className="h-4 w-4" />
+                                          <span className="sr-only">Edit</span>
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                          onClick={() => handleOpenDelete(record)}
+                                          title="Hapus Data"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                          <span className="sr-only">Hapus</span>
+                                        </Button>
+                                      </div>
+                                    </TableCell>
                                 </TableRow>
                                );
                           }
                       })
                       ) : (
                       <TableRow>
-                          <TableCell colSpan={6} className="h-24 text-center">
+                          <TableCell colSpan={7} className="h-24 text-center">
                           Tidak ada catatan ditemukan untuk filter yang dipilih.
                           </TableCell>
                       </TableRow>
@@ -1384,6 +1676,27 @@ export default function DashboardPage() {
         setIsOpen={setIsAbsenceFormOpen}
         employees={activeEmployees || null}
         onSave={handleSaveAbsence}
+      />
+      <EditAttendanceDialog
+        isOpen={isEditAttendanceOpen}
+        setIsOpen={setIsEditAttendanceOpen}
+        record={editAttendanceRecord}
+        employees={employees || null}
+        onSave={handleSaveEditAttendance}
+      />
+      <EditAbsenceDialog
+        isOpen={isEditAbsenceOpen}
+        setIsOpen={setIsEditAbsenceOpen}
+        record={editAbsenceRecord}
+        employees={employees || null}
+        onSave={handleSaveEditAbsence}
+      />
+      <DeleteLogItemAlert
+        isOpen={isDeleteAlertOpen}
+        setIsOpen={setIsDeleteAlertOpen}
+        item={itemToDelete}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeleting}
       />
     </>
   );
