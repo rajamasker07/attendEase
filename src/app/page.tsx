@@ -694,6 +694,17 @@ export default function DashboardPage() {
     return employees?.find((e) => e.id === employeeId)?.name || "Tidak diketahui";
   };
   
+  const getInitials = (name?: string) => {
+    if (!name) return "??";
+    return name
+      .split(" ")
+      .filter(Boolean)
+      .map((n) => n[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+  };
+
   const getStatus = (record: WithId<AttendanceRecord>) => {
     const clockInTime = parseISO(record.clockIn);
     
@@ -703,19 +714,46 @@ export default function DashboardPage() {
     lateTime.setHours(hours, minutes, 0, 0); 
 
     if (record.clockOut) {
-        return <Badge variant="secondary">Sudah Pulang</Badge>;
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800/80 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+            Sudah Pulang
+          </span>
+        );
     }
     if (isAfter(clockInTime, lateTime)) {
-        return <Badge variant="destructive">Terlambat</Badge>;
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+            Terlambat
+          </span>
+        );
     }
-    return <Badge>Sudah Masuk</Badge>;
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+        Sudah Masuk
+      </span>
+    );
   };
 
   const getAbsenceStatusBadge = (status: AbsenceRecord['status']) => {
     switch (status) {
-        case 'sakit': return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Sakit</Badge>;
-        case 'izin': return <Badge variant="secondary" className="bg-blue-100 text-blue-800">Izin</Badge>;
-        case 'alpa': return <Badge variant="destructive">Alpa</Badge>;
+        case 'sakit': 
+          return (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+              Sakit
+            </span>
+          );
+        case 'izin': 
+          return (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+              Izin
+            </span>
+          );
+        case 'alpa': 
+          return (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+              Alpa
+            </span>
+          );
     }
   };
 
@@ -883,433 +921,532 @@ export default function DashboardPage() {
   
   if (isLoading) {
     return (
-       <div className="space-y-6">
-         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Karyawan Hadir</CardTitle>
-                    <UserCheck className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <Skeleton className="h-7 w-20 mb-1" />
-                    <Skeleton className="h-2 w-full" />
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Karyawan Terlambat</CardTitle>
-                    <AlarmClock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <Skeleton className="h-7 w-10 mb-1" />
-                    <Skeleton className="h-3 w-32" />
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Karyawan Tidak Hadir</CardTitle>
-                    <UserX className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <Skeleton className="h-7 w-10 mb-1" />
-                    <Skeleton className="h-3 w-32" />
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Karyawan Aktif</CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <Skeleton className="h-7 w-10 mb-1" />
-                    <Skeleton className="h-3 w-40" />
-                </CardContent>
-            </Card>
+      <div className="space-y-8 animate-pulse">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-48 rounded-full" />
+            <Skeleton className="h-8 w-72 rounded-lg" />
+            <Skeleton className="h-4 w-96 rounded-md" />
+          </div>
+          <Skeleton className="h-10 w-44 rounded-xl" />
         </div>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-                <CardHeader>
-                    <CardTitle>Absensi</CardTitle>
-                    <CardDescription>Catat waktu masuk atau pulang karyawan.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <Skeleton className="h-[108px] w-full" />
-                    <div className="space-y-6 pt-4">
-                        <Skeleton className="h-10 w-full" />
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                           <Skeleton className="h-10 w-full" />
-                           <Skeleton className="h-10 w-full" />
-                        </div>
-                        <Skeleton className="h-20 w-full" />
-                        <div className="flex w-full gap-2">
-                           <Skeleton className="h-10 w-full" />
-                           <Skeleton className="h-10 w-full" />
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Aktivitas pada Tanggal Dipilih</CardTitle>
-                    <CardDescription>Catatan absensi untuk tanggal yang dipilih.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="h-[300px] flex items-center justify-center">
-                        <p className="text-sm text-muted-foreground">Memuat data...</p>
-                    </div>
-                </CardContent>
-            </Card>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="glass-card rounded-2xl border border-border/60 p-5 space-y-3">
+              <div className="flex justify-between items-center">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-3 w-full" />
+            </div>
+          ))}
         </div>
-        <Card>
-            <CardHeader><CardTitle>Log Lengkap pada Tanggal Dipilih</CardTitle></CardHeader>
-            <CardContent><Skeleton className="h-40 w-full" /></CardContent>
-        </Card>
-        <Card>
-            <CardHeader><CardTitle>Riwayat Aktivitas</CardTitle></CardHeader>
-            <CardContent><Skeleton className="h-40 w-full" /></CardContent>
-        </Card>
+
+        <div className="grid gap-6 lg:grid-cols-12">
+          <div className="lg:col-span-7 glass-card rounded-2xl border border-border/60 p-6 space-y-6">
+            <Skeleton className="h-28 w-full rounded-2xl" />
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-full rounded-xl" />
+              <div className="grid grid-cols-2 gap-4">
+                <Skeleton className="h-10 w-full rounded-xl" />
+                <Skeleton className="h-10 w-full rounded-xl" />
+              </div>
+              <Skeleton className="h-20 w-full rounded-xl" />
+              <div className="flex gap-3">
+                <Skeleton className="h-11 w-full rounded-xl" />
+                <Skeleton className="h-11 w-full rounded-xl" />
+              </div>
+            </div>
+          </div>
+          <div className="lg:col-span-5 space-y-6">
+            <div className="glass-card rounded-2xl border border-border/60 p-5 space-y-4">
+              <Skeleton className="h-6 w-36" />
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full rounded-xl" />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-card rounded-2xl border border-border/60 p-6">
+          <Skeleton className="h-48 w-full rounded-xl" />
+        </div>
       </div>
     );
   }
 
   return (
     <>
-      <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Karyawan Hadir</CardTitle>
-                    <UserCheck className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{dailySummary.presentEmployees} / {dailySummary.totalActiveEmployees}</div>
-                    <Progress value={dailySummary.attendancePercentage} className="mt-2 h-2" />
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Karyawan Terlambat</CardTitle>
-                    <AlarmClock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-destructive">{dailySummary.lateEmployees}</div>
-                    <p className="text-xs text-muted-foreground">karyawan datang terlambat hari ini</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Karyawan Tidak Hadir</CardTitle>
-                    <UserX className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{dailySummary.absentEmployees}</div>
-                        <p className="text-xs text-muted-foreground">karyawan tidak hadir hari ini</p>
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Karyawan Aktif</CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{dailySummary.totalActiveEmployees}</div>
-                    <p className="text-xs text-muted-foreground">total karyawan yang terdaftar & aktif</p>
-                </CardContent>
-            </Card>
+      <div className="space-y-8">
+        {/* Header Banner */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Sistem Presensi Real-Time
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold font-headline tracking-tight text-foreground">
+              Pusat Kehadiran & Operasional
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Pantau presensi, kelola pencatatan real-time, dan monitor kepatuhan kerja karyawan.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="glass-panel px-4 py-2 rounded-xl flex items-center gap-2.5 text-xs text-muted-foreground border border-border/60 shadow-sm">
+              <CalendarIcon className="h-4 w-4 text-primary" />
+              <span className="font-semibold text-foreground">
+                {format(new Date(), "EEEE, d MMMM yyyy", { locale: id })}
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Absensi</CardTitle>
-              <CardDescription>Catat waktu masuk/pulang atau tandai ketidakhadiran karyawan.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Clock />
-              <div className="space-y-6 pt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="employee-select">Karyawan</Label>
-                  <div className="flex items-center gap-2">
-                    <Popover open={isEmployeePickerOpen} onOpenChange={setIsEmployeePickerOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={isEmployeePickerOpen}
-                          className="w-full justify-between"
-                        >
-                          {selectedEmployeeId
-                            ? activeEmployees?.find((employee) => employee.id === selectedEmployeeId)?.name
-                            : "Pilih seorang karyawan..."}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                        <Command>
-                          <CommandInput placeholder="Cari karyawan..." ref={searchInputRef} />
-                          <CommandEmpty>Karyawan tidak ditemukan.</CommandEmpty>
-                          <CommandList>
-                            <CommandGroup>
-                              {activeEmployees?.map((employee) => (
-                                <CommandItem
-                                  key={employee.id}
-                                  value={employee.name}
-                                  onSelect={(currentValue) => {
-                                    const employeeId = activeEmployees.find(e => e.name.toLowerCase() === currentValue.toLowerCase())?.id || "";
-                                    setSelectedEmployeeId(employeeId);
-                                    setIsEmployeePickerOpen(false);
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      selectedEmployeeId === employee.id ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {employee.name}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                    <Button variant="outline" size="icon" onClick={() => setIsEmployeeFormOpen(true)} disabled={isLoadingEmployees} aria-label="Tambah Karyawan Baru">
-                      <PlusCircle className="h-4 w-4" />
-                    </Button>
-                  </div>
+        {/* 4 KPI Metric Cards */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Card 1: Karyawan Hadir */}
+          <div className="relative overflow-hidden rounded-2xl glass-card border border-primary/25 bg-gradient-to-br from-primary/[0.08] via-background/80 to-background/50 p-5 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Karyawan Hadir</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/15 text-primary border border-primary/25">
+                Hari Ini
+              </span>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold font-display tracking-tight text-foreground">
+                {dailySummary.presentEmployees}
+              </span>
+              <span className="text-sm font-medium text-muted-foreground">
+                / {dailySummary.totalActiveEmployees} Karyawan
+              </span>
+            </div>
+            <div className="mt-3 space-y-1.5">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Rasio Kehadiran</span>
+                <span className="font-semibold text-primary">{dailySummary.attendancePercentage}%</span>
+              </div>
+              <Progress value={dailySummary.attendancePercentage} className="h-1.5 bg-muted/60" />
+            </div>
+          </div>
+
+          {/* Card 2: Karyawan Terlambat */}
+          <div className="relative overflow-hidden rounded-2xl glass-card border border-rose-500/25 bg-gradient-to-br from-rose-500/[0.07] via-background/80 to-background/50 p-5 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Karyawan Terlambat</span>
+              <span className={cn(
+                "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                dailySummary.lateEmployees > 0 
+                  ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30" 
+                  : "bg-muted text-muted-foreground border-border"
+              )}>
+                {dailySummary.lateEmployees > 0 ? "Perlu Review" : "Optimal"}
+              </span>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className={cn("text-3xl font-extrabold font-display tracking-tight", dailySummary.lateEmployees > 0 ? "text-rose-600 dark:text-rose-400" : "text-foreground")}>
+                {dailySummary.lateEmployees}
+              </span>
+              <span className="text-sm font-medium text-muted-foreground">Karyawan</span>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground flex items-center gap-1.5">
+              <AlarmClock className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+              <span>Melebihi batas toleransi jam masuk</span>
+            </p>
+          </div>
+
+          {/* Card 3: Tidak Hadir / Izin */}
+          <div className="relative overflow-hidden rounded-2xl glass-card border border-amber-500/25 bg-gradient-to-br from-amber-500/[0.07] via-background/80 to-background/50 p-5 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Izin / Sakit / Off</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                Terjadwal
+              </span>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold font-display tracking-tight text-foreground">
+                {dailySummary.absentEmployees}
+              </span>
+              <span className="text-sm font-medium text-muted-foreground">Karyawan</span>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground flex items-center gap-1.5">
+              <UserX className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              <span>Cuti, izin sakit, atau libur</span>
+            </p>
+          </div>
+
+          {/* Card 4: Total Karyawan Aktif */}
+          <div className="relative overflow-hidden rounded-2xl glass-card border border-secondary/25 bg-gradient-to-br from-secondary/[0.07] via-background/80 to-background/50 p-5 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Tim Aktif</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                Status OK
+              </span>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold font-display tracking-tight text-foreground">
+                {dailySummary.totalActiveEmployees}
+              </span>
+              <span className="text-sm font-medium text-muted-foreground">Terdaftar</span>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-secondary shrink-0" />
+              <span>Semua divisi operasional aktif</span>
+            </p>
+          </div>
+        </div>
+
+        {/* 7:5 Main Split */}
+        <div className="grid gap-6 lg:grid-cols-12 items-start">
+          {/* Left Column (7 cols): Absensi Cepat */}
+          <div className="lg:col-span-7 glass-card rounded-2xl border border-border/80 p-6 space-y-6 shadow-sm">
+            <div className="flex items-center justify-between pb-4 border-b border-border/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-sky-600 flex items-center justify-center text-white shadow-md shadow-primary/20">
+                  <Clock3 className="h-5 w-5" />
                 </div>
-
-                {/* Status Kartu Absensi Karyawan Terpilih */}
-                {selectedEmployeeId && (
-                  <div className={cn(
-                    "rounded-lg border p-3.5 transition-all text-sm",
-                    isSelectedDateHoliday
-                      ? "border-yellow-300 bg-yellow-50 text-yellow-900 dark:bg-yellow-950/40 dark:border-yellow-800 dark:text-yellow-200"
-                      : hasAbsenceOnSelectedDate
-                      ? "border-rose-300 bg-rose-50 text-rose-900 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-200"
-                      : hasCompletedAttendanceOnSelectedDate
-                      ? "border-emerald-300 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-200"
-                      : currentEmployeeRecord
-                      ? "border-blue-300 bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-200"
-                      : "border-slate-200 bg-slate-50 text-slate-800 dark:bg-slate-900/60 dark:border-slate-800 dark:text-slate-200"
-                  )}>
-                    {isSelectedDateHoliday ? (
-                      <div className="flex items-center gap-2.5">
-                        <CalendarIcon className="h-5 w-5 shrink-0 text-yellow-600 dark:text-yellow-400" />
-                        <div>
-                          <p className="font-semibold">Hari Libur Nasional / Kantor</p>
-                          <p className="text-xs opacity-90">
-                            Tanggal yang dipilih merupakan hari libur. Penginputan absensi dinonaktifkan.
-                          </p>
-                        </div>
-                      </div>
-                    ) : hasAbsenceOnSelectedDate ? (
-                      <div className="flex items-center gap-2.5">
-                        <UserX className="h-5 w-5 shrink-0 text-rose-600 dark:text-rose-400" />
-                        <div>
-                          <p className="font-semibold">
-                            Tercatat Tidak Hadir: {currentEmployeeAbsence?.status ? currentEmployeeAbsence.status.toUpperCase() : 'IZIN/SAKIT'}
-                          </p>
-                          <p className="text-xs opacity-90">
-                            <strong>{selectedEmployee?.name}</strong> sudah ditandai tidak hadir pada tanggal ini. Form absensi dinonaktifkan.
-                          </p>
-                        </div>
-                      </div>
-                    ) : hasCompletedAttendanceOnSelectedDate ? (
-                      <div className="flex items-center gap-2.5">
-                        <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                        <div>
-                          <p className="font-semibold">Absensi Hari Ini Selesai</p>
-                          <p className="text-xs opacity-90">
-                            <strong>{selectedEmployee?.name}</strong> sudah tercatat Masuk ({currentCompletedAttendanceRecord?.clockIn ? format(parseISO(currentCompletedAttendanceRecord.clockIn), 'HH:mm') : '-'} WIB) dan Pulang ({currentCompletedAttendanceRecord?.clockOut ? format(parseISO(currentCompletedAttendanceRecord.clockOut), 'HH:mm') : '-'} WIB). Input jam dinonaktifkan.
-                          </p>
-                        </div>
-                      </div>
-                    ) : currentEmployeeRecord ? (
-                      <div className="flex items-center gap-2.5">
-                        <Clock3 className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
-                        <div>
-                          <p className="font-semibold">Sudah Masuk • Siap Absen Pulang</p>
-                          <p className="text-xs opacity-90">
-                            <strong>{selectedEmployee?.name}</strong> tercatat masuk pukul <strong>{format(parseISO(currentEmployeeRecord.clockIn), 'HH:mm')} WIB</strong>. Jam disetel otomatis ke <strong>18:00 WIB (06:00 PM)</strong>.
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2.5">
-                        <LogIn className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                        <div>
-                          <p className="font-semibold">Belum Absen Masuk</p>
-                          <p className="text-xs opacity-90">
-                            <strong>{selectedEmployee?.name}</strong> belum memiliki catatan absensi hari ini. Jam disetel otomatis ke <strong>07:30 WIB (07:30 AM)</strong>.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="attendance-date">Tanggal</Label>
-                    <Input
-                      id="attendance-date"
-                      type="date"
-                      value={manualDate}
-                      onChange={(e) => setManualDate(e.target.value)}
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="attendance-time">Waktu</Label>
-                      {timeInfo && (
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-[11px] font-normal px-2 py-0.5",
-                            timeInfo.isMorning
-                              ? "border-emerald-300 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300"
-                              : "border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-300"
-                          )}
-                        >
-                          {timeInfo.hours24} WIB ({timeInfo.partOfDay} • {timeInfo.hours12})
-                        </Badge>
-                      )}
-                    </div>
-                    <Input
-                      id="attendance-time"
-                      type="time"
-                      value={manualTime}
-                      onChange={(e) => setManualTime(e.target.value)}
-                      disabled={isTimeInputDisabled}
-                      className={cn(
-                        "w-full font-mono transition-colors",
-                        isTimeInputDisabled && "cursor-not-allowed bg-muted/60 opacity-80"
-                      )}
-                    />
-                  </div>
+                <div>
+                  <h2 className="text-lg font-bold font-headline text-foreground">Pencatatan Presensi Cepat</h2>
+                  <p className="text-xs text-muted-foreground">Pilih karyawan untuk sinkronisasi otomatis waktu & status</p>
                 </div>
+              </div>
+              <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                <Sparkles className="h-3.5 w-3.5" /> Auto-sync 07:30 / 18:00
+              </div>
+            </div>
 
-                {/* Preset Waktu Cepat 1-Klik */}
-                {!isTimeInputDisabled && (
-                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                    <span className="text-xs text-muted-foreground mr-1 flex items-center gap-1">
-                      <Sparkles className="h-3.5 w-3.5 text-primary" /> Preset Cepat:
-                    </span>
-                    {!currentEmployeeRecord ? (
-                      <>
-                        <Button
-                          type="button"
-                          variant={manualTime === "07:30" ? "secondary" : "outline"}
-                          size="sm"
-                          className="h-6 px-2 text-xs"
-                          onClick={() => setManualTime("07:30")}
-                        >
-                          07:30 Pagi (Standar)
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={manualTime === "08:00" ? "secondary" : "outline"}
-                          size="sm"
-                          className="h-6 px-2 text-xs"
-                          onClick={() => setManualTime("08:00")}
-                        >
-                          08:00 Pagi
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button
-                          type="button"
-                          variant={manualTime === "18:00" ? "secondary" : "outline"}
-                          size="sm"
-                          className="h-6 px-2 text-xs"
-                          onClick={() => setManualTime("18:00")}
-                        >
-                          18:00 Sore (Standar)
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={manualTime === "17:00" ? "secondary" : "outline"}
-                          size="sm"
-                          className="h-6 px-2 text-xs"
-                          onClick={() => setManualTime("17:00")}
-                        >
-                          17:00 Sore
-                        </Button>
-                      </>
-                    )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-6 px-2 text-xs"
-                      onClick={() => setManualTime(format(new Date(), "HH:mm"))}
-                    >
-                      Jam Sekarang
-                    </Button>
-                  </div>
-                )}
+            {/* Embedded Chronometer */}
+            <Clock />
 
-                {/* Peringatan Cerdas Jika Kemungkinan AM/PM Tertukar */}
-                {showClockInWarning && (
-                  <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-800 p-2.5 text-xs text-amber-900 dark:text-amber-200">
-                    <div className="flex items-center gap-1.5">
-                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-                      <span>
-                        Jam masuk terdeteksi <strong>{timeInfo?.partOfDay} ({timeInfo?.hours12})</strong>. Apakah maksud Anda <strong>07:30 Pagi</strong>?
-                      </span>
+            {/* Attendance Form */}
+            <div className="space-y-5 pt-2">
+              {/* Employee Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="employee-select" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Pilih Karyawan
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Popover open={isEmployeePickerOpen} onOpenChange={setIsEmployeePickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={isEmployeePickerOpen}
+                        className="w-full justify-between h-11 rounded-xl border-border/80 hover:bg-surface-container-high transition-all"
+                      >
+                        {selectedEmployeeId ? (
+                          <div className="flex items-center gap-2.5 truncate">
+                            <div className="w-6 h-6 rounded-md bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center shrink-0">
+                              {getInitials(activeEmployees?.find((e) => e.id === selectedEmployeeId)?.name)}
+                            </div>
+                            <span className="font-medium text-foreground">
+                              {activeEmployees?.find((e) => e.id === selectedEmployeeId)?.name}
+                            </span>
+                            <span className="text-xs text-muted-foreground hidden sm:inline">
+                              • {activeEmployees?.find((e) => e.id === selectedEmployeeId)?.position}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">Pilih seorang karyawan...</span>
+                        )}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0 rounded-xl shadow-xl border-border/80">
+                      <Command>
+                        <CommandInput placeholder="Cari karyawan berdasarkan nama..." ref={searchInputRef} />
+                        <CommandEmpty>Karyawan tidak ditemukan.</CommandEmpty>
+                        <CommandList>
+                          <CommandGroup>
+                            {activeEmployees?.map((employee) => (
+                              <CommandItem
+                                key={employee.id}
+                                value={employee.name}
+                                onSelect={(currentValue) => {
+                                  const employeeId = activeEmployees.find(e => e.name.toLowerCase() === currentValue.toLowerCase())?.id || "";
+                                  setSelectedEmployeeId(employeeId);
+                                  setIsEmployeePickerOpen(false);
+                                }}
+                                className="flex items-center gap-2 py-2"
+                              >
+                                <Check
+                                  className={cn(
+                                    "h-4 w-4 text-primary",
+                                    selectedEmployeeId === employee.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="w-6 h-6 rounded-md bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0">
+                                  {getInitials(employee.name)}
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="font-medium text-sm text-foreground">{employee.name}</span>
+                                  <span className="text-xs text-muted-foreground">{employee.position}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => setIsEmployeeFormOpen(true)} 
+                    disabled={isLoadingEmployees} 
+                    aria-label="Tambah Karyawan Baru"
+                    className="h-11 w-11 rounded-xl shrink-0 border-border/80 hover:bg-surface-container-high hover:text-primary transition-all"
+                    title="Tambah Karyawan Baru"
+                  >
+                    <PlusCircle className="h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Status Kartu Absensi Karyawan Terpilih */}
+              {selectedEmployeeId && (
+                <div className={cn(
+                  "rounded-xl border p-4 transition-all text-sm",
+                  isSelectedDateHoliday
+                    ? "border-yellow-400/50 bg-yellow-500/10 text-yellow-900 dark:text-yellow-200"
+                    : hasAbsenceOnSelectedDate
+                    ? "border-rose-400/50 bg-rose-500/10 text-rose-900 dark:text-rose-200"
+                    : hasCompletedAttendanceOnSelectedDate
+                    ? "border-emerald-400/50 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200"
+                    : currentEmployeeRecord
+                    ? "border-sky-400/50 bg-sky-500/10 text-sky-900 dark:text-sky-200"
+                    : "border-slate-300 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/40 text-slate-800 dark:text-slate-200"
+                )}>
+                  {isSelectedDateHoliday ? (
+                    <div className="flex items-center gap-3">
+                      <CalendarIcon className="h-5 w-5 shrink-0 text-yellow-600 dark:text-yellow-400" />
+                      <div>
+                        <p className="font-bold">Hari Libur Nasional / Kantor</p>
+                        <p className="text-xs opacity-90">
+                          Tanggal yang dipilih merupakan hari libur. Penginputan absensi dinonaktifkan.
+                        </p>
+                      </div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setManualTime("07:30")}
-                      className="h-7 text-xs border-amber-400 bg-white hover:bg-amber-100 dark:bg-amber-900 dark:hover:bg-amber-800 shrink-0"
-                    >
-                      Ubah ke 07:30 Pagi
-                    </Button>
-                  </div>
-                )}
-
-                {showClockOutWarning && (
-                  <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-800 p-2.5 text-xs text-amber-900 dark:text-amber-200">
-                    <div className="flex items-center gap-1.5">
-                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-                      <span>
-                        Jam pulang terdeteksi <strong>Pagi ({timeInfo?.hours12})</strong>. Apakah maksud Anda <strong>18:00 Sore (06:00 PM)</strong>?
-                      </span>
+                  ) : hasAbsenceOnSelectedDate ? (
+                    <div className="flex items-center gap-3">
+                      <UserX className="h-5 w-5 shrink-0 text-rose-600 dark:text-rose-400" />
+                      <div>
+                        <p className="font-bold">
+                          Tercatat Tidak Hadir: {currentEmployeeAbsence?.status ? currentEmployeeAbsence.status.toUpperCase() : 'IZIN/SAKIT'}
+                        </p>
+                        <p className="text-xs opacity-90">
+                          <strong>{selectedEmployee?.name}</strong> sudah ditandai tidak hadir pada tanggal ini. Form absensi dinonaktifkan.
+                        </p>
+                      </div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setManualTime("18:00")}
-                      className="h-7 text-xs border-amber-400 bg-white hover:bg-amber-100 dark:bg-amber-900 dark:hover:bg-amber-800 shrink-0"
-                    >
-                      Ubah ke 18:00 Sore
-                    </Button>
-                  </div>
-                )}
-                
+                  ) : hasCompletedAttendanceOnSelectedDate ? (
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <div>
+                        <p className="font-bold">Absensi Hari Ini Lengkap</p>
+                        <p className="text-xs opacity-90">
+                          <strong>{selectedEmployee?.name}</strong> sudah tercatat Masuk ({currentCompletedAttendanceRecord?.clockIn ? format(parseISO(currentCompletedAttendanceRecord.clockIn), 'HH:mm') : '-'} WIB) dan Pulang ({currentCompletedAttendanceRecord?.clockOut ? format(parseISO(currentCompletedAttendanceRecord.clockOut), 'HH:mm') : '-'} WIB). Input jam dinonaktifkan.
+                        </p>
+                      </div>
+                    </div>
+                  ) : currentEmployeeRecord ? (
+                    <div className="flex items-center gap-3">
+                      <Clock3 className="h-5 w-5 shrink-0 text-sky-600 dark:text-sky-400" />
+                      <div>
+                        <p className="font-bold">Sudah Masuk • Siap Absen Pulang</p>
+                        <p className="text-xs opacity-90">
+                          <strong>{selectedEmployee?.name}</strong> tercatat masuk pukul <strong>{format(parseISO(currentEmployeeRecord.clockIn), 'HH:mm')} WIB</strong>. Jam disetel otomatis ke <strong>18:00 WIB (06:00 PM)</strong>.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <LogIn className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <div>
+                        <p className="font-bold">Belum Absen Masuk</p>
+                        <p className="text-xs opacity-90">
+                          <strong>{selectedEmployee?.name}</strong> belum memiliki catatan absensi hari ini. Jam disetel otomatis ke <strong>07:30 WIB (07:30 AM)</strong>.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tanggal & Waktu Inputs */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="attendance-notes">Catatan</Label>
-                  <Textarea
-                    id="attendance-notes"
-                    placeholder="Tambahkan catatan (opsional)..."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    disabled={isTimeInputDisabled}
+                  <Label htmlFor="attendance-date" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Tanggal Presensi
+                  </Label>
+                  <Input
+                    id="attendance-date"
+                    type="date"
+                    value={manualDate}
+                    onChange={(e) => setManualDate(e.target.value)}
+                    className="w-full h-11 rounded-xl border-border/80"
                   />
                 </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="attendance-time" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Jam Presensi
+                    </Label>
+                    {timeInfo && (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px] font-medium px-2 py-0.5 rounded-md",
+                          timeInfo.isMorning
+                            ? "border-emerald-300 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+                            : "border-sky-300 text-sky-700 bg-sky-50 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800"
+                        )}
+                      >
+                        {timeInfo.hours24} WIB ({timeInfo.partOfDay} • {timeInfo.hours12})
+                      </Badge>
+                    )}
+                  </div>
+                  <Input
+                    id="attendance-time"
+                    type="time"
+                    value={manualTime}
+                    onChange={(e) => setManualTime(e.target.value)}
+                    disabled={isTimeInputDisabled}
+                    className={cn(
+                      "w-full h-11 rounded-xl font-mono text-base transition-colors border-border/80",
+                      isTimeInputDisabled && "cursor-not-allowed bg-muted/60 opacity-80"
+                    )}
+                  />
+                </div>
+              </div>
 
-                <div className="flex w-full flex-col sm:flex-row gap-2">
+              {/* Preset Waktu Cepat 1-Klik */}
+              {!isTimeInputDisabled && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-xs text-muted-foreground mr-1 flex items-center gap-1 font-medium">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" /> Preset Cepat:
+                  </span>
+                  {!currentEmployeeRecord ? (
+                    <>
+                      <Button
+                        type="button"
+                        variant={manualTime === "07:30" ? "secondary" : "outline"}
+                        size="sm"
+                        className={cn("h-7 px-2.5 text-xs rounded-lg transition-all", manualTime === "07:30" && "bg-primary/15 text-primary font-semibold border-primary/30")}
+                        onClick={() => setManualTime("07:30")}
+                      >
+                        07:30 Pagi (Standar)
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={manualTime === "08:00" ? "secondary" : "outline"}
+                        size="sm"
+                        className={cn("h-7 px-2.5 text-xs rounded-lg transition-all", manualTime === "08:00" && "bg-primary/15 text-primary font-semibold border-primary/30")}
+                        onClick={() => setManualTime("08:00")}
+                      >
+                        08:00 Pagi
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        type="button"
+                        variant={manualTime === "18:00" ? "secondary" : "outline"}
+                        size="sm"
+                        className={cn("h-7 px-2.5 text-xs rounded-lg transition-all", manualTime === "18:00" && "bg-primary/15 text-primary font-semibold border-primary/30")}
+                        onClick={() => setManualTime("18:00")}
+                      >
+                        18:00 Sore (Standar)
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={manualTime === "17:00" ? "secondary" : "outline"}
+                        size="sm"
+                        className={cn("h-7 px-2.5 text-xs rounded-lg transition-all", manualTime === "17:00" && "bg-primary/15 text-primary font-semibold border-primary/30")}
+                        onClick={() => setManualTime("17:00")}
+                      >
+                        17:00 Sore
+                      </Button>
+                    </>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-xs rounded-lg border-border/80"
+                    onClick={() => setManualTime(format(new Date(), "HH:mm"))}
+                  >
+                    Jam Sekarang
+                  </Button>
+                </div>
+              )}
+
+              {/* Peringatan Cerdas Jika Kemungkinan AM/PM Tertukar */}
+              {showClockInWarning && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/50 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                    <span>
+                      Jam masuk terdeteksi <strong>{timeInfo?.partOfDay} ({timeInfo?.hours12})</strong>. Apakah maksud Anda <strong>07:30 Pagi</strong>?
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setManualTime("07:30")}
+                    className="h-7 text-xs border-amber-400/60 bg-background/90 hover:bg-amber-100 dark:hover:bg-amber-950 shrink-0 rounded-lg font-medium"
+                  >
+                    Ubah ke 07:30 Pagi
+                  </Button>
+                </div>
+              )}
+
+              {showClockOutWarning && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/50 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                    <span>
+                      Jam pulang terdeteksi <strong>Pagi ({timeInfo?.hours12})</strong>. Apakah maksud Anda <strong>18:00 Sore (06:00 PM)</strong>?
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setManualTime("18:00")}
+                    className="h-7 text-xs border-amber-400/60 bg-background/90 hover:bg-amber-100 dark:hover:bg-amber-950 shrink-0 rounded-lg font-medium"
+                  >
+                    Ubah ke 18:00 Sore
+                  </Button>
+                </div>
+              )}
+              
+              {/* Catatan Field */}
+              <div className="space-y-2">
+                <Label htmlFor="attendance-notes" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Catatan (Opsional)
+                </Label>
+                <Textarea
+                  id="attendance-notes"
+                  placeholder="Tambahkan keterangan tugas luar, lembur, atau catatan khusus..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  disabled={isTimeInputDisabled}
+                  className="rounded-xl border-border/80 resize-none h-20"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 space-y-3">
+                <div className="flex w-full flex-col sm:flex-row gap-3">
                   <Button 
                     onClick={handleClockIn} 
                     disabled={!selectedEmployeeId || !!currentEmployeeRecord || hasCompletedAttendanceOnSelectedDate || hasAbsenceOnSelectedDate || isSelectedDateHoliday} 
-                    className="w-full"
+                    className="w-full h-11 rounded-xl bg-gradient-to-r from-primary to-sky-600 hover:from-primary/90 hover:to-sky-700 text-white font-semibold shadow-md shadow-primary/25 hover:shadow-primary/40 transition-all disabled:opacity-50 disabled:shadow-none"
                   >
                     <LogIn className="mr-2 h-4 w-4" /> Absen Masuk
                   </Button>
@@ -1317,111 +1454,162 @@ export default function DashboardPage() {
                     onClick={handleClockOut} 
                     disabled={!selectedEmployeeId || !currentEmployeeRecord || hasCompletedAttendanceOnSelectedDate || hasAbsenceOnSelectedDate || isSelectedDateHoliday} 
                     variant="outline" 
-                    className="w-full"
+                    className="w-full h-11 rounded-xl border-border/80 hover:bg-surface-container-high font-semibold transition-all disabled:opacity-50"
                   >
                     <LogOut className="mr-2 h-4 w-4" /> Absen Pulang
                   </Button>
                 </div>
                 <Button 
-                    onClick={() => setIsAbsenceFormOpen(true)}
-                    disabled={isLoadingEmployees || !selectedEmployeeId || hasCompletedAttendanceOnSelectedDate || hasAbsenceOnSelectedDate || isSelectedDateHoliday}
-                    variant="secondary"
-                    className="w-full"
-                  >
-                    <UserX className="mr-2 h-4 w-4" /> Tandai Ketidakhadiran
+                  onClick={() => setIsAbsenceFormOpen(true)}
+                  disabled={isLoadingEmployees || !selectedEmployeeId || hasCompletedAttendanceOnSelectedDate || hasAbsenceOnSelectedDate || isSelectedDateHoliday}
+                  variant="ghost"
+                  className="w-full h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-surface-container-high border border-border/60 transition-all"
+                >
+                  <UserX className="mr-2 h-4 w-4 text-amber-500" /> Tandai Ketidakhadiran (Sakit / Izin / Cuti)
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Aktivitas pada Tanggal Dipilih</CardTitle>
-              <CardDescription>
-                Catatan absensi untuk tanggal yang dipilih.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="max-h-[300px] overflow-y-auto">
-                  {isLoading ? (
-                    <div className="text-center text-sm text-muted-foreground py-8">Memuat aktivitas...</div>
-                  ) : dailyLogItems.length > 0 ? (
-                      <ul className="space-y-1">
-                          {dailyLogItems.map((record) => (
-                              <li
-                                key={record.id}
-                                className="flex items-center justify-between text-sm gap-2 p-1.5 rounded-md hover:bg-muted/40 transition-colors"
-                              >
-                                  <div className="min-w-0 flex-1">
-                                    <div className="font-medium truncate">{getEmployeeName(record.employeeId)}</div>
-                                    {record.type === 'attendance' ? (
-                                      <div className="text-xs text-muted-foreground">
-                                          {record.clockOut ? `Masuk: ${format(parseISO(record.clockIn), 'p')} - Pulang: ${format(parseISO(record.clockOut), 'p')}` : `Masuk: ${format(parseISO(record.clockIn), 'p')}`}
-                                      </div>
-                                    ) : (
-                                      <div className="text-xs text-muted-foreground">
-                                          {getAbsenceStatusBadge(record.status)}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-1 shrink-0">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                      onClick={() => handleOpenEdit(record)}
-                                      title="Edit Data"
-                                    >
-                                      <Pencil className="h-3.5 w-3.5" />
-                                      <span className="sr-only">Edit</span>
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                      onClick={() => handleOpenDelete(record)}
-                                      title="Hapus Data"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                      <span className="sr-only">Hapus</span>
-                                    </Button>
-                                  </div>
-                              </li>
-                          ))}
-                      </ul>
-                  ) : (
-                      <div className="text-center text-sm text-muted-foreground py-8">
-                        {manualDate === format(new Date(), "yyyy-MM-dd") 
-                          ? "Belum ada karyawan yang absen hari ini." 
-                          : "Tidak ada catatan untuk tanggal yang dipilih."}
-                      </div>
-                  )}
+            </div>
+          </div>
+
+          {/* Right Column (5 cols): Aktivitas Hari Ini & Ringkasan Kepatuhan */}
+          <div className="lg:col-span-5 space-y-6">
+            {/* Card Aktivitas Hari Ini */}
+            <div className="glass-card rounded-2xl border border-border/80 p-5 space-y-4 shadow-sm">
+              <div className="flex items-center justify-between pb-3 border-b border-border/50">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+                    {dailyLogItems.length}
+                  </div>
+                  <div>
+                    <h3 className="font-bold font-headline text-foreground text-sm">Aktivitas Tanggal Dipilih</h3>
+                    <p className="text-[11px] text-muted-foreground">Catatan presensi & izin</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-[11px] font-normal rounded-lg border-border/80">
+                  {format(parseISO(manualDate), "dd MMM yyyy", { locale: id })}
+                </Badge>
               </div>
-            </CardContent>
-          </Card>
+
+              <div className="max-h-[320px] overflow-y-auto space-y-2 pr-1">
+                {isLoading ? (
+                  <div className="text-center text-sm text-muted-foreground py-8">Memuat aktivitas...</div>
+                ) : dailyLogItems.length > 0 ? (
+                  dailyLogItems.map((record) => {
+                    const employeeName = getEmployeeName(record.employeeId);
+                    return (
+                      <div
+                        key={record.id}
+                        className="flex items-center justify-between gap-3 p-2.5 rounded-xl border border-border/40 hover:border-border/80 hover:bg-surface-container-high/50 transition-all"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/15 to-secondary/15 text-primary border border-primary/20 flex items-center justify-center font-bold text-xs shrink-0">
+                            {getInitials(employeeName)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-sm truncate text-foreground">{employeeName}</div>
+                            {record.type === 'attendance' ? (
+                              <div className="text-xs text-muted-foreground">
+                                {record.clockOut 
+                                  ? `${format(parseISO(record.clockIn), 'p')} - ${format(parseISO(record.clockOut), 'p')}`
+                                  : `Masuk: ${format(parseISO(record.clockIn), 'p')}`}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-muted-foreground">
+                                {getAbsenceStatusBadge(record.status)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          {record.type === 'attendance' && (
+                            <div className="mr-1 hidden sm:block">
+                              {getStatus(record)}
+                            </div>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                            onClick={() => handleOpenEdit(record)}
+                            title="Edit Data"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            <span className="sr-only">Edit</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-rose-500/10"
+                            onClick={() => handleOpenDelete(record)}
+                            title="Hapus Data"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span className="sr-only">Hapus</span>
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center text-xs text-muted-foreground py-10 space-y-1">
+                    <p className="font-medium text-foreground">Belum ada catatan aktivitas.</p>
+                    <p>
+                      {manualDate === format(new Date(), "yyyy-MM-dd") 
+                        ? "Belum ada karyawan yang absen hari ini." 
+                        : "Tidak ada data untuk tanggal ini."}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Card Ringkasan & Kepatuhan Presensi */}
+            <div className="glass-card rounded-2xl border border-border/80 p-5 space-y-3 shadow-sm bg-gradient-to-br from-background/90 via-surface-container-low/40 to-background/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Kepatuhan Presensi Tim</h4>
+                </div>
+                <span className="text-xs font-semibold text-primary">Target: 95%</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-extrabold font-display text-foreground">
+                  {dailySummary.attendancePercentage}%
+                </span>
+                <span className="text-xs text-muted-foreground">karyawan hadir sesuai jadwal</span>
+              </div>
+              <Progress value={dailySummary.attendancePercentage} className="h-2 bg-muted/60" />
+              <p className="text-[11px] text-muted-foreground leading-relaxed pt-1">
+                Catatan: Anda dapat menggunakan tombol <strong>Edit</strong> atau <strong>Hapus</strong> pada log jika terdapat koreksi jam kerja karyawan.
+              </p>
+            </div>
+          </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Log Lengkap pada Tanggal Dipilih</CardTitle>
-          </CardHeader>
-          <CardContent>
+        {/* Tabel 1: Log Lengkap pada Tanggal Dipilih */}
+        <div className="glass-card rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-border/50">
+            <h3 className="text-lg font-bold font-headline text-foreground">Log Lengkap Presensi & Ketidakhadiran</h3>
+            <p className="text-xs text-muted-foreground">Daftar seluruh kehadiran dan ketidakhadiran untuk tanggal yang dipilih</p>
+          </div>
+          <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Karyawan</TableHead>
-                  <TableHead>Posisi</TableHead>
-                  <TableHead>Masuk</TableHead>
-                  <TableHead>Pulang</TableHead>
-                  <TableHead>Catatan</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right w-[90px]">Aksi</TableHead>
+              <TableHeader className="bg-slate-100/90 dark:bg-slate-900/95 border-b border-border/80">
+                <TableRow className="border-border/50 hover:bg-transparent">
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Karyawan</TableHead>
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Posisi</TableHead>
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Masuk</TableHead>
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Pulang</TableHead>
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Catatan</TableHead>
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Status</TableHead>
+                  <TableHead className="text-right font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider w-[100px]">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">Memuat log...</TableCell>
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">Memuat log...</TableCell>
                   </TableRow>
                 ) : dailyLogItems.length > 0 ? (
                   dailyLogItems.map((record) => {
@@ -1435,12 +1623,25 @@ export default function DashboardPage() {
                         const isRecordLate = isAfter(clockInTime, lateTime);
 
                         return (
-                          <TableRow key={record.id} className={isRecordLate ? "bg-destructive/10" : ""}>
-                            <TableCell className="font-medium">{employee?.name || 'Tidak diketahui'}</TableCell>
-                            <TableCell>{employee?.position || 'N/A'}</TableCell>
-                            <TableCell>{format(parseISO(record.clockIn), "p")}</TableCell>
-                            <TableCell>{record.clockOut ? format(parseISO(record.clockOut), "p") : " - "}</TableCell>
-                            <TableCell>{record.notes || "-"}</TableCell>
+                          <TableRow key={record.id} className={cn("border-border/40 transition-colors", isRecordLate && "bg-destructive/[0.04]")}>
+                            <TableCell>
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
+                                  {getInitials(employee?.name)}
+                                </div>
+                                <span className="font-semibold text-foreground text-sm">{employee?.name || 'Tidak diketahui'}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{employee?.position || 'N/A'}</TableCell>
+                            <TableCell className="font-mono text-sm">
+                              <span className={cn(isRecordLate && "text-rose-600 dark:text-rose-400 font-semibold")}>
+                                {format(parseISO(record.clockIn), "p")}
+                              </span>
+                            </TableCell>
+                            <TableCell className="font-mono text-sm text-muted-foreground">
+                              {record.clockOut ? format(parseISO(record.clockOut), "p") : " - "}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{record.notes || "-"}</TableCell>
                             <TableCell>
                               {getStatus(record)}
                             </TableCell>
@@ -1449,21 +1650,21 @@ export default function DashboardPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
                                   onClick={() => handleOpenEdit(record)}
                                   title="Edit Data"
                                 >
-                                  <Pencil className="h-4 w-4" />
+                                  <Pencil className="h-3.5 w-3.5" />
                                   <span className="sr-only">Edit</span>
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-rose-500/10"
                                   onClick={() => handleOpenDelete(record)}
                                   title="Hapus Data"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-3.5 w-3.5" />
                                   <span className="sr-only">Hapus</span>
                                 </Button>
                               </div>
@@ -1472,11 +1673,18 @@ export default function DashboardPage() {
                         );
                     } else { // type is 'absence'
                          return (
-                          <TableRow key={record.id} className="bg-muted/50">
-                            <TableCell className="font-medium">{employee?.name || 'Tidak diketahui'}</TableCell>
-                            <TableCell>{employee?.position || 'N/A'}</TableCell>
-                            <TableCell colSpan={2} className="text-center"> - </TableCell>
-                            <TableCell>{record.notes || "-"}</TableCell>
+                          <TableRow key={record.id} className="border-border/40 bg-muted/[0.15]">
+                            <TableCell>
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold text-xs flex items-center justify-center shrink-0">
+                                  {getInitials(employee?.name)}
+                                </div>
+                                <span className="font-semibold text-foreground text-sm">{employee?.name || 'Tidak diketahui'}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{employee?.position || 'N/A'}</TableCell>
+                            <TableCell colSpan={2} className="text-center text-sm text-muted-foreground"> - </TableCell>
+                            <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{record.notes || "-"}</TableCell>
                             <TableCell>
                               {getAbsenceStatusBadge(record.status)}
                             </TableCell>
@@ -1485,21 +1693,21 @@ export default function DashboardPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
                                   onClick={() => handleOpenEdit(record)}
                                   title="Edit Data"
                                 >
-                                  <Pencil className="h-4 w-4" />
+                                  <Pencil className="h-3.5 w-3.5" />
                                   <span className="sr-only">Edit</span>
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-rose-500/10"
                                   onClick={() => handleOpenDelete(record)}
                                   title="Hapus Data"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-3.5 w-3.5" />
                                   <span className="sr-only">Hapus</span>
                                 </Button>
                               </div>
@@ -1510,161 +1718,188 @@ export default function DashboardPage() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground italic">
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground italic text-sm">
                       Tidak ada catatan yang ditemukan untuk tanggal ini.
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
         
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                  <CardTitle>Riwayat Aktivitas</CardTitle>
-                  <CardDescription>Lihat riwayat catatan kehadiran dan ketidakhadiran.</CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <Select value={historyEmployeeFilter} onValueChange={setHistoryEmployeeFilter}>
-                    <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Filter berdasarkan karyawan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua Karyawan</SelectItem>
-                        {employees?.map((employee) => (
-                            <SelectItem key={employee.id} value={employee.id}>
-                            {employee.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <Select value={historyFilter} onValueChange={setHistoryFilter}>
-                    <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Filter berdasarkan periode" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="3">3 hari terakhir</SelectItem>
-                        <SelectItem value="7">7 hari terakhir</SelectItem>
-                        <SelectItem value="30">30 hari terakhir</SelectItem>
-                        <SelectItem value="all">Semua Waktu</SelectItem>
-                    </SelectContent>
-                </Select>
-              </div>
-          </CardHeader>
-          <CardContent>
-              <Table>
-                  <TableHeader>
-                      <TableRow>
-                      <TableHead>Karyawan</TableHead>
-                      <TableHead>Tanggal</TableHead>
-                      <TableHead>Masuk</TableHead>
-                      <TableHead>Pulang</TableHead>
-                      <TableHead>Catatan</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right w-[90px]">Aksi</TableHead>
-                      </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                      {isLoadingHistory || isLoadingHistoryAbsences ? (
-                        <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">
-                            Memuat riwayat...
+        {/* Tabel 2: Riwayat Aktivitas Keseluruhan */}
+        <div className="glass-card rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-border/50 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-lg font-bold font-headline text-foreground">Riwayat Aktivitas Keseluruhan</h3>
+              <p className="text-xs text-muted-foreground">Telusuri catatan presensi lintas karyawan dan rentang waktu</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <Select value={historyEmployeeFilter} onValueChange={setHistoryEmployeeFilter}>
+                <SelectTrigger className="w-[180px] h-9 rounded-xl border-border/80 text-xs">
+                  <SelectValue placeholder="Filter karyawan" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-border/80">
+                  <SelectItem value="all">Semua Karyawan</SelectItem>
+                  {employees?.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={historyFilter} onValueChange={setHistoryFilter}>
+                <SelectTrigger className="w-[160px] h-9 rounded-xl border-border/80 text-xs">
+                  <SelectValue placeholder="Rentang waktu" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-border/80">
+                  <SelectItem value="3">3 hari terakhir</SelectItem>
+                  <SelectItem value="7">7 hari terakhir</SelectItem>
+                  <SelectItem value="30">30 hari terakhir</SelectItem>
+                  <SelectItem value="all">Semua Waktu</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-slate-100/90 dark:bg-slate-900/95 border-b border-border/80">
+                <TableRow className="border-border/50 hover:bg-transparent">
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Karyawan</TableHead>
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Tanggal</TableHead>
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Masuk</TableHead>
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Pulang</TableHead>
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Catatan</TableHead>
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Status</TableHead>
+                  <TableHead className="text-right font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider w-[100px]">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoadingHistory || isLoadingHistoryAbsences ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                      Memuat riwayat aktivitas...
+                    </TableCell>
+                  </TableRow>
+                ) : historyLogItems.length > 0 ? (
+                  historyLogItems.map((record) => {
+                    const employee = employees?.find(e => e.id === record.employeeId);
+                    if (record.type === 'attendance') {
+                        const clockInTime = parseISO(record.clockIn);
+                        const lateThreshold = settings?.lateThresholdTime || "07:35";
+                        const [hours, minutes] = lateThreshold.split(':').map(Number);
+                        const lateTime = new Date(clockInTime);
+                        lateTime.setHours(hours, minutes, 0, 0); 
+                        const isRecordLate = isAfter(clockInTime, lateTime);
+                        return (
+                          <TableRow key={record.id} className={cn("border-border/40 transition-colors", isRecordLate && "bg-destructive/[0.04]")}>
+                            <TableCell>
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
+                                  {getInitials(employee?.name)}
+                                </div>
+                                <span className="font-semibold text-foreground text-sm">{employee?.name || 'Tidak diketahui'}</span>
+                              </div>
                             </TableCell>
-                        </TableRow>
-                      ) : historyLogItems.length > 0 ? (
-                      historyLogItems.map((record) => {
-                          const employee = employees?.find(e => e.id === record.employeeId);
-                          if (record.type === 'attendance') {
-                              const clockInTime = parseISO(record.clockIn);
-                              const lateThreshold = settings?.lateThresholdTime || "07:35";
-                              const [hours, minutes] = lateThreshold.split(':').map(Number);
-                              const lateTime = new Date(clockInTime);
-                              lateTime.setHours(hours, minutes, 0, 0); 
-                              const isRecordLate = isAfter(clockInTime, lateTime);
-                              return (
-                              <TableRow key={record.id} className={isRecordLate ? "bg-destructive/10" : ""}>
-                                  <TableCell className="font-medium">{employee?.name || 'Tidak diketahui'}</TableCell>
-                                  <TableCell>{format(parseISO(record.clockIn), "MMM d, yyyy", { locale: id })}</TableCell>
-                                  <TableCell>{format(parseISO(record.clockIn), "p")}</TableCell>
-                                  <TableCell>{record.clockOut ? format(parseISO(record.clockOut), "p") : " - "}</TableCell>
-                                  <TableCell>{record.notes || "-"}</TableCell>
-                                  <TableCell>{getStatus(record)}</TableCell>
-                                  <TableCell className="text-right">
-                                    <div className="flex items-center justify-end gap-1">
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                        onClick={() => handleOpenEdit(record)}
-                                        title="Edit Data"
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                        <span className="sr-only">Edit</span>
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                        onClick={() => handleOpenDelete(record)}
-                                        title="Hapus Data"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                        <span className="sr-only">Hapus</span>
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                              </TableRow>
-                              );
-                          } else { // type is 'absence'
-                               return (
-                                <TableRow key={record.id} className="bg-muted/50">
-                                    <TableCell className="font-medium">{employee?.name || 'Tidak diketahui'}</TableCell>
-                                    <TableCell>{format(parseISO(record.date), "MMM d, yyyy", { locale: id })}</TableCell>
-                                    <TableCell colSpan={2} className="text-center">-</TableCell>
-                                    <TableCell>{record.notes || "-"}</TableCell>
-                                    <TableCell>{getAbsenceStatusBadge(record.status)}</TableCell>
-                                    <TableCell className="text-right">
-                                      <div className="flex items-center justify-end gap-1">
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                          onClick={() => handleOpenEdit(record)}
-                                          title="Edit Data"
-                                        >
-                                          <Pencil className="h-4 w-4" />
-                                          <span className="sr-only">Edit</span>
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                          onClick={() => handleOpenDelete(record)}
-                                          title="Hapus Data"
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                          <span className="sr-only">Hapus</span>
-                                        </Button>
-                                      </div>
-                                    </TableCell>
-                                </TableRow>
-                               );
-                          }
-                      })
-                      ) : (
-                      <TableRow>
-                          <TableCell colSpan={7} className="h-24 text-center">
-                          Tidak ada catatan ditemukan untuk filter yang dipilih.
-                          </TableCell>
-                      </TableRow>
-                      )}
-                  </TableBody>
-              </Table>
-          </CardContent>
-        </Card>
+                            <TableCell className="text-sm font-medium">
+                              {format(parseISO(record.clockIn), "dd MMM yyyy", { locale: id })}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              <span className={cn(isRecordLate && "text-rose-600 dark:text-rose-400 font-semibold")}>
+                                {format(parseISO(record.clockIn), "p")}
+                              </span>
+                            </TableCell>
+                            <TableCell className="font-mono text-sm text-muted-foreground">
+                              {record.clockOut ? format(parseISO(record.clockOut), "p") : " - "}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{record.notes || "-"}</TableCell>
+                            <TableCell>{getStatus(record)}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                  onClick={() => handleOpenEdit(record)}
+                                  title="Edit Data"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  <span className="sr-only">Edit</span>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-rose-500/10"
+                                  onClick={() => handleOpenDelete(record)}
+                                  title="Hapus Data"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <span className="sr-only">Hapus</span>
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                    } else { // type is 'absence'
+                         return (
+                          <TableRow key={record.id} className="border-border/40 bg-muted/[0.15]">
+                            <TableCell>
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold text-xs flex items-center justify-center shrink-0">
+                                  {getInitials(employee?.name)}
+                                </div>
+                                <span className="font-semibold text-foreground text-sm">{employee?.name || 'Tidak diketahui'}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm font-medium">
+                              {format(parseISO(record.date), "dd MMM yyyy", { locale: id })}
+                            </TableCell>
+                            <TableCell colSpan={2} className="text-center text-sm text-muted-foreground">-</TableCell>
+                            <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{record.notes || "-"}</TableCell>
+                            <TableCell>{getAbsenceStatusBadge(record.status)}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                  onClick={() => handleOpenEdit(record)}
+                                  title="Edit Data"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  <span className="sr-only">Edit</span>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-rose-500/10"
+                                  onClick={() => handleOpenDelete(record)}
+                                  title="Hapus Data"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <span className="sr-only">Hapus</span>
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                         );
+                    }
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground italic text-sm">
+                      Tidak ada catatan ditemukan untuk filter yang dipilih.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </div>
+
+      {/* Action Dialogs */}
       <EmployeeFormDialog
         isOpen={isEmployeeFormOpen}
         setIsOpen={setIsEmployeeFormOpen}

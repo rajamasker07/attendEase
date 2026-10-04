@@ -187,27 +187,27 @@ export default function PayrollDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
+      <Card className="glass-card rounded-2xl border border-border/80 shadow-sm overflow-hidden">
+        <CardHeader className="p-6 border-b border-border/50">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
                <div className="flex items-center gap-2 mb-2">
-                 <Button asChild variant="outline" size="icon" className="h-7 w-7">
+                 <Button asChild variant="outline" size="icon" className="h-8 w-8 rounded-lg border-border/80">
                     <Link href="/payroll"><ArrowLeft className="h-4 w-4" /></Link>
                  </Button>
                  {isLoadingPayroll ? (
                     <Skeleton className="h-8 w-48" />
                  ) : payroll ? (
-                    <CardTitle className="text-2xl">
+                    <CardTitle className="text-2xl font-bold font-headline tracking-tight text-foreground">
                         Penggajian {format(parseISO(payroll.period), "MMMM yyyy", { locale: id })}
                     </CardTitle>
                  ) : null}
               </div>
-              <CardDescription>Rincian penggajian untuk periode yang dipilih.</CardDescription>
+              <CardDescription className="text-muted-foreground text-xs">Rincian penggajian untuk periode yang dipilih.</CardDescription>
             </div>
              <div className="flex items-center gap-2 flex-shrink-0">
                 {payroll?.status === "draft" && (
-                    <Button onClick={handleFinalize} disabled={isFinalizing}>
+                    <Button onClick={handleFinalize} disabled={isFinalizing} className="shadow-sm">
                         {isFinalizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle className="mr-2 h-4 w-4"/>}
                         Finalisasi
                     </Button>
@@ -215,7 +215,7 @@ export default function PayrollDetailPage() {
                 {payroll?.status === "finalized" && (
                     <Button 
                         variant="outline" 
-                        className="text-amber-600 border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                        className="text-amber-600 dark:text-amber-400 border-amber-500/50 hover:bg-amber-50 dark:hover:bg-amber-950/30"
                         onClick={() => setIsUnfinalizeAlertOpen(true)}
                         disabled={isUnfinalizing}
                     >
@@ -223,7 +223,7 @@ export default function PayrollDetailPage() {
                         Batalkan Finalisasi
                     </Button>
                 )}
-                 <Button asChild variant="outline">
+                 <Button asChild variant="outline" className="border-border/80 shadow-sm">
                     <Link href={`/payroll/${payrollId}/report`}>
                         <Printer className="mr-2 h-4 w-4" />
                         Laporan
@@ -232,41 +232,41 @@ export default function PayrollDetailPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 text-center md:text-left">
-                <div className="rounded-lg border p-4">
-                    <div className="text-sm text-muted-foreground">Status</div>
+                <div className="rounded-xl border border-border/70 p-4 bg-surface-container-low/40 dark:bg-slate-900/50">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</div>
                     {isLoadingPayroll ? <Skeleton className="h-6 w-20 mt-1 mx-auto md:mx-0" /> : (
-                        <div className="text-lg font-bold">
+                        <div className="text-lg font-bold mt-1">
                             <Badge variant={payroll?.status === 'draft' ? 'secondary' : 'default'} className="capitalize">
                                 {payroll?.status}
                             </Badge>
                         </div>
                     )}
                 </div>
-                <div className="rounded-lg border p-4">
-                    <div className="text-sm text-muted-foreground">Total Gaji Bersih</div>
-                    {isLoadingPayslips ? <Skeleton className="h-6 w-32 mt-1 mx-auto md:mx-0" /> : <div className="text-lg font-bold">{formatCurrency(totals.net)}</div>}
+                <div className="rounded-xl border border-border/70 p-4 bg-surface-container-low/40 dark:bg-slate-900/50">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Gaji Bersih</div>
+                    {isLoadingPayslips ? <Skeleton className="h-6 w-32 mt-1 mx-auto md:mx-0" /> : <div className="text-lg font-bold font-mono text-foreground mt-1">{formatCurrency(totals.net)}</div>}
                 </div>
-                 <div className="rounded-lg border p-4">
-                    <div className="text-sm text-muted-foreground">Total Dibayar</div>
-                    {isLoadingPayslips ? <Skeleton className="h-6 w-28 mt-1 mx-auto md:mx-0" /> : <div className="text-lg font-bold text-green-600">{formatCurrency(totals.paid)}</div>}
+                 <div className="rounded-xl border border-border/70 p-4 bg-surface-container-low/40 dark:bg-slate-900/50">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Dibayar</div>
+                    {isLoadingPayslips ? <Skeleton className="h-6 w-28 mt-1 mx-auto md:mx-0" /> : <div className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400 mt-1">{formatCurrency(totals.paid)}</div>}
                 </div>
-                <div className="rounded-lg border p-4">
-                    <div className="text-sm text-muted-foreground">Total Sisa Gaji</div>
-                    {isLoadingPayslips ? <Skeleton className="h-6 w-28 mt-1 mx-auto md:mx-0" /> : <div className="text-lg font-bold text-destructive">{formatCurrency(totals.remaining)}</div>}
+                <div className="rounded-xl border border-border/70 p-4 bg-surface-container-low/40 dark:bg-slate-900/50">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Sisa Gaji</div>
+                    {isLoadingPayslips ? <Skeleton className="h-6 w-28 mt-1 mx-auto md:mx-0" /> : <div className="text-lg font-bold font-mono text-destructive mt-1">{formatCurrency(totals.remaining)}</div>}
                 </div>
             </div>
-          <div className="rounded-md border">
+          <div className="rounded-xl border border-border/80 overflow-hidden">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nama Karyawan</TableHead>
-                  <TableHead>Gaji Bersih</TableHead>
-                  <TableHead>Total Potongan</TableHead>
-                  <TableHead>Sisa Gaji</TableHead>
-                  <TableHead>Status Pembayaran</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+              <TableHeader className="bg-slate-100/90 dark:bg-slate-900/95 border-b border-border/80">
+                <TableRow className="border-border/50 hover:bg-transparent">
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Nama Karyawan</TableHead>
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Gaji Bersih</TableHead>
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Total Potongan</TableHead>
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Sisa Gaji</TableHead>
+                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Status Pembayaran</TableHead>
+                  <TableHead className="text-right font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -285,26 +285,26 @@ export default function PayrollDetailPage() {
                   payslips.map((payslip) => {
                     const totalDeduction = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction + (payslip.loanDeduction || 0);
                     return (
-                    <TableRow key={payslip.id}>
-                      <TableCell className="font-medium">
-                          <button onClick={() => handleViewDetails(payslip)} className="hover:underline">
+                    <TableRow key={payslip.id} className="border-border/40 hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                      <TableCell className="font-medium text-foreground">
+                          <button onClick={() => handleViewDetails(payslip)} className="hover:underline font-semibold text-foreground">
                             {payslip.employeeName}
                           </button>
                       </TableCell>
-                      <TableCell className="font-semibold">{formatCurrency(payslip.netSalary)}</TableCell>
-                      <TableCell className="text-destructive">{formatCurrency(totalDeduction)}</TableCell>
-                      <TableCell className="text-destructive">{formatCurrency(payslip.remainingAmount)}</TableCell>
+                      <TableCell className="font-bold font-mono text-foreground">{formatCurrency(payslip.netSalary)}</TableCell>
+                      <TableCell className="text-destructive font-mono">{formatCurrency(totalDeduction)}</TableCell>
+                      <TableCell className="text-destructive font-mono">{formatCurrency(payslip.remainingAmount)}</TableCell>
                       <TableCell>{getStatusBadge(payslip.paymentStatus)}</TableCell>
                       <TableCell className="text-right space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => handleViewDetails(payslip)}>Rincian</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleViewDetails(payslip)} className="border-border/80 text-xs">Rincian</Button>
                         {payslip.paymentStatus !== 'lunas' && payslip.remainingAmount > 0.01 && payroll?.status === 'draft' && (
                            <>
-                            <Button size="sm" onClick={() => handleRecordPayment(payslip)}>
-                                <Wallet className="mr-2 h-4 w-4"/>
+                            <Button size="sm" onClick={() => handleRecordPayment(payslip)} className="text-xs">
+                                <Wallet className="mr-1.5 h-3.5 w-3.5"/>
                                 Bayar
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleStoreSavingsClick(payslip)}>
-                                <PiggyBank className="mr-2 h-4 w-4"/>
+                            <Button size="sm" variant="outline" onClick={() => handleStoreSavingsClick(payslip)} className="border-border/80 text-xs">
+                                <PiggyBank className="mr-1.5 h-3.5 w-3.5"/>
                                 Simpan Sisa
                             </Button>
                            </>
@@ -315,7 +315,7 @@ export default function PayrollDetailPage() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground text-sm italic">
                       Tidak ada data slip gaji untuk periode ini.
                     </TableCell>
                   </TableRow>

@@ -9,9 +9,10 @@ import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Printer } from "lucide-react";
+import { Printer, ArrowLeft } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 function PayslipPageContent({
   payslip,
@@ -31,15 +32,15 @@ function PayslipPageContent({
   const totalIncome = payslip.baseSalary + payslip.bonusTotal;
 
   return (
-    <div className="mx-auto max-w-2xl bg-white p-8 shadow-lg print:shadow-none">
-      <header className="flex items-center justify-between border-b pb-4">
+    <div className="mx-auto max-w-2xl bg-card text-card-foreground border border-border/80 rounded-2xl p-8 shadow-xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
+      <header className="flex items-center justify-between border-b border-border/80 pb-6 print:border-slate-300">
         <div>
-          <h1 className="text-3xl font-bold">Slip Gaji</h1>
-          <p className="text-muted-foreground">AttendEase</p>
+          <h1 className="text-3xl font-bold font-headline tracking-tight text-foreground print:text-black">Slip Gaji</h1>
+          <p className="text-sm text-muted-foreground mt-0.5 print:text-slate-600">AttendEase Management System</p>
         </div>
         <div className="text-right">
-          <p className="font-semibold">Periode</p>
-          <p className="text-muted-foreground">
+          <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground print:text-slate-600">Periode</p>
+          <p className="text-lg font-bold text-foreground print:text-black">
             {format(parseISO(payroll.period), "MMMM yyyy", { locale: id })}
           </p>
         </div>
@@ -216,24 +217,30 @@ export default function PayslipPage() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/40 py-6 sm:py-12 print:bg-white print:py-0">
-      <div className="fixed top-4 right-4 print:hidden">
-        <Button onClick={handlePrint}>
+    <div className="min-h-screen bg-background text-foreground py-6 sm:py-12 print:bg-white print:text-black print:py-0">
+      <div className="fixed top-4 right-4 flex items-center gap-2 print:hidden z-10">
+        <Button asChild variant="outline" className="shadow-sm bg-card/80 backdrop-blur-md border-border/80">
+          <Link href={`/payroll/${payrollId}`}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Kembali
+          </Link>
+        </Button>
+        <Button onClick={handlePrint} className="shadow-sm">
           <Printer className="mr-2 h-4 w-4" />
           Cetak / Simpan PDF
         </Button>
       </div>
 
       {isLoading && (
-        <div className="mx-auto max-w-2xl bg-white p-8 shadow-lg">
+        <div className="mx-auto max-w-2xl bg-card border border-border/80 rounded-2xl p-8 shadow-xl">
           <Skeleton className="h-[700px] w-full" />
         </div>
       )}
 
       {error && (
-        <div className="mx-auto max-w-2xl text-center">
-          <p className="text-destructive">Gagal memuat slip gaji.</p>
-          <p className="text-sm text-muted-foreground">
+        <div className="mx-auto max-w-2xl text-center p-8 bg-card border border-border/80 rounded-2xl">
+          <p className="text-destructive font-semibold">Gagal memuat slip gaji.</p>
+          <p className="text-sm text-muted-foreground mt-1">
             Tautan mungkin tidak valid atau Anda tidak memiliki izin.
           </p>
         </div>
@@ -244,9 +251,9 @@ export default function PayslipPage() {
       )}
       
       {!isLoading && !error && !payslip && (
-        <div className="mx-auto max-w-2xl text-center">
+        <div className="mx-auto max-w-2xl text-center p-8 bg-card border border-border/80 rounded-2xl">
             <h1 className="text-xl font-semibold">Slip Gaji Tidak Ditemukan</h1>
-            <p className="text-muted-foreground">Pastikan tautan yang Anda masukkan sudah benar.</p>
+            <p className="text-muted-foreground mt-1">Pastikan tautan yang Anda masukkan sudah benar.</p>
         </div>
       )}
     </div>
