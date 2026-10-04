@@ -169,7 +169,7 @@ export default function SettingsPage() {
                     </p>
                     )}
                     <p className="text-sm text-muted-foreground">
-                    Jumlah ini akan digunakan sebagai sanksi otomatis jika karyawan ditandai "Alpa".
+                    Jumlah ini akan digunakan sebagai sanksi otomatis jika karyawan ditandai &quot;Alpa&quot;.
                     </p>
                 </div>
                 

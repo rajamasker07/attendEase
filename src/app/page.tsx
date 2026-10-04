@@ -30,7 +30,22 @@ import { useToast } from "@/hooks/use-toast";
 import type { Employee, AttendanceRecord, AbsenceRecord, Sanction, Holiday, Setting } from "@/types";
 import { format, isSameDay, parseISO, subDays, isAfter, startOfDay, endOfDay } from "date-fns";
 import { id } from "date-fns/locale";
-import { Calendar as CalendarIcon, LogIn, LogOut, PlusCircle, UserCheck, AlarmClock, Users, UserX, Check, ChevronsUpDown } from "lucide-react";
+import { 
+  Calendar as CalendarIcon, 
+  LogIn, 
+  LogOut, 
+  PlusCircle, 
+  UserCheck, 
+  AlarmClock, 
+  Users, 
+  UserX, 
+  Check, 
+  ChevronsUpDown,
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  Sparkles
+} from "lucide-react";
 import { Clock } from "@/components/clock";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -193,7 +208,7 @@ export default function DashboardPage() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const { toast } = useToast();
   const [manualDate, setManualDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
-  const [manualTime, setManualTime] = useState<string>(format(new Date(), "HH:mm"));
+  const [manualTime, setManualTime] = useState<string>("07:30");
   const [notes, setNotes] = useState<string>("");
   const [historyFilter, setHistoryFilter] = useState<string>("7");
   const [historyEmployeeFilter, setHistoryEmployeeFilter] = useState<string>("all");
@@ -206,9 +221,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (isEmployeePickerOpen) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         searchInputRef.current?.focus();
       }, 10);
+      return () => clearTimeout(timer);
     }
   }, [isEmployeePickerOpen]);
 
@@ -327,19 +343,27 @@ export default function DashboardPage() {
     return employees?.find(e => e.id === selectedEmployeeId);
   }, [employees, selectedEmployeeId]);
 
-  const hasCompletedAttendanceOnSelectedDate = useMemo(() => {
-    if (!selectedEmployeeId || !selectedDateAttendance) return false;
-    return selectedDateAttendance.some(
+  // Catatan absensi lengkap (masuk & pulang) karyawan terpilih pada tanggal ini
+  const currentCompletedAttendanceRecord = useMemo(() => {
+    if (!selectedEmployeeId || !selectedDateAttendance) return null;
+    return selectedDateAttendance.find(
       (record) => record.employeeId === selectedEmployeeId && record.clockOut
     );
   }, [selectedEmployeeId, selectedDateAttendance]);
-  
-  const hasAbsenceOnSelectedDate = useMemo(() => {
-    if (!selectedEmployeeId || !selectedDateAbsences) return false;
-    return selectedDateAbsences.some(
-      (record) => record.employeeId === selectedEmployeeId
-    );
+
+  const hasCompletedAttendanceOnSelectedDate = useMemo(() => {
+    return !!currentCompletedAttendanceRecord;
+  }, [currentCompletedAttendanceRecord]);
+
+  // Catatan ketidakhadiran karyawan terpilih (jika ada)
+  const currentEmployeeAbsence = useMemo(() => {
+    if (!selectedEmployeeId || !selectedDateAbsences) return null;
+    return selectedDateAbsences.find((record) => record.employeeId === selectedEmployeeId);
   }, [selectedEmployeeId, selectedDateAbsences]);
+
+  const hasAbsenceOnSelectedDate = useMemo(() => {
+    return !!currentEmployeeAbsence;
+  }, [currentEmployeeAbsence]);
 
   const dailySummary = useMemo(() => {
     const totalActiveEmployees = activeEmployees?.length ?? 0;
@@ -371,6 +395,109 @@ export default function DashboardPage() {
         attendancePercentage,
     }
   }, [activeEmployees, selectedDateAttendance, selectedDateAbsences, settings]);
+
+  // Otomatis sinkronisasi jam masuk (07:30) atau jam pulang (18:00) sesuai status karyawan
+  const lastSyncedRef = useRef<string>("");
+
+  useEffect(() => {
+    if (!selectedEmployeeId) {
+      setManualTime("07:30");
+      lastSyncedRef.current = "";
+      return;
+    }
+    if (isLoadingSelectedDate || isLoadingAbsences) return;
+
+    const statusKey = hasCompletedAttendanceOnSelectedDate
+      ? `completed_${currentCompletedAttendanceRecord?.clockOut || ''}`
+      : currentEmployeeRecord
+      ? `clocked-in_${currentEmployeeRecord.id}`
+      : hasAbsenceOnSelectedDate
+      ? "absent"
+      : "not-clocked-in";
+
+    const syncKey = `${selectedEmployeeId}_${manualDate}_${statusKey}`;
+
+    if (lastSyncedRef.current !== syncKey) {
+      lastSyncedRef.current = syncKey;
+
+      if (hasCompletedAttendanceOnSelectedDate) {
+        // Karyawan sudah selesai absensi (masuk & pulang)
+        if (currentCompletedAttendanceRecord?.clockOut) {
+          setManualTime(format(parseISO(currentCompletedAttendanceRecord.clockOut), "HH:mm"));
+        } else {
+          setManualTime("18:00");
+        }
+      } else if (currentEmployeeRecord) {
+        // Sudah absen masuk dan belum ada jam pulang -> Otomatis set 06.00 PM (18:00)
+        setManualTime("18:00");
+      } else {
+        // Belum absen masuk -> Otomatis set 07.30 AM (07:30)
+        setManualTime("07:30");
+      }
+    }
+  }, [
+    selectedEmployeeId,
+    manualDate,
+    currentEmployeeRecord,
+    hasCompletedAttendanceOnSelectedDate,
+    hasAbsenceOnSelectedDate,
+    currentCompletedAttendanceRecord,
+    isLoadingSelectedDate,
+    isLoadingAbsences,
+  ]);
+
+  // Helper deskripsi waktu & AM/PM untuk mengeliminasi kebingungan format
+  const timeInfo = useMemo(() => {
+    if (!manualTime || !manualTime.includes(':')) return null;
+    const [hStr, mStr] = manualTime.split(':');
+    const h = parseInt(hStr, 10);
+    const m = parseInt(mStr, 10);
+    if (isNaN(h) || isNaN(m)) return null;
+
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    const formatted12 = `${h12.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')} ${period}`;
+
+    let partOfDay = 'Pagi';
+    if (h >= 0 && h < 4) partOfDay = 'Dini Hari';
+    else if (h >= 4 && h < 11) partOfDay = 'Pagi';
+    else if (h >= 11 && h < 15) partOfDay = 'Siang';
+    else if (h >= 15 && h < 18) partOfDay = 'Sore';
+    else partOfDay = 'Malam';
+
+    return {
+      hours24: `${hStr.padStart(2, '0')}:${mStr.padStart(2, '0')}`,
+      hours12: formatted12,
+      partOfDay,
+      period,
+      hour: h,
+      minute: m,
+      isNightOrEvening: h >= 12,
+      isMorning: h < 12,
+    };
+  }, [manualTime]);
+
+  // Status form disabled jika karyawan sudah selesai absen, tidak hadir, atau hari libur
+  const isTimeInputDisabled = 
+    !selectedEmployeeId || 
+    hasCompletedAttendanceOnSelectedDate || 
+    hasAbsenceOnSelectedDate || 
+    isSelectedDateHoliday;
+
+  // Peringatan jika jam masuk dipilih di malam hari (kemungkinan salah pilih PM di browser)
+  const showClockInWarning = 
+    !isTimeInputDisabled && 
+    !currentEmployeeRecord && 
+    !hasCompletedAttendanceOnSelectedDate && 
+    timeInfo !== null && 
+    timeInfo.hour >= 12;
+
+  // Peringatan jika jam pulang dipilih di pagi hari (kemungkinan salah pilih AM di browser)
+  const showClockOutWarning = 
+    !isTimeInputDisabled && 
+    !!currentEmployeeRecord && 
+    timeInfo !== null && 
+    timeInfo.hour < 12;
 
   useEffect(() => {
     if (currentEmployeeRecord) {
@@ -485,10 +612,16 @@ export default function DashboardPage() {
         return;
     }
 
-    // Check for conflicts
-    const attendanceConflictQuery = query(collection(firestore, "attendance"), where("employeeId", "==", employeeId));
+    // Check for conflicts with date-bounded query to prevent excessive reads
+    const dayStart = startOfDay(dateObj).toISOString();
+    const dayEnd = endOfDay(dateObj).toISOString();
+    const attendanceConflictQuery = query(
+      collection(firestore, "attendance"),
+      where("clockIn", ">=", dayStart),
+      where("clockIn", "<=", dayEnd)
+    );
     const attendanceSnap = await getDocs(attendanceConflictQuery);
-    const hasAttendance = attendanceSnap.docs.some(d => isSameDay(parseISO(d.data().clockIn), dateObj));
+    const hasAttendance = attendanceSnap.docs.some(d => d.data().employeeId === employeeId);
 
     const absenceConflictQuery = query(collection(firestore, "absences"), where("employeeId", "==", employeeId), where("date", "==", dateStr));
     const absenceSnap = await getDocs(absenceConflictQuery);
@@ -503,9 +636,7 @@ export default function DashboardPage() {
     addDocumentNonBlocking(collection(firestore, "absences"), newRecord);
     
     if (status === 'alpa') {
-      const settingsRef = doc(firestore, "settings", "payroll");
-      const settingsSnap = await getDoc(settingsRef);
-      const alpaDeduction = settingsSnap.exists() ? settingsSnap.data().alpaDeductionAmount || 0 : 0;
+      const alpaDeduction = settings?.alpaDeductionAmount || 0;
 
       if (alpaDeduction > 0) {
         const employee = employees?.find(e => e.id === employeeId);
@@ -782,6 +913,76 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
+                {/* Status Kartu Absensi Karyawan Terpilih */}
+                {selectedEmployeeId && (
+                  <div className={cn(
+                    "rounded-lg border p-3.5 transition-all text-sm",
+                    isSelectedDateHoliday
+                      ? "border-yellow-300 bg-yellow-50 text-yellow-900 dark:bg-yellow-950/40 dark:border-yellow-800 dark:text-yellow-200"
+                      : hasAbsenceOnSelectedDate
+                      ? "border-rose-300 bg-rose-50 text-rose-900 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-200"
+                      : hasCompletedAttendanceOnSelectedDate
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-200"
+                      : currentEmployeeRecord
+                      ? "border-blue-300 bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-200"
+                      : "border-slate-200 bg-slate-50 text-slate-800 dark:bg-slate-900/60 dark:border-slate-800 dark:text-slate-200"
+                  )}>
+                    {isSelectedDateHoliday ? (
+                      <div className="flex items-center gap-2.5">
+                        <CalendarIcon className="h-5 w-5 shrink-0 text-yellow-600 dark:text-yellow-400" />
+                        <div>
+                          <p className="font-semibold">Hari Libur Nasional / Kantor</p>
+                          <p className="text-xs opacity-90">
+                            Tanggal yang dipilih merupakan hari libur. Penginputan absensi dinonaktifkan.
+                          </p>
+                        </div>
+                      </div>
+                    ) : hasAbsenceOnSelectedDate ? (
+                      <div className="flex items-center gap-2.5">
+                        <UserX className="h-5 w-5 shrink-0 text-rose-600 dark:text-rose-400" />
+                        <div>
+                          <p className="font-semibold">
+                            Tercatat Tidak Hadir: {currentEmployeeAbsence?.status ? currentEmployeeAbsence.status.toUpperCase() : 'IZIN/SAKIT'}
+                          </p>
+                          <p className="text-xs opacity-90">
+                            <strong>{selectedEmployee?.name}</strong> sudah ditandai tidak hadir pada tanggal ini. Form absensi dinonaktifkan.
+                          </p>
+                        </div>
+                      </div>
+                    ) : hasCompletedAttendanceOnSelectedDate ? (
+                      <div className="flex items-center gap-2.5">
+                        <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        <div>
+                          <p className="font-semibold">Absensi Hari Ini Selesai</p>
+                          <p className="text-xs opacity-90">
+                            <strong>{selectedEmployee?.name}</strong> sudah tercatat Masuk ({currentCompletedAttendanceRecord?.clockIn ? format(parseISO(currentCompletedAttendanceRecord.clockIn), 'HH:mm') : '-'} WIB) dan Pulang ({currentCompletedAttendanceRecord?.clockOut ? format(parseISO(currentCompletedAttendanceRecord.clockOut), 'HH:mm') : '-'} WIB). Input jam dinonaktifkan.
+                          </p>
+                        </div>
+                      </div>
+                    ) : currentEmployeeRecord ? (
+                      <div className="flex items-center gap-2.5">
+                        <Clock3 className="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
+                        <div>
+                          <p className="font-semibold">Sudah Masuk • Siap Absen Pulang</p>
+                          <p className="text-xs opacity-90">
+                            <strong>{selectedEmployee?.name}</strong> tercatat masuk pukul <strong>{format(parseISO(currentEmployeeRecord.clockIn), 'HH:mm')} WIB</strong>. Jam disetel otomatis ke <strong>18:00 WIB (06:00 PM)</strong>.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2.5">
+                        <LogIn className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        <div>
+                          <p className="font-semibold">Belum Absen Masuk</p>
+                          <p className="text-xs opacity-90">
+                            <strong>{selectedEmployee?.name}</strong> belum memiliki catatan absensi hari ini. Jam disetel otomatis ke <strong>07:30 WIB (07:30 AM)</strong>.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="attendance-date">Tanggal</Label>
@@ -794,20 +995,135 @@ export default function DashboardPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="attendance-time">Waktu</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="attendance-time">Waktu</Label>
+                      {timeInfo && (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-[11px] font-normal px-2 py-0.5",
+                            timeInfo.isMorning
+                              ? "border-emerald-300 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300"
+                              : "border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-300"
+                          )}
+                        >
+                          {timeInfo.hours24} WIB ({timeInfo.partOfDay} • {timeInfo.hours12})
+                        </Badge>
+                      )}
+                    </div>
                     <Input
                       id="attendance-time"
                       type="time"
                       value={manualTime}
                       onChange={(e) => setManualTime(e.target.value)}
-                      className="w-full"
+                      disabled={isTimeInputDisabled}
+                      className={cn(
+                        "w-full font-mono transition-colors",
+                        isTimeInputDisabled && "cursor-not-allowed bg-muted/60 opacity-80"
+                      )}
                     />
                   </div>
                 </div>
 
-                {isSelectedDateHoliday && (
-                  <div className="rounded-md border border-yellow-300 bg-yellow-50 p-3 text-center text-sm text-yellow-800">
-                    Tanggal yang dipilih adalah hari libur.
+                {/* Preset Waktu Cepat 1-Klik */}
+                {!isTimeInputDisabled && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    <span className="text-xs text-muted-foreground mr-1 flex items-center gap-1">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" /> Preset Cepat:
+                    </span>
+                    {!currentEmployeeRecord ? (
+                      <>
+                        <Button
+                          type="button"
+                          variant={manualTime === "07:30" ? "secondary" : "outline"}
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => setManualTime("07:30")}
+                        >
+                          07:30 Pagi (Standar)
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={manualTime === "08:00" ? "secondary" : "outline"}
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => setManualTime("08:00")}
+                        >
+                          08:00 Pagi
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          type="button"
+                          variant={manualTime === "18:00" ? "secondary" : "outline"}
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => setManualTime("18:00")}
+                        >
+                          18:00 Sore (Standar)
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={manualTime === "17:00" ? "secondary" : "outline"}
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => setManualTime("17:00")}
+                        >
+                          17:00 Sore
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => setManualTime(format(new Date(), "HH:mm"))}
+                    >
+                      Jam Sekarang
+                    </Button>
+                  </div>
+                )}
+
+                {/* Peringatan Cerdas Jika Kemungkinan AM/PM Tertukar */}
+                {showClockInWarning && (
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-800 p-2.5 text-xs text-amber-900 dark:text-amber-200">
+                    <div className="flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                      <span>
+                        Jam masuk terdeteksi <strong>{timeInfo?.partOfDay} ({timeInfo?.hours12})</strong>. Apakah maksud Anda <strong>07:30 Pagi</strong>?
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setManualTime("07:30")}
+                      className="h-7 text-xs border-amber-400 bg-white hover:bg-amber-100 dark:bg-amber-900 dark:hover:bg-amber-800 shrink-0"
+                    >
+                      Ubah ke 07:30 Pagi
+                    </Button>
+                  </div>
+                )}
+
+                {showClockOutWarning && (
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-800 p-2.5 text-xs text-amber-900 dark:text-amber-200">
+                    <div className="flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                      <span>
+                        Jam pulang terdeteksi <strong>Pagi ({timeInfo?.hours12})</strong>. Apakah maksud Anda <strong>18:00 Sore (06:00 PM)</strong>?
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setManualTime("18:00")}
+                      className="h-7 text-xs border-amber-400 bg-white hover:bg-amber-100 dark:bg-amber-900 dark:hover:bg-amber-800 shrink-0"
+                    >
+                      Ubah ke 18:00 Sore
+                    </Button>
                   </div>
                 )}
                 
@@ -818,7 +1134,7 @@ export default function DashboardPage() {
                     placeholder="Tambahkan catatan (opsional)..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    disabled={!selectedEmployeeId}
+                    disabled={isTimeInputDisabled}
                   />
                 </div>
 
@@ -832,7 +1148,7 @@ export default function DashboardPage() {
                   </Button>
                   <Button 
                     onClick={handleClockOut} 
-                    disabled={!selectedEmployeeId || !currentEmployeeRecord} 
+                    disabled={!selectedEmployeeId || !currentEmployeeRecord || hasCompletedAttendanceOnSelectedDate || hasAbsenceOnSelectedDate || isSelectedDateHoliday} 
                     variant="outline" 
                     className="w-full"
                   >
@@ -841,34 +1157,12 @@ export default function DashboardPage() {
                 </div>
                 <Button 
                     onClick={() => setIsAbsenceFormOpen(true)}
-                    disabled={isLoadingEmployees}
+                    disabled={isLoadingEmployees || !selectedEmployeeId || hasCompletedAttendanceOnSelectedDate || hasAbsenceOnSelectedDate || isSelectedDateHoliday}
                     variant="secondary"
                     className="w-full"
                   >
                     <UserX className="mr-2 h-4 w-4" /> Tandai Ketidakhadiran
                 </Button>
-
-                {selectedEmployeeId && !isSelectedDateHoliday && (
-                  <div className="pt-4 text-center text-sm text-muted-foreground">
-                      {hasAbsenceOnSelectedDate ? (
-                         <span>
-                            <strong>{selectedEmployee?.name}</strong> tercatat tidak hadir pada tanggal ini.
-                         </span>
-                      ) : currentEmployeeRecord ? (
-                          <span>
-                              <strong>{selectedEmployee?.name}</strong> tercatat masuk pada <strong>{format(parseISO(currentEmployeeRecord.clockIn), 'p')}</strong> dan belum absen pulang.
-                          </span>
-                      ) : hasCompletedAttendanceOnSelectedDate ? (
-                          <span>
-                              <strong>{selectedEmployee?.name}</strong> telah menyelesaikan absensi pada tanggal ini.
-                          </span>
-                      ) : (
-                          <span>
-                              <strong>{selectedEmployee?.name}</strong> belum memiliki catatan absensi pada tanggal ini.
-                          </span>
-                      )}
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>

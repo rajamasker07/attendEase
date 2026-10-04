@@ -192,7 +192,7 @@ export default function LoansPage() {
         map.set(loan.employeeId, current);
       });
     return map;
-  }, [loans]);
+  }, [loans, currentPeriod]);
 
   const filteredLoans = useMemo(() => {
     if (!loans) return [];
