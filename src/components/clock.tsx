@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
+import { Calendar } from "lucide-react";
+
 export function Clock() {
   const [time, setTime] = useState<Date | null>(null);
 
@@ -12,19 +14,29 @@ export function Clock() {
     return () => clearInterval(timer);
   }, []);
 
+  const hours = time ? format(time, "HH") : "--";
+  const minutes = time ? format(time, "mm") : "--";
+  const seconds = time ? format(time, "ss") : "--";
+  const dateStr = time ? format(time, "EEEE, d MMMM yyyy", { locale: id }) : "Memuat waktu...";
+
   return (
-    <div className="text-center rounded-lg bg-muted/50 p-4">
-      {time === null ? (
-        <>
-          <p className="text-4xl font-bold text-primary sm:text-5xl invisible">00:00:00</p>
-          <p className="text-sm text-muted-foreground sm:text-base invisible">Wednesday, 25 September 2024</p>
-        </>
-      ) : (
-        <>
-          <p className="text-4xl font-bold text-primary sm:text-5xl">{format(time, 'HH:mm:ss')}</p>
-          <p className="text-sm text-muted-foreground sm:text-base">{format(time, 'EEEE, d MMMM yyyy', { locale: id })}</p>
-        </>
-      )}
+    <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-primary/5 via-sky-50/70 to-indigo-50/40 dark:from-sky-950/20 dark:via-background dark:to-indigo-950/20 border border-primary/15 shadow-sm text-center relative overflow-hidden">
+      <div className="flex flex-col items-center justify-center">
+        <div className="flex items-center justify-center gap-1 font-display text-4xl sm:text-5xl font-extrabold text-primary tracking-tight">
+          <span>{hours}</span>
+          <span className="animate-pulse text-cyan-600 dark:text-cyan-400 -mt-1">:</span>
+          <span>{minutes}</span>
+          <span className="animate-pulse text-cyan-600 dark:text-cyan-400 -mt-1">:</span>
+          <span className="text-cyan-600 dark:text-cyan-400">{seconds}</span>
+          <span className="font-headline text-xs sm:text-sm font-semibold text-muted-foreground ml-2 px-2 py-0.5 rounded-md bg-background/80 border border-border/60">
+            WIB
+          </span>
+        </div>
+        <div className="flex items-center gap-2 mt-2 text-muted-foreground font-headline text-xs sm:text-sm font-medium">
+          <Calendar className="h-4 w-4 text-primary shrink-0" />
+          <span className="capitalize">{dateStr}</span>
+        </div>
+      </div>
     </div>
   );
 }

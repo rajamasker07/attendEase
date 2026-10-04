@@ -198,15 +198,15 @@ export function EditAttendanceDialog({
           <div className="grid gap-4 py-4">
             {/* Pilih Karyawan */}
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-employee" className="text-right text-xs sm:text-sm">
+              <Label htmlFor="edit-employee" className="text-right text-xs sm:text-sm font-medium">
                 Karyawan
               </Label>
               <div className="col-span-3">
                 <Select value={employeeId} onValueChange={setEmployeeId}>
-                  <SelectTrigger id="edit-employee">
+                  <SelectTrigger id="edit-employee" className="rounded-xl border-border/80 h-10">
                     <SelectValue placeholder="Pilih karyawan..." />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-xl border-border/80 shadow-xl">
                     {employees?.map((emp) => (
                       <SelectItem key={emp.id} value={emp.id}>
                         {emp.name} {emp.status === "tidak aktif" ? "(Tidak Aktif)" : ""}
@@ -219,8 +219,8 @@ export function EditAttendanceDialog({
 
             {/* Tanggal Absen */}
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-date" className="text-right text-xs sm:text-sm flex items-center justify-end gap-1">
-                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              <Label htmlFor="edit-date" className="text-right text-xs sm:text-sm font-medium flex items-center justify-end gap-1">
+                <Calendar className="h-3.5 w-3.5 text-primary" />
                 Tanggal
               </Label>
               <div className="col-span-3">
@@ -229,6 +229,7 @@ export function EditAttendanceDialog({
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
+                  className="rounded-xl border-border/80 h-10"
                   required
                 />
               </div>
@@ -237,8 +238,8 @@ export function EditAttendanceDialog({
             {/* Jam Masuk */}
             <div className="grid grid-cols-4 items-start gap-4">
               <div className="text-right pt-2">
-                <Label htmlFor="edit-clockIn" className="text-xs sm:text-sm flex items-center justify-end gap-1">
-                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                <Label htmlFor="edit-clockIn" className="text-xs sm:text-sm font-medium flex items-center justify-end gap-1">
+                  <Clock className="h-3.5 w-3.5 text-primary" />
                   Masuk
                 </Label>
               </div>
@@ -248,11 +249,12 @@ export function EditAttendanceDialog({
                   type="time"
                   value={clockInTime}
                   onChange={(e) => setClockInTime(e.target.value)}
+                  className="rounded-xl border-border/80 h-10 font-mono"
                   required
                 />
                 {clockInInfo && (
                   <div className="flex items-center gap-1.5">
-                    <Badge variant="outline" className="text-[11px] font-normal text-muted-foreground">
+                    <Badge variant="outline" className="text-[11px] font-normal text-muted-foreground rounded-md">
                       {clockInInfo.hours24} WIB ({clockInInfo.partOfDay} • {clockInInfo.hours12})
                     </Badge>
                   </div>
@@ -262,12 +264,12 @@ export function EditAttendanceDialog({
 
             {/* Opsi Jam Pulang */}
             <div className="grid grid-cols-4 items-center gap-4 pt-1">
-              <Label htmlFor="toggle-clockOut" className="text-right text-xs sm:text-sm">
+              <Label htmlFor="toggle-clockOut" className="text-right text-xs sm:text-sm font-medium">
                 Jam Pulang
               </Label>
-              <div className="col-span-3 flex items-center justify-between rounded-lg border p-2.5">
+              <div className="col-span-3 flex items-center justify-between rounded-xl border border-border/80 p-3 bg-surface-container-low/40">
                 <div className="space-y-0.5">
-                  <Label htmlFor="toggle-clockOut" className="text-xs font-medium cursor-pointer">
+                  <Label htmlFor="toggle-clockOut" className="text-xs font-semibold cursor-pointer">
                     Sudah Absen Pulang?
                   </Label>
                   <p className="text-[11px] text-muted-foreground">
@@ -286,7 +288,7 @@ export function EditAttendanceDialog({
             {hasClockOut && (
               <div className="grid grid-cols-4 items-start gap-4">
                 <div className="text-right pt-2">
-                  <Label htmlFor="edit-clockOut" className="text-xs sm:text-sm">
+                  <Label htmlFor="edit-clockOut" className="text-xs sm:text-sm font-medium">
                     Waktu Pulang
                   </Label>
                 </div>
@@ -296,11 +298,12 @@ export function EditAttendanceDialog({
                     type="time"
                     value={clockOutTime}
                     onChange={(e) => setClockOutTime(e.target.value)}
+                    className="rounded-xl border-border/80 h-10 font-mono"
                     required={hasClockOut}
                   />
                   {clockOutInfo && (
                     <div className="flex items-center gap-1.5">
-                      <Badge variant="outline" className="text-[11px] font-normal text-muted-foreground">
+                      <Badge variant="outline" className="text-[11px] font-normal text-muted-foreground rounded-md">
                         {clockOutInfo.hours24} WIB ({clockOutInfo.partOfDay} • {clockOutInfo.hours12})
                       </Badge>
                     </div>
@@ -311,7 +314,7 @@ export function EditAttendanceDialog({
 
             {/* Catatan */}
             <div className="grid grid-cols-4 items-start gap-4">
-              <Label htmlFor="edit-notes" className="text-right text-xs sm:text-sm pt-2">
+              <Label htmlFor="edit-notes" className="text-right text-xs sm:text-sm font-medium pt-2">
                 Catatan
               </Label>
               <div className="col-span-3">
@@ -321,16 +324,17 @@ export function EditAttendanceDialog({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={2}
+                  className="rounded-xl border-border/80 resize-none"
                 />
               </div>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isSubmitting}>
+          <DialogFooter className="pt-2 gap-2">
+            <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isSubmitting} className="rounded-xl border-border/80">
               Batal
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} className="rounded-xl bg-gradient-to-r from-primary to-sky-600 hover:from-primary/90 text-white font-semibold shadow-md shadow-primary/25">
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -434,15 +438,15 @@ export function EditAbsenceDialog({
 
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="absence-edit-employee" className="text-right text-xs sm:text-sm">
+              <Label htmlFor="absence-edit-employee" className="text-right text-xs sm:text-sm font-medium">
                 Karyawan
               </Label>
               <div className="col-span-3">
                 <Select value={employeeId} onValueChange={setEmployeeId}>
-                  <SelectTrigger id="absence-edit-employee">
+                  <SelectTrigger id="absence-edit-employee" className="rounded-xl border-border/80 h-10">
                     <SelectValue placeholder="Pilih karyawan..." />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-xl border-border/80 shadow-xl">
                     {employees?.map((emp) => (
                       <SelectItem key={emp.id} value={emp.id}>
                         {emp.name}
@@ -454,7 +458,7 @@ export function EditAbsenceDialog({
             </div>
 
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="absence-edit-date" className="text-right text-xs sm:text-sm">
+              <Label htmlFor="absence-edit-date" className="text-right text-xs sm:text-sm font-medium">
                 Tanggal
               </Label>
               <div className="col-span-3">
@@ -463,13 +467,14 @@ export function EditAbsenceDialog({
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
+                  className="rounded-xl border-border/80 h-10"
                   required
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="absence-edit-status" className="text-right text-xs sm:text-sm">
+              <Label htmlFor="absence-edit-status" className="text-right text-xs sm:text-sm font-medium">
                 Status
               </Label>
               <div className="col-span-3">
@@ -477,10 +482,10 @@ export function EditAbsenceDialog({
                   value={status}
                   onValueChange={(val: "sakit" | "izin" | "alpa") => setStatus(val)}
                 >
-                  <SelectTrigger id="absence-edit-status">
+                  <SelectTrigger id="absence-edit-status" className="rounded-xl border-border/80 h-10">
                     <SelectValue placeholder="Pilih status..." />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-xl border-border/80 shadow-xl">
                     <SelectItem value="sakit">Sakit</SelectItem>
                     <SelectItem value="izin">Izin</SelectItem>
                     <SelectItem value="alpa">Alpa (Tanpa Keterangan)</SelectItem>
@@ -490,7 +495,7 @@ export function EditAbsenceDialog({
             </div>
 
             <div className="grid grid-cols-4 items-start gap-4">
-              <Label htmlFor="absence-edit-notes" className="text-right text-xs sm:text-sm pt-2">
+              <Label htmlFor="absence-edit-notes" className="text-right text-xs sm:text-sm font-medium pt-2">
                 Catatan
               </Label>
               <div className="col-span-3">
@@ -500,16 +505,17 @@ export function EditAbsenceDialog({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={2}
+                  className="rounded-xl border-border/80 resize-none"
                 />
               </div>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isSubmitting}>
+          <DialogFooter className="pt-2 gap-2">
+            <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isSubmitting} className="rounded-xl border-border/80">
               Batal
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} className="rounded-xl bg-gradient-to-r from-primary to-sky-600 hover:from-primary/90 text-white font-semibold shadow-md shadow-primary/25">
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -572,15 +578,15 @@ export function DeleteLogItemAlert({
             </p>
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>Batal</AlertDialogCancel>
+        <AlertDialogFooter className="gap-2">
+          <AlertDialogCancel disabled={isDeleting} className="rounded-xl border-border/80">Batal</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
               onConfirm();
             }}
             disabled={isDeleting}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-md shadow-destructive/25"
           >
             {isDeleting ? (
               <>
