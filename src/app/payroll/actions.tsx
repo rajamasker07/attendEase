@@ -186,7 +186,7 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
       const periodBonuses = bonusesSnap.docs.map((d) => d.data() as Bonus);
       const periodAbsences = absencesSnap.docs.map((d) => d.data() as AbsenceRecord);
       const activeLoans = loansSnap.docs.map(d => ({ ...d.data() as Loan, id: d.id }));
-      const settings = settingsSnap.exists() ? settingsSnap.data() as Setting : {};
+      const settings = (settingsSnap.exists() ? settingsSnap.data() : {}) as Partial<Setting>;
       
       const LATE_DEDUCTION_AMOUNT = settings?.lateDeductionAmount ?? 10000;
       const DEDUCT_UNPAID_ABSENCE = settings?.deductUnpaidAbsence ?? false;
@@ -250,22 +250,48 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
         let actualLoanDeduction = 0;
         const loanDetails: PayslipLoanDetail[] = [];
 
-        // Loan deductions (Process loans one by one until available balance is exhausted)
+        // Loan deductions
+        // - Kasbon (type missing or 'kasbon'): deduct as much as possible each payroll
+        // - Kredit: deduct fixed installmentAmount ONLY if full amount is available (Opsi B: skip if insufficient)
         const employeeLoans = activeLoans.filter(l => l.employeeId === employee.id);
         for (const loan of employeeLoans) {
             if (availableForLoans <= 0) break;
             const currentDebt = loan.remainingAmount ?? loan.amount;
-            const toDeduct = Math.min(currentDebt, availableForLoans);
-            
-            if (toDeduct > 0) {
+            const isKredit = loan.type === 'kredit';
+
+            if (isKredit) {
+                // Check if this kredit is marked to skip this period
+                if (loan.skipPeriod === payrollPeriod) {
+                    continue; // Skip deduction — employee requested relief this month
+                }
+                // Kredit — Opsi B: only deduct if the full installment can be covered
+                const installment = Math.min(loan.installmentAmount ?? currentDebt, currentDebt);
+                if (availableForLoans < installment) {
+                    // Gaji tidak cukup → lewati cicilan bulan ini, tidak dipotong sama sekali
+                    continue;
+                }
+                const paidSoFar = loan.paidInstallments ?? 0;
                 loanDetails.push({
                     loanId: loan.id,
-                    amount: toDeduct,
-                    description: loan.description,
+                    amount: installment,
+                    description: `${loan.description} (Cicilan ${paidSoFar + 1}/${loan.totalInstallments ?? '?'})`,
                     date: loan.date
                 });
-                actualLoanDeduction += toDeduct;
-                availableForLoans -= toDeduct;
+                actualLoanDeduction += installment;
+                availableForLoans -= installment;
+            } else {
+                // Kasbon — potong semaksimal saldo yang ada
+                const toDeduct = Math.min(currentDebt, availableForLoans);
+                if (toDeduct > 0) {
+                    loanDetails.push({
+                        loanId: loan.id,
+                        amount: toDeduct,
+                        description: loan.description,
+                        date: loan.date
+                    });
+                    actualLoanDeduction += toDeduct;
+                    availableForLoans -= toDeduct;
+                }
             }
         }
 
@@ -691,6 +717,12 @@ export function DeletePayrollAlert({ isOpen, setIsOpen, onConfirm, payrollPeriod
 }
 
 export async function finalizePayroll(firestore: Firestore, payrollId: string, payslips: WithId<Payslip>[]) {
+    // Validasi: pastikan semua slip gaji sudah lunas
+    const unpaidPayslips = payslips.filter(p => p.paymentStatus !== 'lunas');
+    if (unpaidPayslips.length > 0) {
+        throw new Error("Tidak dapat memfinalisasi laporan karena masih ada gaji karyawan yang belum lunas.");
+    }
+
     const payrollRef = doc(firestore, "payrolls", payrollId);
     
     await runTransaction(firestore, async (transaction) => {
@@ -719,7 +751,8 @@ export async function finalizePayroll(firestore: Firestore, payrollId: string, p
                         const loanData = loanSnap.data() as Loan;
                         const currentRemaining = loanData.remainingAmount ?? loanData.amount;
                         const newRemaining = Math.max(0, currentRemaining - loanDetail.amount);
-                        
+                        const isKredit = loanData.type === 'kredit';
+
                         const paymentRecord: LoanPayment = {
                           date: new Date().toISOString(),
                           amount: loanDetail.amount,
@@ -727,12 +760,25 @@ export async function finalizePayroll(firestore: Firestore, payrollId: string, p
                           description: `Potongan dari Gaji Periode ${format(new Date(), 'yyyy-MM')}`
                         };
 
+                        const currentPaidInstallments = (loanData.paidInstallments ?? 0) + 1;
+
+                        // For kredit: increment paidInstallments; mark paid when all done
+                        const kreditUpdates = isKredit ? {
+                            paidInstallments: currentPaidInstallments,
+                        } : {};
+
+                        // Determine if loan is fully paid
+                        const isFullyPaid = isKredit
+                            ? (currentPaidInstallments >= (loanData.totalInstallments ?? Infinity))
+                            : newRemaining <= 0;
+
                         transaction.update(loanSnap.ref, { 
                           remainingAmount: newRemaining,
-                          status: newRemaining <= 0 ? 'paid' : 'active', 
-                          repaidAt: newRemaining <= 0 ? new Date().toISOString() : null,
+                          status: isFullyPaid ? 'paid' : 'active',
+                          repaidAt: isFullyPaid ? new Date().toISOString() : null,
                           payslipId: payslip.id,
-                          payments: arrayUnion(paymentRecord)
+                          payments: arrayUnion(paymentRecord),
+                          ...kreditUpdates,
                         });
                     }
                 }
