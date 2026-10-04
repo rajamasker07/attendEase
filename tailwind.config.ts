@@ -10,8 +10,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Inter', 'sans-serif'],
-        headline: ['Inter', 'sans-serif'],
+        body: ['var(--font-inter)', 'Inter', 'sans-serif'],
+        headline: ['var(--font-plus-jakarta)', 'Plus Jakarta Sans', 'Inter', 'sans-serif'],
+        display: ['var(--font-plus-jakarta)', 'Plus Jakarta Sans', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
@@ -28,10 +29,27 @@ export default {
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
+          container: '#007bb9',
+          fixed: '#cce5ff',
         },
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
           foreground: 'hsl(var(--secondary-foreground))',
+          container: '#6063ee',
+          fixed: '#e1e0ff',
+        },
+        tertiary: {
+          DEFAULT: '#006577',
+          container: '#008096',
+          fixed: '#acedff',
+          foreground: '#ffffff',
+        },
+        'surface-container': {
+          lowest: 'hsl(var(--surface-lowest))',
+          low: 'hsl(var(--surface-low))',
+          DEFAULT: 'hsl(var(--surface-default))',
+          high: 'hsl(var(--surface-high))',
+          highest: 'hsl(var(--surface-highest))',
         },
         muted: {
           DEFAULT: 'hsl(var(--muted))',
@@ -67,6 +85,9 @@ export default {
         },
       },
       borderRadius: {
+        '3xl': '1.5rem',
+        '2xl': '1rem',
+        xl: '0.75rem',
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',

@@ -348,8 +348,13 @@ export function EmployeeFormDialog({
               </div>
             </div>
           </ScrollArea>
-          <DialogFooter className="pt-6">
-            <Button type="submit">Simpan perubahan</Button>
+          <DialogFooter className="pt-4 border-t border-border/50 gap-2">
+            <Button type="button" variant="outline" onClick={() => setIsOpen(false)} className="rounded-xl border-border/80">
+              Batal
+            </Button>
+            <Button type="submit" className="rounded-xl bg-gradient-to-r from-primary to-sky-600 hover:from-primary/90 text-white font-semibold shadow-md shadow-primary/25">
+              Simpan Perubahan
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -382,16 +387,16 @@ export function DeleteEmployeeAlert({ isOpen, setIsOpen, onConfirm, employeeName
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
+                    <AlertDialogTitle className="text-destructive font-headline font-bold">Apakah Anda benar-benar yakin?</AlertDialogTitle>
                     <AlertDialogDescription>
                         Tindakan ini tidak dapat dibatalkan. Ini akan menghapus karyawan
-                        <strong> {employeeName}</strong> dan data terkait secara permanen.
+                        <strong> {employeeName}</strong> dan seluruh data terkait secara permanen.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Batal</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleConfirm} className="bg-destructive hover:bg-destructive/90">
-                      Hapus
+                <AlertDialogFooter className="gap-2">
+                    <AlertDialogCancel className="rounded-xl border-border/80">Batal</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirm} className="rounded-xl bg-destructive hover:bg-destructive/90 text-white shadow-md shadow-destructive/25">
+                      Ya, Hapus Karyawan
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
@@ -515,8 +520,8 @@ export function EmployeeDetailDialog({
             )}
           </div>
         </ScrollArea>
-        <DialogFooter className="pt-6">
-          <Button variant="outline" onClick={() => setIsOpen(false)}>Tutup</Button>
+        <DialogFooter className="pt-4 border-t border-border/50">
+          <Button variant="outline" onClick={() => setIsOpen(false)} className="rounded-xl border-border/80">Tutup</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
