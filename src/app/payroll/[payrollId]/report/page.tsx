@@ -77,18 +77,21 @@ function PayrollReportPageContent({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {payslips.map(p => (
-                <TableRow key={p.id} className="border-border/40 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 print:border-slate-200">
-                  <TableCell className="font-medium text-foreground print:text-black">{p.employeeName}</TableCell>
-                  <TableCell className="text-right font-mono text-foreground print:text-black">{formatCurrency(p.baseSalary)}</TableCell>
-                  <TableCell className="text-right font-mono text-emerald-600 dark:text-emerald-400 print:text-black">{formatCurrency(p.bonusTotal)}</TableCell>
-                  <TableCell className="text-right font-mono text-rose-600 dark:text-rose-400 print:text-black">{formatCurrency(p.unpaidAbsenceDeduction + p.lateDeduction + p.sanctionDeduction)}</TableCell>
-                  <TableCell className="text-right font-bold font-mono text-foreground print:text-black">{formatCurrency(p.netSalary)}</TableCell>
-                  <TableCell className="text-right font-mono text-foreground print:text-black">{formatCurrency(p.paidAmount)}</TableCell>
-                  <TableCell className="text-right font-mono text-rose-600 dark:text-rose-400 print:text-black">{formatCurrency(p.remainingAmount)}</TableCell>
-                  <TableCell className="text-center">{getStatusBadge(p.paymentStatus)}</TableCell>
-                </TableRow>
-              ))}
+              {payslips.map(p => {
+                const totalDeduction = p.unpaidAbsenceDeduction + p.lateDeduction + p.sanctionDeduction + (p.loanDeduction || 0);
+                return (
+                  <TableRow key={p.id} className="border-border/40 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 print:border-slate-200">
+                    <TableCell className="font-medium text-foreground print:text-black">{p.employeeName}</TableCell>
+                    <TableCell className="text-right font-mono text-foreground print:text-black">{formatCurrency(p.baseSalary)}</TableCell>
+                    <TableCell className="text-right font-mono text-emerald-600 dark:text-emerald-400 print:text-black">{formatCurrency(p.bonusTotal)}</TableCell>
+                    <TableCell className="text-right font-mono text-rose-600 dark:text-rose-400 print:text-black">{formatCurrency(totalDeduction)}</TableCell>
+                    <TableCell className="text-right font-bold font-mono text-foreground print:text-black">{formatCurrency(p.netSalary)}</TableCell>
+                    <TableCell className="text-right font-mono text-foreground print:text-black">{formatCurrency(p.paidAmount)}</TableCell>
+                    <TableCell className="text-right font-mono text-rose-600 dark:text-rose-400 print:text-black">{formatCurrency(p.remainingAmount)}</TableCell>
+                    <TableCell className="text-center">{getStatusBadge(p.paymentStatus)}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
             <TableFooter>
               <TableRow className="font-bold bg-slate-100/90 dark:bg-slate-900/95 border-t border-border/80 print:bg-slate-100 print:border-slate-300">
@@ -135,7 +138,7 @@ export default function PayrollReportPage() {
     return payslips.reduce((acc, p) => ({
         base: acc.base + p.baseSalary,
         bonus: acc.bonus + p.bonusTotal,
-        deduction: acc.deduction + p.lateDeduction + p.sanctionDeduction + p.unpaidAbsenceDeduction,
+        deduction: acc.deduction + p.lateDeduction + p.sanctionDeduction + p.unpaidAbsenceDeduction + (p.loanDeduction || 0),
         net: acc.net + p.netSalary,
         paid: acc.paid + p.paidAmount,
         remaining: acc.remaining + p.remainingAmount,
