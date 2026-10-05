@@ -232,6 +232,13 @@ export default function DashboardPage() {
   const [notes, setNotes] = useState<string>("");
   const [historyFilter, setHistoryFilter] = useState<string>("7");
   const [historyEmployeeFilter, setHistoryEmployeeFilter] = useState<string>("all");
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_ROWS_PER_PAGE = 10;
+
+  // Reset history page when filters change
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historyFilter, historyEmployeeFilter]);
   
   const [isEmployeeFormOpen, setIsEmployeeFormOpen] = useState(false);
   const [isAbsenceFormOpen, setIsAbsenceFormOpen] = useState(false);
@@ -917,6 +924,12 @@ export default function DashboardPage() {
 
   }, [filteredHistoryAttendance, filteredHistoryAbsences]);
 
+  const totalHistoryPages = Math.ceil(historyLogItems.length / HISTORY_ROWS_PER_PAGE);
+  const paginatedHistoryLogItems = useMemo(() => {
+    const startIndex = (historyPage - 1) * HISTORY_ROWS_PER_PAGE;
+    return historyLogItems.slice(startIndex, startIndex + HISTORY_ROWS_PER_PAGE);
+  }, [historyLogItems, historyPage]);
+
   const isLoading = isUserLoading || isLoadingEmployees || isLoadingSelectedDate || isLoadingAbsences || isLoadingHistory || isLoadingHistoryAbsences || isLoadingHolidays || isLoadingSettings;
   
   if (isLoading) {
@@ -1518,6 +1531,11 @@ export default function DashboardPage() {
                                 {getAbsenceStatusBadge(record.status)}
                               </div>
                             )}
+                            {record.notes && (
+                              <p className="text-[11px] text-muted-foreground/80 truncate italic mt-0.5" title={record.notes}>
+                                {record.notes}
+                              </p>
+                            )}
                           </div>
                         </div>
 
@@ -1587,148 +1605,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Tabel 1: Log Lengkap pada Tanggal Dipilih */}
-        <div className="glass-card rounded-2xl border border-border/80 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-border/50">
-            <h3 className="text-lg font-bold font-headline text-foreground">Log Lengkap Presensi & Ketidakhadiran</h3>
-            <p className="text-xs text-muted-foreground">Daftar seluruh kehadiran dan ketidakhadiran untuk tanggal yang dipilih</p>
-          </div>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-slate-100/90 dark:bg-slate-900/95 border-b border-border/80">
-                <TableRow className="border-border/50 hover:bg-transparent">
-                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Karyawan</TableHead>
-                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Posisi</TableHead>
-                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Masuk</TableHead>
-                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Pulang</TableHead>
-                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Catatan</TableHead>
-                  <TableHead className="font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider">Status</TableHead>
-                  <TableHead className="text-right font-bold text-xs text-slate-700 dark:text-slate-100 uppercase tracking-wider w-[100px]">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">Memuat log...</TableCell>
-                  </TableRow>
-                ) : dailyLogItems.length > 0 ? (
-                  dailyLogItems.map((record) => {
-                    const employee = employees?.find(e => e.id === record.employeeId);
-                    if (record.type === 'attendance') {
-                        const clockInTime = parseISO(record.clockIn);
-                        const lateThreshold = settings?.lateThresholdTime || "07:35";
-                        const [hours, minutes] = lateThreshold.split(':').map(Number);
-                        const lateTime = new Date(clockInTime);
-                        lateTime.setHours(hours, minutes, 0, 0); 
-                        const isRecordLate = isAfter(clockInTime, lateTime);
-
-                        return (
-                          <TableRow key={record.id} className={cn("border-border/40 transition-colors", isRecordLate && "bg-destructive/[0.04]")}>
-                            <TableCell>
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary font-bold text-xs flex items-center justify-center shrink-0">
-                                  {getInitials(employee?.name)}
-                                </div>
-                                <span className="font-semibold text-foreground text-sm">{employee?.name || 'Tidak diketahui'}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{employee?.position || 'N/A'}</TableCell>
-                            <TableCell className="font-mono text-sm">
-                              <span className={cn(isRecordLate && "text-rose-600 dark:text-rose-400 font-semibold")}>
-                                {format(parseISO(record.clockIn), "p")}
-                              </span>
-                            </TableCell>
-                            <TableCell className="font-mono text-sm text-muted-foreground">
-                              {record.clockOut ? format(parseISO(record.clockOut), "p") : " - "}
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{record.notes || "-"}</TableCell>
-                            <TableCell>
-                              {getStatus(record)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                                  onClick={() => handleOpenEdit(record)}
-                                  title="Edit Data"
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                  <span className="sr-only">Edit</span>
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-rose-500/10"
-                                  onClick={() => handleOpenDelete(record)}
-                                  title="Hapus Data"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                  <span className="sr-only">Hapus</span>
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                    } else { // type is 'absence'
-                         return (
-                          <TableRow key={record.id} className="border-border/40 bg-muted/[0.15]">
-                            <TableCell>
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold text-xs flex items-center justify-center shrink-0">
-                                  {getInitials(employee?.name)}
-                                </div>
-                                <span className="font-semibold text-foreground text-sm">{employee?.name || 'Tidak diketahui'}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{employee?.position || 'N/A'}</TableCell>
-                            <TableCell colSpan={2} className="text-center text-sm text-muted-foreground"> - </TableCell>
-                            <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{record.notes || "-"}</TableCell>
-                            <TableCell>
-                              {getAbsenceStatusBadge(record.status)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                                  onClick={() => handleOpenEdit(record)}
-                                  title="Edit Data"
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                  <span className="sr-only">Edit</span>
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-rose-500/10"
-                                  onClick={() => handleOpenDelete(record)}
-                                  title="Hapus Data"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                  <span className="sr-only">Hapus</span>
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                    }
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground italic text-sm">
-                      Tidak ada catatan yang ditemukan untuk tanggal ini.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-        
-        {/* Tabel 2: Riwayat Aktivitas Keseluruhan */}
+        {/* Tabel: Riwayat Aktivitas Keseluruhan */}
         <div className="glass-card rounded-2xl border border-border/80 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-border/50 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -1782,8 +1659,8 @@ export default function DashboardPage() {
                       Memuat riwayat aktivitas...
                     </TableCell>
                   </TableRow>
-                ) : historyLogItems.length > 0 ? (
-                  historyLogItems.map((record) => {
+                ) : paginatedHistoryLogItems.length > 0 ? (
+                  paginatedHistoryLogItems.map((record) => {
                     const employee = employees?.find(e => e.id === record.employeeId);
                     if (record.type === 'attendance') {
                         const clockInTime = parseISO(record.clockIn);
@@ -1896,6 +1773,38 @@ export default function DashboardPage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Table Pagination Footer */}
+          {historyLogItems.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-t border-border/50 gap-3">
+              <div className="text-xs text-muted-foreground">
+                Menampilkan <strong>{paginatedHistoryLogItems.length}</strong> dari <strong>{historyLogItems.length}</strong> total aktivitas
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs rounded-lg border-border/80"
+                  onClick={() => setHistoryPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={historyPage === 1}
+                >
+                  Sebelumnya
+                </Button>
+                <span className="text-xs text-muted-foreground px-2">
+                  Halaman {historyPage} dari {totalHistoryPages > 0 ? totalHistoryPages : 1}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs rounded-lg border-border/80"
+                  onClick={() => setHistoryPage((prev) => Math.min(prev + 1, totalHistoryPages))}
+                  disabled={historyPage === totalHistoryPages || totalHistoryPages === 0}
+                >
+                  Berikutnya
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
