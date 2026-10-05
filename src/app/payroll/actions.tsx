@@ -264,11 +264,15 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
         let actualLoanDeduction = 0;
         const loanDetails: PayslipLoanDetail[] = [];
 
-        // Loan deductions
-        // - Kasbon (type missing or 'kasbon'): deduct as much as possible each payroll
-        // - Kredit: deduct fixed installmentAmount ONLY if full amount is available (Opsi B: skip if insufficient)
+        // Urutkan pinjaman: Kasbon biasa diprioritaskan terlebih dahulu, disusul Kredit (FIFO berdasarkan tanggal tertua)
         const employeeLoans = activeLoans.filter(l => l.employeeId === employee.id);
-        for (const loan of employeeLoans) {
+        const sortedLoans = [...employeeLoans].sort((a, b) => {
+            if (a.type !== 'kredit' && b.type === 'kredit') return -1;
+            if (a.type === 'kredit' && b.type !== 'kredit') return 1;
+            return a.date.localeCompare(b.date);
+        });
+
+        for (const loan of sortedLoans) {
             if (availableForLoans <= 0) break;
             const currentDebt = loan.remainingAmount ?? loan.amount;
             const isKredit = loan.type === 'kredit';
@@ -278,23 +282,31 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
                 if (loan.skipPeriod === payrollPeriod) {
                     continue; // Skip deduction — employee requested relief this month
                 }
-                // Kredit — Opsi B: only deduct if the full installment can be covered
-                const installment = Math.min(loan.installmentAmount ?? currentDebt, currentDebt);
-                if (availableForLoans < installment) {
-                    // Gaji tidak cukup → lewati cicilan bulan ini, tidak dipotong sama sekali
-                    continue;
+                const installmentTarget = Math.min(loan.installmentAmount ?? currentDebt, currentDebt);
+                // Potong semaksimal sisa gaji yang tersedia (walaupun kurang dari cicilan bulanan normal)
+                const toDeduct = Math.min(installmentTarget, availableForLoans);
+
+                if (toDeduct > 0) {
+                    const isPartial = toDeduct < installmentTarget;
+                    const paidSoFar = loan.paidInstallments ?? 0;
+                    const formattedToDeduct = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(toDeduct);
+                    const formattedTarget = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(installmentTarget);
+
+                    const description = isPartial
+                        ? `${loan.description} (Cicilan ${paidSoFar + 1}/${loan.totalInstallments ?? '?'} - Sebagian: ${formattedToDeduct} dari ${formattedTarget})`
+                        : `${loan.description} (Cicilan ${paidSoFar + 1}/${loan.totalInstallments ?? '?'})`;
+
+                    loanDetails.push({
+                        loanId: loan.id,
+                        amount: toDeduct,
+                        description,
+                        date: loan.date
+                    });
+                    actualLoanDeduction += toDeduct;
+                    availableForLoans -= toDeduct;
                 }
-                const paidSoFar = loan.paidInstallments ?? 0;
-                loanDetails.push({
-                    loanId: loan.id,
-                    amount: installment,
-                    description: `${loan.description} (Cicilan ${paidSoFar + 1}/${loan.totalInstallments ?? '?'})`,
-                    date: loan.date
-                });
-                actualLoanDeduction += installment;
-                availableForLoans -= installment;
             } else {
-                // Kasbon — potong semaksimal saldo yang ada
+                // Kasbon reguler — potong semaksimal saldo yang ada
                 const toDeduct = Math.min(currentDebt, availableForLoans);
                 if (toDeduct > 0) {
                     loanDetails.push({
@@ -865,18 +877,22 @@ export async function finalizePayroll(
                     description: `Potongan dari Gaji Periode ${periodLabel}`
                 }));
 
-                const currentPaidInstallments = loanData.paidInstallments ?? 0;
-                const newPaidInstallments = currentPaidInstallments + item.count;
+                // Hitung jumlah cicilan penuh yang telah terbayarkan
+                const totalPaidSoFar = Math.max(0, loanData.amount - newRemaining);
+                const fullInstallmentsCovered = loanData.installmentAmount && loanData.installmentAmount > 0
+                    ? Math.floor(totalPaidSoFar / loanData.installmentAmount)
+                    : 0;
+                const newPaidInstallments = newRemaining <= 0.01
+                    ? (loanData.totalInstallments ?? fullInstallmentsCovered)
+                    : Math.min(loanData.totalInstallments ?? Infinity, fullInstallmentsCovered);
 
-                // For kredit: increment paidInstallments; mark paid when all installments done
+                // For kredit: perbarui counter cicilan yang telah tertutup
                 const kreditUpdates = isKredit ? {
                     paidInstallments: newPaidInstallments,
                 } : {};
 
-                // Determine if loan is fully paid
-                const isFullyPaid = isKredit
-                    ? (newPaidInstallments >= (loanData.totalInstallments ?? Infinity))
-                    : newRemaining <= 0;
+                // Pinjaman kredit/kasbon HANYA dianggap lunas jika sisa hutang benar-benar habis (<= 0.01)
+                const isFullyPaid = newRemaining <= 0.01;
 
                 const existingPayments = loanData.payments ?? [];
 
@@ -952,9 +968,11 @@ export async function unfinalizePayroll(
                 const roundedRestored = Math.round(rawRestored * 100) / 100;
                 const restoredRemaining = Math.min(loanData.amount, roundedRestored);
 
-                // Kembalikan counter cicilan kredit jika ada
-                const currentPaidInstallments = loanData.paidInstallments ?? 0;
-                const restoredPaidInstallments = Math.max(0, currentPaidInstallments - count);
+                // Kembalikan counter cicilan kredit sesuai sisa hutang yang dipulihkan
+                const restoredPaidSoFar = Math.max(0, loanData.amount - restoredRemaining);
+                const restoredPaidInstallments = loanData.installmentAmount && loanData.installmentAmount > 0
+                    ? Math.min(loanData.totalInstallments ?? Infinity, Math.floor(restoredPaidSoFar / loanData.installmentAmount))
+                    : 0;
 
                 // Bersihkan riwayat pembayaran: buang entri 'payroll' terkait periode ini
                 const existingPayments = loanData.payments ?? [];
