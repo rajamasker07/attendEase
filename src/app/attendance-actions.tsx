@@ -70,6 +70,7 @@ export interface AttendanceEditData {
   clockIn: string; // ISO
   clockOut?: string | null; // ISO or null
   notes?: string;
+  earlyDepartureReason?: 'sakit' | 'izin' | 'dinas' | 'lainnya' | null;
 }
 
 interface EditAttendanceDialogProps {
@@ -92,6 +93,7 @@ export function EditAttendanceDialog({
   const [clockInTime, setClockInTime] = useState("07:30");
   const [hasClockOut, setHasClockOut] = useState(false);
   const [clockOutTime, setClockOutTime] = useState("18:00");
+  const [earlyDepartureReason, setEarlyDepartureReason] = useState<string>("none");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -115,6 +117,7 @@ export function EditAttendanceDialog({
       } catch (e) {
         console.error("Error parsing date in EditAttendanceDialog", e);
       }
+      setEarlyDepartureReason(record.earlyDepartureReason || "none");
       setNotes(record.notes || "");
       setError(null);
     }
@@ -168,6 +171,7 @@ export function EditAttendanceDialog({
         clockIn: inDateObj.toISOString(),
         clockOut: clockOutISO,
         notes: notes.trim(),
+        earlyDepartureReason: hasClockOut && earlyDepartureReason !== "none" ? (earlyDepartureReason as any) : null,
       });
       setIsSubmitting(false);
       setIsOpen(false);
@@ -308,6 +312,32 @@ export function EditAttendanceDialog({
                       </Badge>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Status Pulang Awal jika ada clockOut */}
+            {hasClockOut && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-earlyDeparture" className="text-right text-xs sm:text-sm font-medium">
+                  Status Pulang Awal
+                </Label>
+                <div className="col-span-3">
+                  <Select value={earlyDepartureReason} onValueChange={setEarlyDepartureReason}>
+                    <SelectTrigger id="edit-earlyDeparture" className="rounded-xl border-border/80 h-10">
+                      <SelectValue placeholder="Pilih status..." />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-border/80 shadow-xl">
+                      <SelectItem value="none">Normal (Bukan Pulang Awal)</SelectItem>
+                      <SelectItem value="sakit">Sakit di Tempat Kerja</SelectItem>
+                      <SelectItem value="izin">Izin Pulang Lebih Awal</SelectItem>
+                      <SelectItem value="dinas">Tugas Luar / Dinas</SelectItem>
+                      <SelectItem value="lainnya">Lainnya</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Gunakan jika karyawan pulang lebih awal karena sakit atau izin di tengah hari.
+                  </p>
                 </div>
               </div>
             )}

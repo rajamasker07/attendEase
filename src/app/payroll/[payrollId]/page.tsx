@@ -154,7 +154,7 @@ export default function PayrollDetailPage() {
     const res = payslips.reduce((acc, p) => ({
         base: acc.base + p.baseSalary,
         bonus: acc.bonus + p.bonusTotal,
-        deduction: acc.deduction + p.lateDeduction + p.sanctionDeduction + p.unpaidAbsenceDeduction + (p.loanDeduction || 0),
+        deduction: acc.deduction + p.lateDeduction + p.sanctionDeduction + p.unpaidAbsenceDeduction + (p.earlyDepartureDeduction || 0) + (p.loanDeduction || 0),
         net: acc.net + p.netSalary,
         paid: acc.paid + p.paidAmount,
         remaining: acc.remaining + p.remainingAmount,
@@ -283,7 +283,7 @@ export default function PayrollDetailPage() {
                   ))
                 ) : payslips && payslips.length > 0 ? (
                   payslips.map((payslip) => {
-                    const totalDeduction = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction + (payslip.loanDeduction || 0);
+                    const totalDeduction = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction + (payslip.earlyDepartureDeduction || 0) + (payslip.loanDeduction || 0);
                     return (
                     <TableRow key={payslip.id} className="border-border/40 hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                       <TableCell className="font-medium text-foreground">

@@ -46,6 +46,7 @@ import type {
   Setting, 
   Loan, 
   PayslipLoanDetail, 
+  PayslipEarlyDepartureDetail,
   LoanPayment 
 } from "@/types";
 import { useRouter } from "next/navigation";
@@ -68,6 +69,7 @@ import {
   startOfMonth,
   endOfMonth,
   getDaysInMonth,
+  differenceInMinutes,
 } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { Copy, Wallet, CheckCheck, Loader2 } from "lucide-react";
@@ -205,6 +207,8 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
       const LATE_DEDUCTION_AMOUNT = settings?.lateDeductionAmount ?? 10000;
       const DEDUCT_UNPAID_ABSENCE = settings?.deductUnpaidAbsence ?? false;
       const LATE_THRESHOLD_TIME = settings?.lateThresholdTime ?? "07:35";
+      const STANDARD_WORK_HOURS_PER_DAY = settings?.standardWorkHoursPerDay ?? 10.5;
+      const DEDUCT_EARLY_DEPARTURE = settings?.deductEarlyDeparture ?? true;
 
       // Create Payroll document
       const newPayrollRef = doc(collection(firestore, "payrolls"));
@@ -256,9 +260,52 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
             unpaidAbsenceDeduction = Math.round(unpaidAbsenceCount * dailyWage);
         }
 
+        // Early departure deduction (Pulang Awal / Sakit di Tengah Hari)
+        let earlyDepartureCount = 0;
+        let earlyDepartureDeduction = 0;
+        const earlyDepartureDetails: PayslipEarlyDepartureDetail[] = [];
+
+        if (DEDUCT_EARLY_DEPARTURE) {
+            const dailyWage = (employee.salary || 0) / daysInMonth;
+            const hourlyRate = dailyWage / STANDARD_WORK_HOURS_PER_DAY;
+
+            employeeAttendance.forEach((record) => {
+              if (record.clockOut && record.earlyDepartureReason) {
+                // Dinas / Tugas Luar tidak dipotong jam kerja (dianggap penuh)
+                if (record.earlyDepartureReason === 'dinas') {
+                  return;
+                }
+
+                const inTime = parseISO(record.clockIn);
+                const outTime = parseISO(record.clockOut);
+                const minutesWorked = differenceInMinutes(outTime, inTime);
+                const hoursWorked = Math.max(0, Number((minutesWorked / 60).toFixed(2)));
+
+                if (hoursWorked < STANDARD_WORK_HOURS_PER_DAY) {
+                  const unworkedHours = STANDARD_WORK_HOURS_PER_DAY - hoursWorked;
+                  const deduction = Math.round(hourlyRate * unworkedHours);
+
+                  if (deduction > 0) {
+                    earlyDepartureCount++;
+                    earlyDepartureDeduction += deduction;
+                    earlyDepartureDetails.push({
+                      date: format(inTime, "yyyy-MM-dd"),
+                      clockIn: format(inTime, "HH:mm"),
+                      clockOut: format(outTime, "HH:mm"),
+                      hoursWorked,
+                      standardHours: STANDARD_WORK_HOURS_PER_DAY,
+                      reason: record.earlyDepartureReason,
+                      deduction,
+                    });
+                  }
+                }
+              }
+            });
+        }
+
         // Calculate available balance for loans
         const earnings = (employee.salary || 0) + bonusTotal;
-        const deductionsExcludingLoans = lateDeduction + sanctionDeduction + unpaidAbsenceDeduction;
+        const deductionsExcludingLoans = lateDeduction + sanctionDeduction + unpaidAbsenceDeduction + earlyDepartureDeduction;
         
         let availableForLoans = Math.max(0, earnings - deductionsExcludingLoans);
         let actualLoanDeduction = 0;
@@ -334,6 +381,9 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
           lateDeduction,
           unpaidAbsenceCount,
           unpaidAbsenceDeduction,
+          earlyDepartureCount,
+          earlyDepartureDeduction,
+          earlyDepartureDetails,
           sanctionCount,
           sanctionDeduction,
           sanctions: sanctionDetails,
@@ -448,7 +498,7 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
         setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
     }
 
-    const totalDeductions = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction + (payslip.loanDeduction || 0);
+    const totalDeductions = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction + (payslip.earlyDepartureDeduction || 0) + (payslip.loanDeduction || 0);
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -507,6 +557,30 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
                           <span className="font-medium text-destructive">
                              - {formatCurrency(payslip.lateDeduction)}
                           </span>
+                      </div>
+                    )}
+
+                    {(payslip.earlyDepartureDeduction || 0) > 0 && (
+                      <div>
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-muted-foreground">Potongan Pulang Awal / Sakit Tengah Hari</p>
+                            <p className="text-xs text-muted-foreground">({payslip.earlyDepartureCount || 0} hari)</p>
+                          </div>
+                          <span className="font-medium text-destructive">
+                            - {formatCurrency(payslip.earlyDepartureDeduction || 0)}
+                          </span>
+                        </div>
+                        <div className="pl-2 mt-1 text-xs text-muted-foreground space-y-1">
+                          {payslip.earlyDepartureDetails?.map((d, index) => (
+                            <div key={index} className="flex justify-between items-center">
+                              <span className="pr-2 capitalize">
+                                - {format(parseISO(d.date), "d MMM", { locale: localeId })} ({d.hoursWorked} jam dari {d.standardHours} jam • {d.reason})
+                              </span>
+                              <span>{formatCurrency(d.deduction)}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                     

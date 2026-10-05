@@ -28,7 +28,7 @@ function PayslipPageContent({
       minimumFractionDigits: 0,
     }).format(amount);
 
-  const totalDeductions = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction + (payslip.loanDeduction || 0);
+  const totalDeductions = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction + (payslip.earlyDepartureDeduction || 0) + (payslip.loanDeduction || 0);
   const totalIncome = payslip.baseSalary + payslip.bonusTotal;
 
   return (
@@ -104,6 +104,26 @@ function PayslipPageContent({
               <p className="font-medium text-destructive">
                 - {formatCurrency(payslip.lateDeduction)}
               </p>
+            </div>
+          )}
+          {(payslip.earlyDepartureDeduction || 0) > 0 && (
+            <div className="border-t py-2">
+              <div className="flex justify-between">
+                <p>Potongan Pulang Awal / Sakit Tengah Hari ({payslip.earlyDepartureCount || 0} hari)</p>
+                <p className="font-medium text-destructive">
+                  - {formatCurrency(payslip.earlyDepartureDeduction || 0)}
+                </p>
+              </div>
+              <div className="pl-4 mt-1 space-y-1 text-sm text-muted-foreground">
+                {payslip.earlyDepartureDetails?.map((d, index) => (
+                  <div key={index} className="flex justify-between">
+                    <span className="pr-4 capitalize">
+                      - {format(parseISO(d.date), "d MMM yyyy", { locale: id })} ({d.hoursWorked} jam dari {d.standardHours} jam • {d.reason})
+                    </span>
+                    <span>{formatCurrency(d.deduction)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           {(payslip.loanDeduction || 0) > 0 && (
