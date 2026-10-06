@@ -87,7 +87,7 @@ function PayslipPageContent({
         </div>
       </section>
 
-      {totalDeductions > 0 && (
+      {(totalDeductions > 0 || (payslip.paidSickLeaveCount || 0) > 0) && (
         <section className="mt-6">
           <h2 className="mb-2 text-lg font-semibold">Rincian Potongan</h2>
            {payslip.unpaidAbsenceDeduction > 0 && (
@@ -95,6 +95,14 @@ function PayslipPageContent({
               <p>Potongan Hari Tidak Masuk ({payslip.unpaidAbsenceCount} hari)</p>
               <p className="font-medium text-destructive">
                 - {formatCurrency(payslip.unpaidAbsenceDeduction)}
+              </p>
+            </div>
+          )}
+          {(payslip.paidSickLeaveCount || 0) > 0 && (
+            <div className="flex justify-between border-t py-2 text-emerald-600 dark:text-emerald-400">
+              <p>Izin Sakit (Surat Dokter) ({payslip.paidSickLeaveCount} hari - Bebas Potongan)</p>
+              <p className="font-medium">
+                Rp 0
               </p>
             </div>
           )}

@@ -22,12 +22,14 @@ export interface AttendanceRecord {
   clockOut?: string; // ISO String
   notes?: string;
   earlyDepartureReason?: 'sakit' | 'izin' | 'dinas' | 'lainnya';
+  hasDoctorLetter?: boolean;
 }
 
 export interface AbsenceRecord {
   employeeId: string;
   date: string; // YYYY-MM-DD
   status: 'sakit' | 'izin' | 'alpa';
+  hasDoctorLetter?: boolean;
   notes?: string;
 }
 
@@ -118,6 +120,7 @@ export interface Payslip {
   lateDeduction: number;
   unpaidAbsenceCount: number;
   unpaidAbsenceDeduction: number;
+  paidSickLeaveCount?: number;
   earlyDepartureCount?: number;
   earlyDepartureDeduction?: number;
   earlyDepartureDetails?: PayslipEarlyDepartureDetail[];
