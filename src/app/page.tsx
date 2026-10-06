@@ -47,13 +47,15 @@ import {
   Clock3,
   Sparkles,
   Pencil,
-  Trash2
+  Trash2,
+  FileText
 } from "lucide-react";
 import { Clock } from "@/components/clock";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   useCollection,
   useDoc,
@@ -107,6 +109,7 @@ const absenceSchema = z.object({
   employeeId: z.string().min(1, "Karyawan harus dipilih."),
   date: z.string().min(1, "Tanggal harus diisi."),
   status: z.enum(['sakit', 'izin', 'alpa'], { required_error: "Status harus dipilih."}),
+  hasDoctorLetter: z.boolean().optional(),
   notes: z.string().optional(),
 });
 type AbsenceFormData = z.infer<typeof absenceSchema>;
@@ -127,14 +130,20 @@ function MarkAbsenceDialog({
     handleSubmit,
     reset,
     control,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<AbsenceFormData>({
     resolver: zodResolver(absenceSchema),
+    defaultValues: {
+      hasDoctorLetter: false,
+    },
   });
+
+  const selectedStatus = watch("status");
 
   useEffect(() => {
     if (isOpen) {
-        reset({ date: format(new Date(), "yyyy-MM-dd"), employeeId: '', status: undefined, notes: '' });
+        reset({ date: format(new Date(), "yyyy-MM-dd"), employeeId: '', status: undefined, hasDoctorLetter: false, notes: '' });
     }
   }, [isOpen, reset]);
 
@@ -210,6 +219,31 @@ function MarkAbsenceDialog({
                     {errors.status && <p className="text-destructive text-sm mt-1">{errors.status.message}</p>}
                 </div>
             </div>
+            {selectedStatus === 'sakit' && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <div className="col-start-2 col-span-3 flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-900 dark:text-emerald-200">
+                      <FileText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                      Surat Keterangan Dokter
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Bebas potongan gaji (izin sakit resmi)
+                    </p>
+                  </div>
+                  <Controller
+                    name="hasDoctorLetter"
+                    control={control}
+                    render={({ field }) => (
+                      <Switch
+                        checked={field.value || false}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+            )}
              <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="notes" className="text-right">Catatan</Label>
                 <div className="col-span-3">
@@ -250,6 +284,7 @@ export default function DashboardPage() {
   const [isAbsenceFormOpen, setIsAbsenceFormOpen] = useState(false);
   const [isEarlyDepartureDialogOpen, setIsEarlyDepartureDialogOpen] = useState(false);
   const [earlyDepartureReason, setEarlyDepartureReason] = useState<'sakit' | 'izin' | 'dinas' | 'lainnya'>('sakit');
+  const [earlyDepartureHasDoctorLetter, setEarlyDepartureHasDoctorLetter] = useState<boolean>(false);
   const [earlyDepartureTime, setEarlyDepartureTime] = useState<string>("11:30");
   const [earlyDepartureNotes, setEarlyDepartureNotes] = useState<string>("");
   const [isEmployeePickerOpen, setIsEmployeePickerOpen] = useState(false);
@@ -655,19 +690,21 @@ export default function DashboardPage() {
 
     const docRef = doc(firestore, "attendance", currentEmployeeRecord.id);
     const finalNotes = earlyDepartureNotes.trim() || notes.trim() || undefined;
+    const isDoctorLetter = earlyDepartureReason === 'sakit' ? earlyDepartureHasDoctorLetter : false;
 
     setDocumentNonBlocking(
       docRef,
       {
         clockOut: clockOutTime.toISOString(),
         earlyDepartureReason: earlyDepartureReason,
+        hasDoctorLetter: isDoctorLetter,
         notes: finalNotes || "",
       },
       { merge: true }
     );
 
     const reasonLabels: Record<string, string> = {
-      sakit: "Sakit di Tempat Kerja",
+      sakit: isDoctorLetter ? "Sakit di Tempat Kerja (Surat Dokter)" : "Sakit di Tempat Kerja",
       izin: "Izin Pulang Lebih Awal",
       dinas: "Tugas Luar / Dinas",
       lainnya: "Pulang Lebih Awal",
@@ -680,6 +717,7 @@ export default function DashboardPage() {
 
     setIsEarlyDepartureDialogOpen(false);
     setEarlyDepartureNotes("");
+    setEarlyDepartureHasDoctorLetter(false);
   };
 
   const handleSaveEmployee = (employeeData: EmployeeFormData) => {
@@ -732,7 +770,13 @@ export default function DashboardPage() {
         return;
     }
 
-    const newRecord: Omit<AbsenceRecord, 'id'> = { employeeId, date: dateStr, status, notes: absenceNotes };
+    const newRecord: Omit<AbsenceRecord, 'id'> = {
+      employeeId,
+      date: dateStr,
+      status,
+      hasDoctorLetter: status === 'sakit' ? Boolean(data.hasDoctorLetter) : false,
+      notes: absenceNotes
+    };
     addDocumentNonBlocking(collection(firestore, "absences"), newRecord);
     
     if (status === 'alpa') {
@@ -787,6 +831,14 @@ export default function DashboardPage() {
         if (record.earlyDepartureReason) {
           switch (record.earlyDepartureReason) {
             case 'sakit':
+              if (record.hasDoctorLetter) {
+                return (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    <FileText className="w-3 h-3 text-emerald-600 shrink-0" />
+                    Sakit (Surat Dokter)
+                  </span>
+                );
+              }
               return (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
                   <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
@@ -834,12 +886,20 @@ export default function DashboardPage() {
     );
   };
 
-  const getAbsenceStatusBadge = (status: AbsenceRecord['status']) => {
+  const getAbsenceStatusBadge = (status: AbsenceRecord['status'], hasDoctorLetter?: boolean) => {
     switch (status) {
         case 'sakit': 
+          if (hasDoctorLetter) {
+            return (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                <FileText className="w-3 h-3 text-emerald-600 shrink-0" />
+                Sakit (Surat Dokter)
+              </span>
+            );
+          }
           return (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-              Sakit
+              Sakit (Tanpa Surat)
             </span>
           );
         case 'izin': 
@@ -922,12 +982,19 @@ export default function DashboardPage() {
         updatePayload.clockOut = data.clockOut;
         if (data.earlyDepartureReason) {
           updatePayload.earlyDepartureReason = data.earlyDepartureReason;
+          if (data.earlyDepartureReason === 'sakit' && data.hasDoctorLetter) {
+            updatePayload.hasDoctorLetter = true;
+          } else {
+            updatePayload.hasDoctorLetter = deleteField();
+          }
         } else {
           updatePayload.earlyDepartureReason = deleteField();
+          updatePayload.hasDoctorLetter = deleteField();
         }
       } else {
         updatePayload.clockOut = deleteField();
         updatePayload.earlyDepartureReason = deleteField();
+        updatePayload.hasDoctorLetter = deleteField();
       }
       updateDocumentNonBlocking(docRef, updatePayload);
       toast({
@@ -956,6 +1023,11 @@ export default function DashboardPage() {
         status: data.status,
         notes: data.notes || "",
       };
+      if (data.status === 'sakit' && data.hasDoctorLetter) {
+        updatePayload.hasDoctorLetter = true;
+      } else {
+        updatePayload.hasDoctorLetter = deleteField();
+      }
       updateDocumentNonBlocking(docRef, updatePayload);
       toast({
         title: "Berhasil Diperbarui",
@@ -1580,6 +1652,7 @@ export default function DashboardPage() {
                       setEarlyDepartureTime(format(new Date(), "HH:mm"));
                       setEarlyDepartureNotes(notes || "");
                       setEarlyDepartureReason("sakit");
+                      setEarlyDepartureHasDoctorLetter(false);
                       setIsEarlyDepartureDialogOpen(true);
                     }}
                     disabled={!selectedEmployeeId || isSelectedDateHoliday}
@@ -1647,7 +1720,7 @@ export default function DashboardPage() {
                               </div>
                             ) : (
                               <div className="text-xs text-muted-foreground">
-                                {getAbsenceStatusBadge(record.status)}
+                                {getAbsenceStatusBadge(record.status, record.hasDoctorLetter)}
                               </div>
                             )}
                             {record.notes && (
@@ -1853,7 +1926,7 @@ export default function DashboardPage() {
                             </TableCell>
                             <TableCell colSpan={2} className="text-center text-sm text-muted-foreground">-</TableCell>
                             <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{record.notes || "-"}</TableCell>
-                            <TableCell>{getAbsenceStatusBadge(record.status)}</TableCell>
+                            <TableCell>{getAbsenceStatusBadge(record.status, record.hasDoctorLetter)}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">
                                 <Button
@@ -1988,6 +2061,26 @@ export default function DashboardPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Switch Surat Dokter jika alasan Sakit */}
+            {earlyDepartureReason === 'sakit' && (
+              <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-900 dark:text-emerald-200">
+                    <FileText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    Surat Keterangan Dokter
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Sakit dengan surat dokter bebas potongan gaji
+                  </p>
+                </div>
+                <Switch
+                  id="early-departure-doctor-letter"
+                  checked={earlyDepartureHasDoctorLetter}
+                  onCheckedChange={setEarlyDepartureHasDoctorLetter}
+                />
+              </div>
+            )}
 
             {/* Jam Kepulangan */}
             <div className="space-y-1.5">

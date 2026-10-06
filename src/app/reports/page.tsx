@@ -180,10 +180,14 @@ export default function ReportsPage() {
     return formatDuration(minutes);
   };
 
-  const getAbsenceStatusBadge = (status: AbsenceRecord['status']) => {
+  const getAbsenceStatusBadge = (status: AbsenceRecord['status'], hasDoctorLetter?: boolean) => {
     switch (status) {
-        case 'sakit': return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 capitalize">Sakit</Badge>;
-        case 'izin': return <Badge variant="secondary" className="bg-blue-100 text-blue-800 capitalize">Izin</Badge>;
+        case 'sakit': 
+          if (hasDoctorLetter) {
+            return <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 capitalize border border-emerald-300/40">Sakit (Surat Dokter)</Badge>;
+          }
+          return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 capitalize border border-yellow-300/40">Sakit (Tanpa Surat)</Badge>;
+        case 'izin': return <Badge variant="secondary" className="bg-blue-100 text-blue-800 capitalize border border-blue-300/40">Izin</Badge>;
         case 'alpa': return <Badge variant="destructive" className="capitalize">Alpa</Badge>;
     }
   }
@@ -399,8 +403,21 @@ export default function ReportsPage() {
                                                 <div className="flex items-center gap-1.5 flex-wrap">
                                                   <span>{record.clockOut ? format(parseISO(record.clockOut), "p") : "-"}</span>
                                                   {record.earlyDepartureReason && (
-                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500/50 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40">
-                                                      {record.earlyDepartureReason === 'sakit' ? 'Sakit (Pulang Awal)' : record.earlyDepartureReason === 'izin' ? 'Izin Pulang Awal' : record.earlyDepartureReason === 'dinas' ? 'Tugas Luar' : 'Pulang Awal'}
+                                                    <Badge 
+                                                      variant="outline" 
+                                                      className={
+                                                        record.earlyDepartureReason === 'sakit' && record.hasDoctorLetter
+                                                          ? "text-[10px] px-1.5 py-0 border-emerald-500/50 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40"
+                                                          : "text-[10px] px-1.5 py-0 border-amber-500/50 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40"
+                                                      }
+                                                    >
+                                                      {record.earlyDepartureReason === 'sakit' 
+                                                        ? (record.hasDoctorLetter ? 'Sakit (Surat Dokter)' : 'Sakit (Pulang Awal)') 
+                                                        : record.earlyDepartureReason === 'izin' 
+                                                        ? 'Izin Pulang Awal' 
+                                                        : record.earlyDepartureReason === 'dinas' 
+                                                        ? 'Tugas Luar' 
+                                                        : 'Pulang Awal'}
                                                     </Badge>
                                                   )}
                                                 </div>
@@ -430,7 +447,7 @@ export default function ReportsPage() {
                                             {absenceRecords.map((record) => (
                                                 <TableRow key={record.id} className="bg-muted/50">
                                                     <TableCell>{format(parseISO(record.date), "MMMM d, yyyy", { locale: id })}</TableCell>
-                                                    <TableCell>{getAbsenceStatusBadge(record.status)}</TableCell>
+                                                    <TableCell>{getAbsenceStatusBadge(record.status, record.hasDoctorLetter)}</TableCell>
                                                     <TableCell>{record.notes || "-"}</TableCell>
                                                 </TableRow>
                                             ))}

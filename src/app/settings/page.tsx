@@ -215,7 +215,7 @@ export default function SettingsPage() {
                             Potong Gaji untuk Pulang Awal / Sakit Tengah Hari
                         </p>
                         <p className="text-sm text-muted-foreground">
-                            Jika aktif, gaji akan dipotong prorata jam kerja yang kurang dari standar jam kerja (rumus: upah per jam × jam kerja kurang).
+                            Jika aktif, gaji akan dipotong prorata jam kerja yang kurang dari standar jam kerja. Bebas potongan untuk tugas dinas atau sakit dengan surat dokter.
                         </p>
                     </div>
                      <Controller
@@ -236,7 +236,7 @@ export default function SettingsPage() {
                             Potong Gaji untuk Hari Tidak Masuk
                         </p>
                         <p className="text-sm text-muted-foreground">
-                            Jika aktif, gaji akan dipotong untuk hari Sakit, Izin, atau Alpa berdasarkan gaji harian.
+                            Jika aktif, gaji akan dipotong untuk hari Sakit (tanpa surat dokter), Izin, atau Alpa berdasarkan gaji harian. Sakit dengan surat dokter bebas potongan.
                         </p>
                     </div>
                      <Controller

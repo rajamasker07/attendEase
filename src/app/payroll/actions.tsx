@@ -253,9 +253,18 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
         // Unpaid absence deduction
         let unpaidAbsenceCount = 0;
         let unpaidAbsenceDeduction = 0;
+        let paidSickLeaveCount = 0;
         if (DEDUCT_UNPAID_ABSENCE) {
             const employeeAbsences = periodAbsences.filter((a) => a.employeeId === employee.id);
-            unpaidAbsenceCount = employeeAbsences.length;
+            // Sesuai kebijakan baru: Karyawan yang izin sakit dengan surat keterangan dokter bebas potongan gaji
+            const deductibleAbsences = employeeAbsences.filter((a) => {
+                if (a.status === 'sakit' && a.hasDoctorLetter) {
+                    return false; // Bebas potongan
+                }
+                return true; // Sakit tanpa surat, izin, alpa dipotong
+            });
+            paidSickLeaveCount = employeeAbsences.filter((a) => a.status === 'sakit' && a.hasDoctorLetter).length;
+            unpaidAbsenceCount = deductibleAbsences.length;
             const dailyWage = (employee.salary || 0) / daysInMonth;
             unpaidAbsenceDeduction = Math.round(unpaidAbsenceCount * dailyWage);
         }
@@ -273,6 +282,10 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
               if (record.clockOut && record.earlyDepartureReason) {
                 // Dinas / Tugas Luar tidak dipotong jam kerja (dianggap penuh)
                 if (record.earlyDepartureReason === 'dinas') {
+                  return;
+                }
+                // Sakit di tempat kerja yang menyertakan surat keterangan dokter juga bebas potongan
+                if (record.earlyDepartureReason === 'sakit' && record.hasDoctorLetter) {
                   return;
                 }
 
@@ -381,6 +394,7 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
           lateDeduction,
           unpaidAbsenceCount,
           unpaidAbsenceDeduction,
+          paidSickLeaveCount,
           earlyDepartureCount,
           earlyDepartureDeduction,
           earlyDepartureDetails,
@@ -544,6 +558,18 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
                           </div>
                           <span className="font-medium text-destructive">
                              - {formatCurrency(payslip.unpaidAbsenceDeduction)}
+                          </span>
+                      </div>
+                    )}
+
+                    {(payslip.paidSickLeaveCount || 0) > 0 && (
+                      <div className="flex justify-between items-center text-xs text-emerald-600 dark:text-emerald-400">
+                          <div>
+                              <p className="font-medium">Izin Sakit (Surat Dokter)</p>
+                              <p className="text-[11px] text-muted-foreground">({payslip.paidSickLeaveCount} hari - Bebas Potongan)</p>
+                          </div>
+                          <span className="font-medium">
+                             Rp 0
                           </span>
                       </div>
                     )}
