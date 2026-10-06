@@ -27,6 +27,8 @@ const settingsSchema = z.object({
   lateThresholdTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Format waktu tidak valid (HH:MM).").optional(),
   alpaDeductionAmount: z.coerce.number().min(0, "Potongan tidak boleh negatif.").optional(),
   deductUnpaidAbsence: z.boolean().optional(),
+  standardWorkHoursPerDay: z.coerce.number().min(1, "Jam kerja standar minimal 1 jam.").max(24, "Jam kerja standar maksimal 24 jam.").optional(),
+  deductEarlyDeparture: z.boolean().optional(),
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
@@ -54,6 +56,8 @@ export default function SettingsPage() {
       lateThresholdTime: "07:35",
       alpaDeductionAmount: 0,
       deductUnpaidAbsence: false,
+      standardWorkHoursPerDay: 10.5,
+      deductEarlyDeparture: true,
     },
   });
 
@@ -64,10 +68,19 @@ export default function SettingsPage() {
           lateThresholdTime: settings.lateThresholdTime || "07:35",
           alpaDeductionAmount: settings.alpaDeductionAmount || 0,
           deductUnpaidAbsence: settings.deductUnpaidAbsence || false,
+          standardWorkHoursPerDay: settings.standardWorkHoursPerDay ?? 10.5,
+          deductEarlyDeparture: settings.deductEarlyDeparture ?? true,
       });
     } else if (!isLoading) {
       // If not loading and no settings exist, use default
-      reset({ lateDeductionAmount: 10000, lateThresholdTime: "07:35", alpaDeductionAmount: 0, deductUnpaidAbsence: false });
+      reset({ 
+        lateDeductionAmount: 10000, 
+        lateThresholdTime: "07:35", 
+        alpaDeductionAmount: 0, 
+        deductUnpaidAbsence: false,
+        standardWorkHoursPerDay: 10.5,
+        deductEarlyDeparture: true,
+      });
     }
   }, [settings, isLoading, reset]);
 
@@ -173,13 +186,57 @@ export default function SettingsPage() {
                     </p>
                 </div>
                 
+                <div className="space-y-2">
+                    <Label htmlFor="standardWorkHoursPerDay">
+                      Jam Kerja Standar Harian (Jam)
+                    </Label>
+                    <Input
+                      id="standardWorkHoursPerDay"
+                      type="number"
+                      step="0.5"
+                      min="1"
+                      max="24"
+                      {...register("standardWorkHoursPerDay")}
+                      className="w-40 font-mono"
+                    />
+                    {errors.standardWorkHoursPerDay && (
+                    <p className="text-sm text-destructive">
+                        {errors.standardWorkHoursPerDay.message}
+                    </p>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                      Digunakan untuk menghitung upah per jam dan potongan prorata saat karyawan pulang lebih awal (Default: 10.5 jam).
+                    </p>
+                </div>
+
+                <div className="flex items-center space-x-4 rounded-md border p-4">
+                    <div className="flex-1 space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                            Potong Gaji untuk Pulang Awal / Sakit Tengah Hari
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            Jika aktif, gaji akan dipotong prorata jam kerja yang kurang dari standar jam kerja. Bebas potongan untuk tugas dinas atau sakit dengan surat dokter.
+                        </p>
+                    </div>
+                     <Controller
+                        name="deductEarlyDeparture"
+                        control={control}
+                        render={({ field }) => (
+                            <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                            />
+                        )}
+                        />
+                </div>
+
                  <div className="flex items-center space-x-4 rounded-md border p-4">
                     <div className="flex-1 space-y-1">
                         <p className="text-sm font-medium leading-none">
                             Potong Gaji untuk Hari Tidak Masuk
                         </p>
                         <p className="text-sm text-muted-foreground">
-                            Jika aktif, gaji akan dipotong untuk hari Sakit, Izin, atau Alpa berdasarkan gaji harian.
+                            Jika aktif, gaji akan dipotong untuk hari Sakit (tanpa surat dokter), Izin, atau Alpa berdasarkan gaji harian. Sakit dengan surat dokter bebas potongan.
                         </p>
                     </div>
                      <Controller

@@ -35,7 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import type { Employee, AttendanceRecord, AbsenceRecord } from "@/types";
 import type { WithId } from "@/firebase";
 import { format, parseISO } from "date-fns";
-import { Clock, Calendar, AlertTriangle, Loader2 } from "lucide-react";
+import { Clock, Calendar, AlertTriangle, Loader2, FileText } from "lucide-react";
 
 /** Helper untuk menerjemahkan jam (HH:mm) ke label yang jelas (WIB, Pagi/Sore, AM/PM) */
 function getTimeDescriptor(timeStr: string) {
@@ -70,6 +70,8 @@ export interface AttendanceEditData {
   clockIn: string; // ISO
   clockOut?: string | null; // ISO or null
   notes?: string;
+  earlyDepartureReason?: 'sakit' | 'izin' | 'dinas' | 'lainnya' | null;
+  hasDoctorLetter?: boolean;
 }
 
 interface EditAttendanceDialogProps {
@@ -92,6 +94,8 @@ export function EditAttendanceDialog({
   const [clockInTime, setClockInTime] = useState("07:30");
   const [hasClockOut, setHasClockOut] = useState(false);
   const [clockOutTime, setClockOutTime] = useState("18:00");
+  const [earlyDepartureReason, setEarlyDepartureReason] = useState<string>("none");
+  const [hasDoctorLetter, setHasDoctorLetter] = useState(false);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -115,6 +119,8 @@ export function EditAttendanceDialog({
       } catch (e) {
         console.error("Error parsing date in EditAttendanceDialog", e);
       }
+      setEarlyDepartureReason(record.earlyDepartureReason || "none");
+      setHasDoctorLetter(record.hasDoctorLetter || false);
       setNotes(record.notes || "");
       setError(null);
     }
@@ -168,6 +174,8 @@ export function EditAttendanceDialog({
         clockIn: inDateObj.toISOString(),
         clockOut: clockOutISO,
         notes: notes.trim(),
+        earlyDepartureReason: hasClockOut && earlyDepartureReason !== "none" ? (earlyDepartureReason as any) : null,
+        hasDoctorLetter: hasClockOut && earlyDepartureReason === 'sakit' ? hasDoctorLetter : false,
       });
       setIsSubmitting(false);
       setIsOpen(false);
@@ -312,6 +320,54 @@ export function EditAttendanceDialog({
               </div>
             )}
 
+            {/* Status Pulang Awal jika ada clockOut */}
+            {hasClockOut && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-earlyDeparture" className="text-right text-xs sm:text-sm font-medium">
+                  Status Pulang Awal
+                </Label>
+                <div className="col-span-3">
+                  <Select value={earlyDepartureReason} onValueChange={setEarlyDepartureReason}>
+                    <SelectTrigger id="edit-earlyDeparture" className="rounded-xl border-border/80 h-10">
+                      <SelectValue placeholder="Pilih status..." />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-border/80 shadow-xl">
+                      <SelectItem value="none">Normal (Bukan Pulang Awal)</SelectItem>
+                      <SelectItem value="sakit">Sakit di Tempat Kerja</SelectItem>
+                      <SelectItem value="izin">Izin Pulang Lebih Awal</SelectItem>
+                      <SelectItem value="dinas">Tugas Luar / Dinas</SelectItem>
+                      <SelectItem value="lainnya">Lainnya</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Gunakan jika karyawan pulang lebih awal karena sakit atau izin di tengah hari.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Opsi Surat Dokter jika alasan sakit */}
+            {hasClockOut && earlyDepartureReason === "sakit" && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <div className="col-start-2 col-span-3 flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-900 dark:text-emerald-200">
+                      <FileText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                      Surat Keterangan Dokter
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Sakit dengan surat dokter bebas potongan jam kerja
+                    </p>
+                  </div>
+                  <Switch
+                    id="edit-attendance-doctorLetter"
+                    checked={hasDoctorLetter}
+                    onCheckedChange={setHasDoctorLetter}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Catatan */}
             <div className="grid grid-cols-4 items-start gap-4">
               <Label htmlFor="edit-notes" className="text-right text-xs sm:text-sm font-medium pt-2">
@@ -355,6 +411,7 @@ export interface AbsenceEditData {
   employeeId: string;
   date: string;
   status: "sakit" | "izin" | "alpa";
+  hasDoctorLetter?: boolean;
   notes?: string;
 }
 
@@ -376,6 +433,7 @@ export function EditAbsenceDialog({
   const [employeeId, setEmployeeId] = useState("");
   const [date, setDate] = useState("");
   const [status, setStatus] = useState<"sakit" | "izin" | "alpa">("izin");
+  const [hasDoctorLetter, setHasDoctorLetter] = useState(false);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -385,6 +443,7 @@ export function EditAbsenceDialog({
       setEmployeeId(record.employeeId);
       setDate(record.date);
       setStatus(record.status);
+      setHasDoctorLetter(record.hasDoctorLetter || false);
       setNotes(record.notes || "");
       setError(null);
     }
@@ -408,6 +467,7 @@ export function EditAbsenceDialog({
         employeeId,
         date,
         status,
+        hasDoctorLetter: status === "sakit" ? hasDoctorLetter : false,
         notes: notes.trim(),
       });
       setIsSubmitting(false);
@@ -493,6 +553,28 @@ export function EditAbsenceDialog({
                 </Select>
               </div>
             </div>
+
+            {/* Opsi Surat Dokter jika status sakit */}
+            {status === "sakit" && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <div className="col-start-2 col-span-3 flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-900 dark:text-emerald-200">
+                      <FileText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                      Surat Keterangan Dokter
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Bebas potongan gaji ketidakhadiran
+                    </p>
+                  </div>
+                  <Switch
+                    id="edit-absence-doctorLetter"
+                    checked={hasDoctorLetter}
+                    onCheckedChange={setHasDoctorLetter}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-4 items-start gap-4">
               <Label htmlFor="absence-edit-notes" className="text-right text-xs sm:text-sm font-medium pt-2">

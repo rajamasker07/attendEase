@@ -46,6 +46,7 @@ import type {
   Setting, 
   Loan, 
   PayslipLoanDetail, 
+  PayslipEarlyDepartureDetail,
   LoanPayment 
 } from "@/types";
 import { useRouter } from "next/navigation";
@@ -68,6 +69,7 @@ import {
   startOfMonth,
   endOfMonth,
   getDaysInMonth,
+  differenceInMinutes,
 } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { Copy, Wallet, CheckCheck, Loader2 } from "lucide-react";
@@ -205,6 +207,8 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
       const LATE_DEDUCTION_AMOUNT = settings?.lateDeductionAmount ?? 10000;
       const DEDUCT_UNPAID_ABSENCE = settings?.deductUnpaidAbsence ?? false;
       const LATE_THRESHOLD_TIME = settings?.lateThresholdTime ?? "07:35";
+      const STANDARD_WORK_HOURS_PER_DAY = settings?.standardWorkHoursPerDay ?? 10.5;
+      const DEDUCT_EARLY_DEPARTURE = settings?.deductEarlyDeparture ?? true;
 
       // Create Payroll document
       const newPayrollRef = doc(collection(firestore, "payrolls"));
@@ -249,26 +253,86 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
         // Unpaid absence deduction
         let unpaidAbsenceCount = 0;
         let unpaidAbsenceDeduction = 0;
+        let paidSickLeaveCount = 0;
         if (DEDUCT_UNPAID_ABSENCE) {
             const employeeAbsences = periodAbsences.filter((a) => a.employeeId === employee.id);
-            unpaidAbsenceCount = employeeAbsences.length;
+            // Sesuai kebijakan baru: Karyawan yang izin sakit dengan surat keterangan dokter bebas potongan gaji
+            const deductibleAbsences = employeeAbsences.filter((a) => {
+                if (a.status === 'sakit' && a.hasDoctorLetter) {
+                    return false; // Bebas potongan
+                }
+                return true; // Sakit tanpa surat, izin, alpa dipotong
+            });
+            paidSickLeaveCount = employeeAbsences.filter((a) => a.status === 'sakit' && a.hasDoctorLetter).length;
+            unpaidAbsenceCount = deductibleAbsences.length;
             const dailyWage = (employee.salary || 0) / daysInMonth;
             unpaidAbsenceDeduction = Math.round(unpaidAbsenceCount * dailyWage);
         }
 
+        // Early departure deduction (Pulang Awal / Sakit di Tengah Hari)
+        let earlyDepartureCount = 0;
+        let earlyDepartureDeduction = 0;
+        const earlyDepartureDetails: PayslipEarlyDepartureDetail[] = [];
+
+        if (DEDUCT_EARLY_DEPARTURE) {
+            const dailyWage = (employee.salary || 0) / daysInMonth;
+            const hourlyRate = dailyWage / STANDARD_WORK_HOURS_PER_DAY;
+
+            employeeAttendance.forEach((record) => {
+              if (record.clockOut && record.earlyDepartureReason) {
+                // Dinas / Tugas Luar tidak dipotong jam kerja (dianggap penuh)
+                if (record.earlyDepartureReason === 'dinas') {
+                  return;
+                }
+                // Sakit di tempat kerja yang menyertakan surat keterangan dokter juga bebas potongan
+                if (record.earlyDepartureReason === 'sakit' && record.hasDoctorLetter) {
+                  return;
+                }
+
+                const inTime = parseISO(record.clockIn);
+                const outTime = parseISO(record.clockOut);
+                const minutesWorked = differenceInMinutes(outTime, inTime);
+                const hoursWorked = Math.max(0, Number((minutesWorked / 60).toFixed(2)));
+
+                if (hoursWorked < STANDARD_WORK_HOURS_PER_DAY) {
+                  const unworkedHours = STANDARD_WORK_HOURS_PER_DAY - hoursWorked;
+                  const deduction = Math.round(hourlyRate * unworkedHours);
+
+                  if (deduction > 0) {
+                    earlyDepartureCount++;
+                    earlyDepartureDeduction += deduction;
+                    earlyDepartureDetails.push({
+                      date: format(inTime, "yyyy-MM-dd"),
+                      clockIn: format(inTime, "HH:mm"),
+                      clockOut: format(outTime, "HH:mm"),
+                      hoursWorked,
+                      standardHours: STANDARD_WORK_HOURS_PER_DAY,
+                      reason: record.earlyDepartureReason,
+                      deduction,
+                    });
+                  }
+                }
+              }
+            });
+        }
+
         // Calculate available balance for loans
         const earnings = (employee.salary || 0) + bonusTotal;
-        const deductionsExcludingLoans = lateDeduction + sanctionDeduction + unpaidAbsenceDeduction;
+        const deductionsExcludingLoans = lateDeduction + sanctionDeduction + unpaidAbsenceDeduction + earlyDepartureDeduction;
         
         let availableForLoans = Math.max(0, earnings - deductionsExcludingLoans);
         let actualLoanDeduction = 0;
         const loanDetails: PayslipLoanDetail[] = [];
 
-        // Loan deductions
-        // - Kasbon (type missing or 'kasbon'): deduct as much as possible each payroll
-        // - Kredit: deduct fixed installmentAmount ONLY if full amount is available (Opsi B: skip if insufficient)
+        // Urutkan pinjaman: Kasbon biasa diprioritaskan terlebih dahulu, disusul Kredit (FIFO berdasarkan tanggal tertua)
         const employeeLoans = activeLoans.filter(l => l.employeeId === employee.id);
-        for (const loan of employeeLoans) {
+        const sortedLoans = [...employeeLoans].sort((a, b) => {
+            if (a.type !== 'kredit' && b.type === 'kredit') return -1;
+            if (a.type === 'kredit' && b.type !== 'kredit') return 1;
+            return a.date.localeCompare(b.date);
+        });
+
+        for (const loan of sortedLoans) {
             if (availableForLoans <= 0) break;
             const currentDebt = loan.remainingAmount ?? loan.amount;
             const isKredit = loan.type === 'kredit';
@@ -278,23 +342,31 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
                 if (loan.skipPeriod === payrollPeriod) {
                     continue; // Skip deduction — employee requested relief this month
                 }
-                // Kredit — Opsi B: only deduct if the full installment can be covered
-                const installment = Math.min(loan.installmentAmount ?? currentDebt, currentDebt);
-                if (availableForLoans < installment) {
-                    // Gaji tidak cukup → lewati cicilan bulan ini, tidak dipotong sama sekali
-                    continue;
+                const installmentTarget = Math.min(loan.installmentAmount ?? currentDebt, currentDebt);
+                // Potong semaksimal sisa gaji yang tersedia (walaupun kurang dari cicilan bulanan normal)
+                const toDeduct = Math.min(installmentTarget, availableForLoans);
+
+                if (toDeduct > 0) {
+                    const isPartial = toDeduct < installmentTarget;
+                    const paidSoFar = loan.paidInstallments ?? 0;
+                    const formattedToDeduct = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(toDeduct);
+                    const formattedTarget = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(installmentTarget);
+
+                    const description = isPartial
+                        ? `${loan.description} (Cicilan ${paidSoFar + 1}/${loan.totalInstallments ?? '?'} - Sebagian: ${formattedToDeduct} dari ${formattedTarget})`
+                        : `${loan.description} (Cicilan ${paidSoFar + 1}/${loan.totalInstallments ?? '?'})`;
+
+                    loanDetails.push({
+                        loanId: loan.id,
+                        amount: toDeduct,
+                        description,
+                        date: loan.date
+                    });
+                    actualLoanDeduction += toDeduct;
+                    availableForLoans -= toDeduct;
                 }
-                const paidSoFar = loan.paidInstallments ?? 0;
-                loanDetails.push({
-                    loanId: loan.id,
-                    amount: installment,
-                    description: `${loan.description} (Cicilan ${paidSoFar + 1}/${loan.totalInstallments ?? '?'})`,
-                    date: loan.date
-                });
-                actualLoanDeduction += installment;
-                availableForLoans -= installment;
             } else {
-                // Kasbon — potong semaksimal saldo yang ada
+                // Kasbon reguler — potong semaksimal saldo yang ada
                 const toDeduct = Math.min(currentDebt, availableForLoans);
                 if (toDeduct > 0) {
                     loanDetails.push({
@@ -322,6 +394,10 @@ export function CreatePayrollDialog({ isOpen, setIsOpen }: CreatePayrollDialogPr
           lateDeduction,
           unpaidAbsenceCount,
           unpaidAbsenceDeduction,
+          paidSickLeaveCount,
+          earlyDepartureCount,
+          earlyDepartureDeduction,
+          earlyDepartureDetails,
           sanctionCount,
           sanctionDeduction,
           sanctions: sanctionDetails,
@@ -436,7 +512,7 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
         setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
     }
 
-    const totalDeductions = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction + (payslip.loanDeduction || 0);
+    const totalDeductions = payslip.lateDeduction + payslip.sanctionDeduction + payslip.unpaidAbsenceDeduction + (payslip.earlyDepartureDeduction || 0) + (payslip.loanDeduction || 0);
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -485,6 +561,18 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
                           </span>
                       </div>
                     )}
+
+                    {(payslip.paidSickLeaveCount || 0) > 0 && (
+                      <div className="flex justify-between items-center text-xs text-emerald-600 dark:text-emerald-400">
+                          <div>
+                              <p className="font-medium">Izin Sakit (Surat Dokter)</p>
+                              <p className="text-[11px] text-muted-foreground">({payslip.paidSickLeaveCount} hari - Bebas Potongan)</p>
+                          </div>
+                          <span className="font-medium">
+                             Rp 0
+                          </span>
+                      </div>
+                    )}
                     
                     {payslip.lateDeduction > 0 && (
                       <div className="flex justify-between items-center">
@@ -495,6 +583,30 @@ export function PayslipDetailDialog({ isOpen, setIsOpen, payslip, payrollId }: P
                           <span className="font-medium text-destructive">
                              - {formatCurrency(payslip.lateDeduction)}
                           </span>
+                      </div>
+                    )}
+
+                    {(payslip.earlyDepartureDeduction || 0) > 0 && (
+                      <div>
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-muted-foreground">Potongan Pulang Awal / Sakit Tengah Hari</p>
+                            <p className="text-xs text-muted-foreground">({payslip.earlyDepartureCount || 0} hari)</p>
+                          </div>
+                          <span className="font-medium text-destructive">
+                            - {formatCurrency(payslip.earlyDepartureDeduction || 0)}
+                          </span>
+                        </div>
+                        <div className="pl-2 mt-1 text-xs text-muted-foreground space-y-1">
+                          {payslip.earlyDepartureDetails?.map((d, index) => (
+                            <div key={index} className="flex justify-between items-center">
+                              <span className="pr-2 capitalize">
+                                - {format(parseISO(d.date), "d MMM", { locale: localeId })} ({d.hoursWorked} jam dari {d.standardHours} jam • {d.reason})
+                              </span>
+                              <span>{formatCurrency(d.deduction)}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                     
@@ -865,18 +977,22 @@ export async function finalizePayroll(
                     description: `Potongan dari Gaji Periode ${periodLabel}`
                 }));
 
-                const currentPaidInstallments = loanData.paidInstallments ?? 0;
-                const newPaidInstallments = currentPaidInstallments + item.count;
+                // Hitung jumlah cicilan penuh yang telah terbayarkan
+                const totalPaidSoFar = Math.max(0, loanData.amount - newRemaining);
+                const fullInstallmentsCovered = loanData.installmentAmount && loanData.installmentAmount > 0
+                    ? Math.floor(totalPaidSoFar / loanData.installmentAmount)
+                    : 0;
+                const newPaidInstallments = newRemaining <= 0.01
+                    ? (loanData.totalInstallments ?? fullInstallmentsCovered)
+                    : Math.min(loanData.totalInstallments ?? Infinity, fullInstallmentsCovered);
 
-                // For kredit: increment paidInstallments; mark paid when all installments done
+                // For kredit: perbarui counter cicilan yang telah tertutup
                 const kreditUpdates = isKredit ? {
                     paidInstallments: newPaidInstallments,
                 } : {};
 
-                // Determine if loan is fully paid
-                const isFullyPaid = isKredit
-                    ? (newPaidInstallments >= (loanData.totalInstallments ?? Infinity))
-                    : newRemaining <= 0;
+                // Pinjaman kredit/kasbon HANYA dianggap lunas jika sisa hutang benar-benar habis (<= 0.01)
+                const isFullyPaid = newRemaining <= 0.01;
 
                 const existingPayments = loanData.payments ?? [];
 
@@ -952,9 +1068,11 @@ export async function unfinalizePayroll(
                 const roundedRestored = Math.round(rawRestored * 100) / 100;
                 const restoredRemaining = Math.min(loanData.amount, roundedRestored);
 
-                // Kembalikan counter cicilan kredit jika ada
-                const currentPaidInstallments = loanData.paidInstallments ?? 0;
-                const restoredPaidInstallments = Math.max(0, currentPaidInstallments - count);
+                // Kembalikan counter cicilan kredit sesuai sisa hutang yang dipulihkan
+                const restoredPaidSoFar = Math.max(0, loanData.amount - restoredRemaining);
+                const restoredPaidInstallments = loanData.installmentAmount && loanData.installmentAmount > 0
+                    ? Math.min(loanData.totalInstallments ?? Infinity, Math.floor(restoredPaidSoFar / loanData.installmentAmount))
+                    : 0;
 
                 // Bersihkan riwayat pembayaran: buang entri 'payroll' terkait periode ini
                 const existingPayments = loanData.payments ?? [];

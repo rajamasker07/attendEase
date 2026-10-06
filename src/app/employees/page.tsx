@@ -67,7 +67,9 @@ export default function EmployeesPage() {
   const inactiveEmployeesCount = useMemo(() => employees?.filter(e => e.status === 'tidak aktif').length || 0, [employees]);
   const totalSalaryBudget = useMemo(() => {
     if (!employees) return 0;
-    return employees.reduce((acc, curr) => acc + (typeof curr.salary === 'number' ? curr.salary : 0), 0);
+    return employees
+      .filter((e) => e.status === 'aktif')
+      .reduce((acc, curr) => acc + (typeof curr.salary === 'number' ? curr.salary : 0), 0);
   }, [employees]);
 
   const getInitials = (name?: string) => {
@@ -317,7 +319,7 @@ export default function EmployeesPage() {
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Anggaran Gaji Pokok</span>
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-secondary/15 text-secondary border border-secondary/30">
-              Beban Bulanan
+              Karyawan Aktif
             </span>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
@@ -327,7 +329,7 @@ export default function EmployeesPage() {
           </div>
           <p className="mt-3 text-xs text-muted-foreground flex items-center gap-1.5">
             <Wallet className="h-3.5 w-3.5 text-secondary shrink-0" />
-            <span>Total estimasi beban gaji bulanan</span>
+            <span>Beban gaji ({activeEmployeesCount} karyawan aktif)</span>
           </p>
         </div>
       </div>
