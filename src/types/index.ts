@@ -21,6 +21,7 @@ export interface AttendanceRecord {
   clockIn: string; // ISO String
   clockOut?: string; // ISO String
   notes?: string;
+  earlyDepartureReason?: 'sakit' | 'izin' | 'dinas' | 'lainnya';
 }
 
 export interface AbsenceRecord {
@@ -97,6 +98,16 @@ export interface PayslipLoanDetail {
   date: string;
 }
 
+export interface PayslipEarlyDepartureDetail {
+  date: string; // YYYY-MM-DD
+  clockIn: string; // HH:mm
+  clockOut: string; // HH:mm
+  hoursWorked: number; // Duration worked in hours
+  standardHours: number; // Default 10.5
+  reason: 'sakit' | 'izin' | 'dinas' | 'lainnya';
+  deduction: number;
+}
+
 export interface Payslip {
   employeeId: string;
   employeeName: string;
@@ -107,6 +118,9 @@ export interface Payslip {
   lateDeduction: number;
   unpaidAbsenceCount: number;
   unpaidAbsenceDeduction: number;
+  earlyDepartureCount?: number;
+  earlyDepartureDeduction?: number;
+  earlyDepartureDetails?: PayslipEarlyDepartureDetail[];
   sanctionCount: number;
   sanctionDeduction: number;
   sanctions: PayslipSanctionDetail[];
@@ -123,6 +137,8 @@ export interface Setting {
   lateThresholdTime?: string; // e.g., "07:35"
   alpaDeductionAmount?: number;
   deductUnpaidAbsence?: boolean;
+  standardWorkHoursPerDay?: number; // e.g. 10.5
+  deductEarlyDeparture?: boolean;
 }
 
 export interface Holiday {

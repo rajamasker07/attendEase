@@ -78,7 +78,7 @@ function PayrollReportPageContent({
             </TableHeader>
             <TableBody>
               {payslips.map(p => {
-                const totalDeduction = p.unpaidAbsenceDeduction + p.lateDeduction + p.sanctionDeduction + (p.loanDeduction || 0);
+                const totalDeduction = p.unpaidAbsenceDeduction + p.lateDeduction + p.sanctionDeduction + (p.earlyDepartureDeduction || 0) + (p.loanDeduction || 0);
                 return (
                   <TableRow key={p.id} className="border-border/40 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 print:border-slate-200">
                     <TableCell className="font-medium text-foreground print:text-black">{p.employeeName}</TableCell>
@@ -138,7 +138,7 @@ export default function PayrollReportPage() {
     return payslips.reduce((acc, p) => ({
         base: acc.base + p.baseSalary,
         bonus: acc.bonus + p.bonusTotal,
-        deduction: acc.deduction + p.lateDeduction + p.sanctionDeduction + p.unpaidAbsenceDeduction + (p.loanDeduction || 0),
+        deduction: acc.deduction + p.lateDeduction + p.sanctionDeduction + p.unpaidAbsenceDeduction + (p.earlyDepartureDeduction || 0) + (p.loanDeduction || 0),
         net: acc.net + p.netSalary,
         paid: acc.paid + p.paidAmount,
         remaining: acc.remaining + p.remainingAmount,

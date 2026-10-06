@@ -42,6 +42,7 @@ import {
   Check, 
   ChevronsUpDown,
   AlertTriangle,
+  AlertCircle,
   CheckCircle2,
   Clock3,
   Sparkles,
@@ -152,6 +153,11 @@ function MarkAbsenceDialog({
               Catat status ketidakhadiran untuk seorang karyawan pada tanggal tertentu.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-3 text-xs text-sky-900 dark:text-sky-200">
+            💡 <strong>Catatan:</strong> Form ini untuk karyawan yang <strong>tidak hadir seharian penuh</strong>. Jika karyawan sempat masuk lalu sakit atau izin pulang lebih awal di tengah hari, gunakan tombol <strong>Pulang Awal / Sakit Tengah Hari</strong> di dashboard.
+          </div>
+
           <div className="grid gap-4 py-4">
              <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="employeeId" className="text-right">Karyawan</Label>
@@ -242,6 +248,10 @@ export default function DashboardPage() {
   
   const [isEmployeeFormOpen, setIsEmployeeFormOpen] = useState(false);
   const [isAbsenceFormOpen, setIsAbsenceFormOpen] = useState(false);
+  const [isEarlyDepartureDialogOpen, setIsEarlyDepartureDialogOpen] = useState(false);
+  const [earlyDepartureReason, setEarlyDepartureReason] = useState<'sakit' | 'izin' | 'dinas' | 'lainnya'>('sakit');
+  const [earlyDepartureTime, setEarlyDepartureTime] = useState<string>("11:30");
+  const [earlyDepartureNotes, setEarlyDepartureNotes] = useState<string>("");
   const [isEmployeePickerOpen, setIsEmployeePickerOpen] = useState(false);
 
   // States for Edit & Delete Attendance / Absence
@@ -619,6 +629,59 @@ export default function DashboardPage() {
     });
   };
 
+  const handleEarlyDeparture = () => {
+    if (!firestore || !selectedEmployeeId || !currentEmployeeRecord) {
+      toast({
+        title: "Error",
+        description: "Karyawan ini belum absen masuk.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const [hours, minutes] = earlyDepartureTime.split(':').map(Number);
+    const clockInDate = parseISO(currentEmployeeRecord.clockIn);
+    const clockOutTime = new Date(clockInDate);
+    clockOutTime.setHours(hours, minutes, 0, 0);
+
+    if (clockOutTime <= clockInDate) {
+      toast({
+        title: "Error",
+        description: "Waktu kepulangan awal harus lebih akhir dari waktu absen masuk.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const docRef = doc(firestore, "attendance", currentEmployeeRecord.id);
+    const finalNotes = earlyDepartureNotes.trim() || notes.trim() || undefined;
+
+    setDocumentNonBlocking(
+      docRef,
+      {
+        clockOut: clockOutTime.toISOString(),
+        earlyDepartureReason: earlyDepartureReason,
+        notes: finalNotes || "",
+      },
+      { merge: true }
+    );
+
+    const reasonLabels: Record<string, string> = {
+      sakit: "Sakit di Tempat Kerja",
+      izin: "Izin Pulang Lebih Awal",
+      dinas: "Tugas Luar / Dinas",
+      lainnya: "Pulang Lebih Awal",
+    };
+
+    toast({
+      title: "Kepulangan Awal Dicatat",
+      description: `${selectedEmployee?.name} dicatat pulang awal pukul ${format(clockOutTime, "p")} (${reasonLabels[earlyDepartureReason] || earlyDepartureReason}).`,
+    });
+
+    setIsEarlyDepartureDialogOpen(false);
+    setEarlyDepartureNotes("");
+  };
+
   const handleSaveEmployee = (employeeData: EmployeeFormData) => {
     if (!firestore) return;
 
@@ -721,6 +784,36 @@ export default function DashboardPage() {
     lateTime.setHours(hours, minutes, 0, 0); 
 
     if (record.clockOut) {
+        if (record.earlyDepartureReason) {
+          switch (record.earlyDepartureReason) {
+            case 'sakit':
+              return (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                  <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
+                  Sakit (Pulang Awal)
+                </span>
+              );
+            case 'izin':
+              return (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                  <AlertCircle className="w-3 h-3 text-amber-500 shrink-0" />
+                  Izin Pulang Awal
+                </span>
+              );
+            case 'dinas':
+              return (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                  Tugas Luar
+                </span>
+              );
+            default:
+              return (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                  Pulang Awal
+                </span>
+              );
+          }
+        }
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800/80 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
             Sudah Pulang
@@ -827,8 +920,14 @@ export default function DashboardPage() {
       };
       if (data.clockOut) {
         updatePayload.clockOut = data.clockOut;
+        if (data.earlyDepartureReason) {
+          updatePayload.earlyDepartureReason = data.earlyDepartureReason;
+        } else {
+          updatePayload.earlyDepartureReason = deleteField();
+        }
       } else {
         updatePayload.clockOut = deleteField();
+        updatePayload.earlyDepartureReason = deleteField();
       }
       updateDocumentNonBlocking(docRef, updatePayload);
       toast({
@@ -1472,6 +1571,26 @@ export default function DashboardPage() {
                     <LogOut className="mr-2 h-4 w-4" /> Absen Pulang
                   </Button>
                 </div>
+
+                {/* Tombol Pulang Awal / Sakit Tengah Hari */}
+                {currentEmployeeRecord && !hasCompletedAttendanceOnSelectedDate && (
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setEarlyDepartureTime(format(new Date(), "HH:mm"));
+                      setEarlyDepartureNotes(notes || "");
+                      setEarlyDepartureReason("sakit");
+                      setIsEarlyDepartureDialogOpen(true);
+                    }}
+                    disabled={!selectedEmployeeId || isSelectedDateHoliday}
+                    variant="outline"
+                    className="w-full h-11 rounded-xl border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 font-semibold transition-all shadow-sm"
+                  >
+                    <AlertCircle className="mr-2 h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    Pulang Awal / Sakit Tengah Hari
+                  </Button>
+                )}
+
                 <Button 
                   onClick={() => setIsAbsenceFormOpen(true)}
                   disabled={isLoadingEmployees || !selectedEmployeeId || hasCompletedAttendanceOnSelectedDate || hasAbsenceOnSelectedDate || isSelectedDateHoliday}
@@ -1821,6 +1940,115 @@ export default function DashboardPage() {
         employees={activeEmployees || null}
         onSave={handleSaveAbsence}
       />
+
+      {/* Dialog Pulang Awal / Sakit Tengah Hari */}
+      <Dialog open={isEarlyDepartureDialogOpen} onOpenChange={setIsEarlyDepartureDialogOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <AlertCircle className="h-5 w-5" />
+              Pulang Awal / Sakit di Tengah Hari
+            </DialogTitle>
+            <DialogDescription>
+              Catat waktu kepulangan lebih awal untuk karyawan yang sedang bertugas hari ini.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="rounded-xl border border-border/80 bg-surface-container-low/50 p-3 space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Karyawan:</span>
+                <span className="font-semibold text-foreground">{selectedEmployee?.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Waktu Masuk:</span>
+                <span className="font-mono font-medium text-foreground">
+                  {currentEmployeeRecord ? format(parseISO(currentEmployeeRecord.clockIn), "HH:mm") : "-"} WIB
+                </span>
+              </div>
+            </div>
+
+            {/* Pilihan Alasan */}
+            <div className="space-y-1.5">
+              <Label htmlFor="early-reason" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Alasan Kepulangan
+              </Label>
+              <Select
+                value={earlyDepartureReason}
+                onValueChange={(val) => setEarlyDepartureReason(val as 'sakit' | 'izin' | 'dinas' | 'lainnya')}
+              >
+                <SelectTrigger id="early-reason" className="h-11 rounded-xl border-border/80">
+                  <SelectValue placeholder="Pilih alasan..." />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-border/80 shadow-xl">
+                  <SelectItem value="sakit">🤒 Sakit di Tempat Kerja</SelectItem>
+                  <SelectItem value="izin">📝 Izin Pulang Lebih Awal (Urusan Mendesak)</SelectItem>
+                  <SelectItem value="dinas">🚗 Tugas Luar / Dinas Kantor</SelectItem>
+                  <SelectItem value="lainnya">📌 Lainnya</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Jam Kepulangan */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="early-time" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Jam Keluar / Pulang
+                </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-[11px] text-primary"
+                  onClick={() => setEarlyDepartureTime(format(new Date(), "HH:mm"))}
+                >
+                  Gunakan Jam Sekarang ({format(new Date(), "HH:mm")})
+                </Button>
+              </div>
+              <Input
+                id="early-time"
+                type="time"
+                value={earlyDepartureTime}
+                onChange={(e) => setEarlyDepartureTime(e.target.value)}
+                className="h-11 rounded-xl border-border/80 font-mono text-base"
+              />
+            </div>
+
+            {/* Catatan / Keterangan */}
+            <div className="space-y-1.5">
+              <Label htmlFor="early-notes" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Keterangan Tambahan (Opsional)
+              </Label>
+              <Textarea
+                id="early-notes"
+                placeholder="Contoh: Mengalami demam tinggi, izin periksa ke dokter..."
+                value={earlyDepartureNotes}
+                onChange={(e) => setEarlyDepartureNotes(e.target.value)}
+                rows={2}
+                className="rounded-xl border-border/80 resize-none text-sm"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsEarlyDepartureDialogOpen(false)}
+              className="rounded-xl border-border/80"
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              onClick={handleEarlyDeparture}
+              className="rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-600/90 hover:to-amber-700/90 text-white font-semibold shadow-md shadow-amber-600/25"
+            >
+              Simpan Kepulangan Awal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <EditAttendanceDialog
         isOpen={isEditAttendanceOpen}
         setIsOpen={setIsEditAttendanceOpen}

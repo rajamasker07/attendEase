@@ -396,7 +396,14 @@ export default function ReportsPage() {
                                                 {format(parseISO(record.clockIn), "p")}
                                             </TableCell>
                                             <TableCell>
-                                                {record.clockOut ? format(parseISO(record.clockOut), "p") : "-"}
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                  <span>{record.clockOut ? format(parseISO(record.clockOut), "p") : "-"}</span>
+                                                  {record.earlyDepartureReason && (
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500/50 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40">
+                                                      {record.earlyDepartureReason === 'sakit' ? 'Sakit (Pulang Awal)' : record.earlyDepartureReason === 'izin' ? 'Izin Pulang Awal' : record.earlyDepartureReason === 'dinas' ? 'Tugas Luar' : 'Pulang Awal'}
+                                                    </Badge>
+                                                  )}
+                                                </div>
                                             </TableCell>
                                             <TableCell>{record.notes || "-"}</TableCell>
                                             <TableCell className="text-right">
